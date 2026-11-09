@@ -29,6 +29,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -59,6 +60,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.lyricsflow.player.R
 import com.lyricsflow.player.code.MediaController
+import com.lyricsflow.player.code.utils.lrc.LyricsFlowApi
 import com.lyricsflow.player.data.libraries.ArtistLibrary
 import com.lyricsflow.player.data.libraries.ArtistRelease
 import com.lyricsflow.player.data.libraries.MusicLibrary
@@ -261,7 +263,7 @@ fun ArtistInfo(
             overflowSheetOpen.value = true
         },
         artwork = {
-            ArtistHeroArtwork(songs = artistSongs)
+            ArtistHeroArtwork(artistName = artistName.value, songs = artistSongs)
         },
         headerContent = {
             Text(
@@ -279,14 +281,14 @@ fun ArtistInfo(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally),
             ) {
                 MusicDetailCircleButton(
                     painter = painterResource(id = R.drawable.button_icon_shuffle),
                     contentDescription = stringResource(id = R.string.normal_button_shuffle),
                     enabled = artistSongs.isNotEmpty(),
-                    showBackground = false,
-                    iconSize = 36.dp,
+                    showBackground = true,
+                    iconSize = 22.dp,
                     onClick = {
                         if (artistSongs.isEmpty()) { return@MusicDetailCircleButton }
 
@@ -304,8 +306,9 @@ fun ArtistInfo(
                     painter = painterResource(id = R.drawable.button_icon_play),
                     contentDescription = stringResource(id = R.string.normal_button_play),
                     enabled = artistSongs.isNotEmpty(),
-                    showBackground = false,
-                    iconSize = 36.dp,
+                    accent = true,
+                    showBackground = true,
+                    iconSize = 28.dp,
                     onClick = {
                         if (artistSongs.isEmpty()) { return@MusicDetailCircleButton }
 
@@ -318,8 +321,8 @@ fun ArtistInfo(
                 MusicDetailCircleButton(
                     painter = painterResource(id = R.drawable.ic_action_search),
                     contentDescription = stringResource(id = R.string.music_detail_search_cd, artistName.value),
-                    showBackground = false,
-                    iconSize = 36.dp,
+                    showBackground = true,
+                    iconSize = 20.dp,
                     onClick = openArtistSongsSearch,
                 )
             }
@@ -413,10 +416,17 @@ fun ArtistInfo(
 }
 
 @Composable
-private fun ArtistHeroArtwork(songs: List<YosMediaItem>)
+private fun ArtistHeroArtwork(artistName: String, songs: List<YosMediaItem>)
 {
     val context = LocalContext.current
-    val heroArtwork = songs.firstOrNull()?.thumb
+    val realArtistAvatar = remember(artistName) { mutableStateOf("") }
+    LaunchedEffect(artistName) {
+        val url = LyricsFlowApi.fetchArtistAvatarUrl(artistName)
+        if (url.isNotBlank()) {
+            realArtistAvatar.value = url
+        }
+    }
+    val heroArtwork: Any? = realArtistAvatar.value.ifBlank { null } ?: songs.firstOrNull()?.thumb
 
     if (heroArtwork == null) {
         Image(

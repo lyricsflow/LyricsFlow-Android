@@ -604,9 +604,16 @@ fun YosLyricView(
                             }
                         }
 
-                        val otherSide = remember(index) {
+                        val otherSide = remember(index, otherSideForLines) {
                             otherSideForLines.getOrElse(index) { false }
                         }
+                        val hasDuet = remember(otherSideForLines) {
+                            otherSideForLines.any { it }
+                        }
+                        val lineIsRtl = remember(lines) {
+                            AmlAnimationCurves.isRtlText(lines.joinToString("") { it.second })
+                        }
+                        val lineAnchorRight = if (lineIsRtl) !otherSide else otherSide
 
                         Column(
                             modifier = Modifier
@@ -632,11 +639,12 @@ fun YosLyricView(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(horizontal = 28.dp, vertical = 10.dp),
-                                        contentAlignment = if (otherSide) Alignment.CenterEnd else Alignment.CenterStart
+                                        contentAlignment = if (lineAnchorRight) Alignment.CenterEnd else Alignment.CenterStart
                                     ) {
                                         AmlInterludeDotsView(
                                             state = interludeState,
-                                            color = mainTextBasicColor
+                                            color = mainTextBasicColor,
+                                            anchorRight = lineAnchorRight
                                         )
                                     }
                                 }
@@ -658,6 +666,7 @@ fun YosLyricView(
                                     mainTextBasicColor = mainTextBasicColor,
                                     subTextBasicColor = subTextBasicColor,
                                     otherSide = otherSide,
+                                    hasDuet = hasDuet,
                                     liveTimeLambda = { ttmlLiveTime.intValue },
                                     measurer = measurer,
                                     isLyricEmpty = { isLyricEmpty.value },
@@ -771,30 +780,20 @@ private fun LazyItemScope.Line(
                     compositingStrategy = CompositingStrategy.ModulateAlpha
                 }
         ) {
-            SubcomposeLayout(modifier = modifier) { constraints ->
+            SubcomposeLayout(modifier = modifier.fillMaxWidth()) { constraints ->
+                val targetWidth = constraints.maxWidth.coerceAtLeast(1)
                 val measureResult = measurer.measure(
                     text = styledString,
                     style = style,
                     constraints = Constraints(
-                        minWidth = 0,
-                        maxWidth = constraints.maxWidth
+                        minWidth = targetWidth,
+                        maxWidth = targetWidth
                     ),
                     layoutDirection = if (isRtlLine) LayoutDirection.Rtl else LayoutDirection.Ltr
                 )
 
-                val height = (style.lineHeight * measureResult.lineCount)
-
-                val width = runCatching {
-                    if (isRtlLine) {
-                        constraints.maxWidth.toFloat()
-                    } else {
-                        (0 until measureResult.lineCount).maxOf {
-                            measureResult.getBoundingBox(
-                                (measureResult.getLineEnd(it, visibleEnd = true) - 1).coerceAtLeast(0)
-                            ).right
-                        }
-                    }
-                }.getOrDefault(constraints.maxWidth.toFloat()).coerceAtLeast(1f)
+                val minLineHeightPx = (style.lineHeight * measureResult.lineCount.coerceAtLeast(1)).roundToPx()
+                val targetHeight = max(measureResult.size.height, minLineHeightPx).coerceAtLeast(1)
 
                 val content = subcompose(lines) {
                     Spacer(
@@ -805,7 +804,7 @@ private fun LazyItemScope.Line(
                 }.first()
 
                 val placeable = content.measure(
-                    Constraints.fixed(width.roundToInt(), height.roundToPx())
+                    Constraints.fixed(targetWidth, targetHeight)
                 )
 
                 layout(placeable.width, placeable.height) {
@@ -824,12 +823,64 @@ val easing: Easing = EaseInOutQuad
 @Stable
 private data class WordRunUnit(
     val text: String,
+    val trimmedText: String,
     val startCharIndex: Int,
     val endCharIndexExclusive: Int,
     val startTimeMs: Float,
     val endTimeMs: Float,
+    val syllables: List<AmlSyllable>,
     val isRtl: Boolean,
     val isEmphasized: Boolean
+) {
+    fun computeProgress(nowMs: Float): Float {
+        if (nowMs <= startTimeMs) return 0f
+        if (nowMs >= endTimeMs) return 1f
+        if (syllables.size <= 1) {
+            return ((nowMs - startTimeMs) / (endTimeMs - startTimeMs).coerceAtLeast(1f)).coerceIn(0f, 1f)
+        }
+        val totalChars = syllables.sumOf { it.text.trim().length.coerceAtLeast(1) }.coerceAtLeast(1)
+        var completedChars = 0
+        for (syl in syllables) {
+            val sylChars = syl.text.trim().length.coerceAtLeast(1)
+            val startFrac = completedChars.toFloat() / totalChars.toFloat()
+            val endFrac = (completedChars + sylChars).toFloat() / totalChars.toFloat()
+            if (nowMs <= syl.startTimeMs) {
+                return startFrac.coerceIn(0f, 1f)
+            }
+            if (nowMs < syl.endTimeMs) {
+                val sylDur = (syl.endTimeMs - syl.startTimeMs).coerceAtLeast(1f)
+                val sylPct = ((nowMs - syl.startTimeMs) / sylDur).coerceIn(0f, 1f)
+                return (startFrac + sylPct * (endFrac - startFrac)).coerceIn(0f, 1f)
+            }
+            completedChars += sylChars
+        }
+        return 1f
+    }
+}
+
+@Stable
+private data class WordVisualSegment(
+    val unit: WordRunUnit,
+    val lineIndex: Int,
+    val wordLeft: Float,
+    val wordRight: Float,
+    var clipLeft: Float,
+    var clipRight: Float,
+    val clipTop: Float,
+    val clipBottom: Float
+)
+
+@Stable
+private data class EmphasizedCharSegment(
+    val nonSpaceIdx: Int,
+    val trimmedLen: Int,
+    val charLeft: Float,
+    val charRight: Float,
+    var clipLeft: Float,
+    var clipRight: Float,
+    val clipTop: Float,
+    val clipBottom: Float,
+    val boxCenter: Offset
 )
 
 @Composable
@@ -852,6 +903,7 @@ fun LazyItemScope.LyricItem(
     isLyricEmpty: () -> Boolean,
     nextTime: () -> Float,
     otherSide: Boolean,
+    hasDuet: Boolean = false,
     liveTimeLambda: () -> Int,
     onClick: () -> Unit
 ) {
@@ -862,15 +914,18 @@ fun LazyItemScope.LyricItem(
         AmlAnimationCurves.isRtlText(fullLineString)
     }
 
-    // In RTL lines, natural reading alignment is End (Right) unless opposite-aligned duet
-    val viewAlign = when {
-        otherSide -> Alignment.End
-        isRtlLine -> Alignment.End
-        else -> Alignment.Start
-    }
+    // Authentic Apple Music / LyricsFlow Duet & Non-Duet Anchor Side (`main/css/lyrics.css` lines 573-617):
+    // - LTR Primary Singer (`!isRtlLine && !otherSide`): Left-anchored (`anchorRight = false`)
+    // - LTR Duet Singer 2 (`!isRtlLine && otherSide`): Right-anchored (`anchorRight = true`)
+    // - RTL Primary Singer (`isRtlLine && !otherSide`): Right-anchored (`anchorRight = true`)
+    // - RTL Duet Singer 2 (`isRtlLine && otherSide`): Left-anchored (`anchorRight = false`)
+    val anchorRight = if (isRtlLine) !otherSide else otherSide
+    val viewAlign = if (anchorRight) Alignment.End else Alignment.Start
+    val textAlign = if (anchorRight) TextAlign.Right else TextAlign.Left
 
     val focusedColor = Color(0xFFFFFFFF)
     val unfocusedColor = Color(0x36FFFFFF)
+    val focusedSolidBrush = SolidColor(focusedColor)
     val unfocusedSolidBrush = SolidColor(unfocusedColor)
 
     val isNotOneByOne = rememberSaveable(mainLyric, syllables) {
@@ -899,61 +954,91 @@ fun LazyItemScope.LyricItem(
         }
     }
 
-    // Build whole-word units (`WordRunUnit`) by grouping consecutive syllables where `isPartOfWord == true`.
-    // This guarantees that entire words move up together (`-3px` `wordRiseOffsetPx`) and RTL words are never split!
+    // Build whole-word units (`WordRunUnit`) by grouping consecutive non-empty pieces where `isPartOfWord == true`.
+    // Filtering out the leading sentinel `""` (`mainLyric[0]`) ensures a 1:1 index alignment with `syllables`!
     val wordRunUnits = remember(mainLyric, syllables, lineStartTimeMs, lineEndTimeMs, isRtlLine) {
         val units = ArrayList<WordRunUnit>()
+        val nonEmptyPieces = ArrayList<Pair<Int, Pair<Float, String>>>(mainLyric.size)
+        for (idx in mainLyric.indices) {
+            val piece = mainLyric[idx]
+            if (piece.second.isNotEmpty()) {
+                nonEmptyPieces.add(idx to piece)
+            }
+        }
+
         var charCursor = 0
-        var i = 0
-        while (i < mainLyric.size) {
-            val startIdx = i
+        var k = 0
+        while (k < nonEmptyPieces.size) {
             val startChar = charCursor
             val sb = StringBuilder()
-            val firstSyl = syllables.getOrNull(i)
-            val wordStartMs = firstSyl?.startTimeMs
-                ?: if (i == 0) {
-                    mainLyric.first().first
-                } else {
-                    mainLyric[i - 1].first
-                }
-            var wordEndMs = firstSyl?.endTimeMs ?: mainLyric[i].first
+            val wordSyllables = ArrayList<AmlSyllable>(4)
 
-            while (i < mainLyric.size) {
-                val pieceText = mainLyric[i].second
+            val (firstOrigIdx, firstPiece) = nonEmptyPieces[k]
+            val firstSyl = syllables.getOrNull(k)
+            val wordStartMs = firstSyl?.startTimeMs
+                ?: if (firstOrigIdx <= 0) {
+                    mainLyric.firstOrNull()?.first ?: lineStartTimeMs
+                } else {
+                    mainLyric[firstOrigIdx - 1].first
+                }
+            var wordEndMs = firstSyl?.endTimeMs ?: firstPiece.first
+
+            while (k < nonEmptyPieces.size) {
+                val (origIdx, piece) = nonEmptyPieces[k]
+                val pieceText = piece.second
                 sb.append(pieceText)
                 charCursor += pieceText.length
-                val syl = syllables.getOrNull(i)
-                wordEndMs = syl?.endTimeMs
-                    ?: if (mainLyric[i].first > wordStartMs) {
-                        mainLyric[i].first
+
+                val syl = syllables.getOrNull(k)
+                val pieceStartMs = syl?.startTimeMs
+                    ?: if (origIdx <= 0) {
+                        wordStartMs
                     } else {
-                        mainLyric.getOrNull(i + 1)?.first
-                            ?: lineEndTimeMs.coerceAtLeast(wordStartMs + 350f)
+                        mainLyric[origIdx - 1].first.coerceAtLeast(wordStartMs)
                     }
+                val pieceEndMs = syl?.endTimeMs
+                    ?: if (piece.first > pieceStartMs) {
+                        piece.first
+                    } else {
+                        mainLyric.getOrNull(origIdx + 1)?.first
+                            ?: lineEndTimeMs.coerceAtLeast(pieceStartMs + 250f)
+                    }
+
+                wordEndMs = max(wordEndMs, pieceEndMs)
+                wordSyllables.add(
+                    syl ?: AmlSyllable(
+                        text = pieceText,
+                        startTimeMs = pieceStartMs,
+                        endTimeMs = pieceEndMs.coerceAtLeast(pieceStartMs + 1f),
+                        isPartOfWord = false
+                    )
+                )
+
                 val continuesWord = syl?.isPartOfWord == true && !pieceText.endsWith(" ")
-                i++
+                k++
                 if (!continuesWord) break
             }
 
             val wordStr = sb.toString()
-            if (wordStr.isNotEmpty()) {
-                val wordIsRtl = isRtlLine || AmlAnimationCurves.isRtlText(wordStr)
+            val trimmedStr = wordStr.trim()
+            if (trimmedStr.isNotEmpty()) {
+                val wordIsRtl = isRtlLine || AmlAnimationCurves.isRtlText(trimmedStr)
                 val wordDur = (wordEndMs - wordStartMs).coerceAtLeast(1f)
                 // Disable emphasis & long-timed word character animations completely for RTL!
-                val wordEmphasized = !wordIsRtl && AmlAnimationCurves.shouldEmphasizeWord(wordStr, wordDur)
+                val wordEmphasized = !wordIsRtl && AmlAnimationCurves.shouldEmphasizeWord(trimmedStr, wordDur)
                 units.add(
                     WordRunUnit(
                         text = wordStr,
+                        trimmedText = trimmedStr,
                         startCharIndex = startChar,
                         endCharIndexExclusive = charCursor,
                         startTimeMs = wordStartMs,
                         endTimeMs = wordEndMs.coerceAtLeast(wordStartMs + 1f),
+                        syllables = wordSyllables,
                         isRtl = wordIsRtl,
                         isEmphasized = wordEmphasized
                     )
                 )
-            } else if (i == startIdx) {
-                i++
             }
         }
         units
@@ -961,16 +1046,18 @@ fun LazyItemScope.LyricItem(
 
     YosWrapper {
         Column(
-            Modifier.padding(horizontal = 9.dp),
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp),
             horizontalAlignment = viewAlign
         ) {
-            val otherSideAnimate = if (viewAlign == Alignment.End) {
+            val otherSideAnimate = if (anchorRight) {
                 TransformOrigin(1f, 0.25f)
             } else {
                 TransformOrigin(0f, 0.25f)
             }
 
-            val otherSideTransformOrigin = if (viewAlign == Alignment.End) {
+            val otherSideTransformOrigin = if (anchorRight) {
                 TransformOrigin(1f, 0.5f)
             } else {
                 TransformOrigin(0f, 0.5f)
@@ -995,10 +1082,21 @@ fun LazyItemScope.LyricItem(
                 label = "LyricLineScale"
             )
 
-            val cardPadding = if (otherSide) {
-                Modifier.padding(start = 26.dp)
+            // Match `main/css/lyrics.css`:
+            // - Duet song: 15% (~36.dp) opposite-side margin so Singer 1 and Singer 2 are clearly separated
+            // - Solo song: 16.dp opposite-side margin anchored cleanly to the natural reading side
+            val cardPadding = if (hasDuet) {
+                if (anchorRight) {
+                    Modifier.padding(start = 36.dp, end = 4.dp)
+                } else {
+                    Modifier.padding(start = 4.dp, end = 36.dp)
+                }
             } else {
-                Modifier.padding(end = 26.dp)
+                if (anchorRight) {
+                    Modifier.padding(start = 16.dp, end = 4.dp)
+                } else {
+                    Modifier.padding(start = 4.dp, end = 16.dp)
+                }
             }
 
             if (isLyricEmpty()) {
@@ -1046,13 +1144,15 @@ fun LazyItemScope.LyricItem(
                             ) {
                                 Column(
                                     Modifier
-                                        .padding(start = 20.dp, end = 20.dp)
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp)
                                         .padding(top = 8.dp, bottom = 10.dp),
                                     horizontalAlignment = viewAlign
                                 ) {
                                     AmlInterludeDotsView(
                                         state = interludeState,
-                                        color = mainTextBasicColor
+                                        color = mainTextBasicColor,
+                                        anchorRight = anchorRight
                                     )
                                 }
                             }
@@ -1094,12 +1194,6 @@ fun LazyItemScope.LyricItem(
                                     .fillMaxWidth(),
                                 horizontalAlignment = viewAlign
                             ) {
-                                val textAlign = when {
-                                    otherSide -> TextAlign.End
-                                    isRtlLine -> TextAlign.Right
-                                    else -> TextAlign.Start
-                                }
-
                                 val alphaTweenSpecWithDelay: AnimationSpec<Float> =
                                     remember(mainLyric) {
                                         TweenSpec(
@@ -1127,7 +1221,7 @@ fun LazyItemScope.LyricItem(
                                         bgLine = bgLine,
                                         parentLineActive = isCurrentLambda(),
                                         liveTimeMs = liveTime.intValue.toFloat(),
-                                        otherSide = otherSide || isRtlLine,
+                                        anchorRight = anchorRight,
                                         showTranslation = showTranslation,
                                         subTextBasicColor = subTextBasicColor,
                                         onClick = onClick
@@ -1151,28 +1245,13 @@ fun LazyItemScope.LyricItem(
                                         }
                                     }
 
-                                    val otherSidePadding = remember(mainLyric) {
-                                        derivedStateOf {
-                                            if (otherSide) {
-                                                Modifier.padding(
-                                                    start = 20.dp,
-                                                    end = if (mainLyric.lastOrNull()?.second?.endsWith("：") == true) 3.dp else 20.dp
-                                                )
-                                            } else {
-                                                Modifier.padding(start = 20.dp, end = 20.dp)
-                                            }
-                                        }
-                                    }
-
-                                    val showHighLight = remember(mainLyric, translation) {
+                                    val showHighLight = remember(mainLyric, translation, wordRunUnits) {
                                         derivedStateOf {
                                             if (isNotOneByOne.value) {
                                                 true
                                             } else {
-                                                val highlightIndex = (mainLyric.size - if (translation != null && mainLyric.size >= 3) 3 else 1)
-                                                    .coerceIn(0, mainLyric.lastIndex.coerceAtLeast(0))
-                                                val endCheck = mainLyric.getOrNull(highlightIndex)?.first ?: lineEndTimeMs
-                                                liveTime.intValue >= endCheck
+                                                val lastWordEnd = wordRunUnits.lastOrNull()?.endTimeMs ?: lineEndTimeMs
+                                                liveTime.intValue >= lastWordEnd
                                             }
                                         }
                                     }
@@ -1191,8 +1270,7 @@ fun LazyItemScope.LyricItem(
                                                 this.alpha = thisAlpha.value
                                                 compositingStrategy = CompositingStrategy.ModulateAlpha
                                             }
-                                            .padding(vertical = 4.dp)
-                                            .then(otherSidePadding.value)
+                                            .padding(vertical = 4.dp, horizontal = 16.dp)
                                             .clickable(
                                                 indication = null,
                                                 interactionSource = remember { MutableInteractionSource() }
@@ -1229,186 +1307,231 @@ fun LazyItemScope.LyricItem(
                                             }
                                         }
 
-                                        // Active Line Rendering:
-                                        // 1. Every normal word (both LTR and RTL) is drawn as a WHOLE WORD (`WordRunUnit`)
-                                        //    and rises as a whole word by `wordRiseOffsetPx(elapsed)` (`-3px` peak).
-                                        // 2. RTL words NEVER have character emphasis or letter splitting.
-                                        // 3. Only LTR words with `isEmphasized == true` (`>= 1000ms` and `2..7` chars)
-                                        //    use per-character emphasis (`computeCharEmphasisState`).
-                                        val totalChars = fullLineString.length.coerceAtLeast(1)
-                                        val nowMs = liveTime.intValue.toFloat()
-                                        val drawPasses = ArrayList<DrawWord>(wordRunUnits.size * 2)
+                                        // Pre-compute visual segments directly from `measureResult` inside `drawWithCache`.
+                                        // By drawing `measureResult` inside per-word `clipRect` + `translate(0f, risePx)`,
+                                        // we get 100% pixel-identical glyph positions, kerning, Arabic shaping, and
+                                        // Left/Right alignment with zero `TextAlign` double-offset or vertical jump!
+                                        val totalChars = fullLineString.length
+                                        if (totalChars <= 0 || wordRunUnits.isEmpty()) {
+                                            return@Line onDrawWithContent {
+                                                drawText(
+                                                    textLayoutResult = measureResult,
+                                                    color = focusedColor
+                                                )
+                                            }
+                                        }
+
+                                        val lineCount = measureResult.lineCount.coerceAtLeast(1)
+                                        val segmentsByLine = Array(lineCount) { ArrayList<WordVisualSegment>() }
+                                        val emphasizedSegmentsByUnit = HashMap<WordRunUnit, List<EmphasizedCharSegment>>()
 
                                         wordRunUnits.fastForEach { unit ->
                                             val wordText = unit.text
-                                            if (wordText.isEmpty()) return@fastForEach
+                                            val firstNonSpace = wordText.indexOfFirst { !it.isWhitespace() }
+                                            val lastNonSpace = wordText.indexOfLast { !it.isWhitespace() }
+                                            if (firstNonSpace < 0 || lastNonSpace < firstNonSpace) return@fastForEach
 
-                                            val wordStartMs = unit.startTimeMs
-                                            val wordEndMs = unit.endTimeMs
-                                            val wordDurationMs = (wordEndMs - wordStartMs).coerceAtLeast(1f)
-                                            val wordElapsedMs = nowMs - wordStartMs
-                                            val wholeWordRisePx = AmlAnimationCurves.wordRiseOffsetPx(wordElapsedMs)
+                                            val firstCharIdx = (unit.startCharIndex + firstNonSpace).coerceIn(0, totalChars - 1)
+                                            val lastCharIdx = (unit.startCharIndex + lastNonSpace).coerceIn(0, totalChars - 1)
 
-                                            if (!unit.isEmphasized || unit.isRtl) {
-                                                // Whole-word rendering: the ENTIRE WORD moves up together!
-                                                val firstNonSpaceOffset = wordText.indexOfFirst { !it.isWhitespace() }
-                                                    .let { if (it < 0) 0 else it }
-                                                val lastNonSpaceOffset = wordText.indexOfLast { !it.isWhitespace() }
-                                                    .let { if (it < 0) wordText.lastIndex else it }
+                                            val startLine = measureResult.getLineForOffset(firstCharIdx).coerceIn(0, lineCount - 1)
+                                            val endLine = measureResult.getLineForOffset(lastCharIdx).coerceIn(startLine, lineCount - 1)
 
-                                                val firstCharIdx = (unit.startCharIndex + firstNonSpaceOffset).coerceIn(0, totalChars - 1)
-                                                val lastCharIdx = (unit.startCharIndex + lastNonSpaceOffset).coerceIn(0, totalChars - 1)
+                                            for (lineIdx in startLine..endLine) {
+                                                val lineStartOffset = measureResult.getLineStart(lineIdx)
+                                                val lineEndOffset = (measureResult.getLineEnd(lineIdx, visibleEnd = true) - 1)
+                                                    .coerceAtLeast(lineStartOffset)
+                                                val segFirstChar = max(firstCharIdx, lineStartOffset).coerceIn(0, totalChars - 1)
+                                                val segLastChar = min(lastCharIdx, lineEndOffset).coerceIn(segFirstChar, totalChars - 1)
 
-                                                val firstBox = measureResult.getBoundingBox(firstCharIdx)
-                                                val lastBox = measureResult.getBoundingBox(lastCharIdx)
-                                                val boxLeft = min(firstBox.left, lastBox.left)
-                                                val boxTop = min(firstBox.top, lastBox.top)
-
-                                                val trimmedWord = wordText.substring(firstNonSpaceOffset, lastNonSpaceOffset + 1)
-                                                if (trimmedWord.isEmpty()) return@fastForEach
-
-                                                val wordLayout = measurer.measure(
-                                                    text = trimmedWord,
-                                                    style = effectiveLineStyle,
-                                                    constraints = measureResult.layoutInput.constraints,
-                                                    layoutDirection = if (unit.isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
-                                                )
-
-                                                val topLeftOffset = Offset(
-                                                    x = boxLeft,
-                                                    y = boxTop + wholeWordRisePx
-                                                )
-
-                                                drawPasses += DrawWord(
-                                                    time = wordEndMs,
-                                                    word = trimmedWord,
-                                                    layout = wordLayout,
-                                                    topLeft = topLeftOffset,
-                                                    scale = 1f,
-                                                    glowAlpha = 0f,
-                                                    brush = { feather, percent ->
-                                                        if (unit.isRtl) {
-                                                            // Right-to-left continuous gradient wipe for RTL words
-                                                            val rtlEdge = 1f - percent
-                                                            when {
-                                                                percent <= 0f -> unfocusedSolidBrush
-                                                                percent >= 1f -> SolidColor(focusedColor)
-                                                                else -> Brush.horizontalGradient(
-                                                                    0f to unfocusedColor,
-                                                                    (rtlEdge - feather).coerceIn(0f, 1f) to unfocusedColor,
-                                                                    (rtlEdge + feather).coerceIn(0f, 1f) to focusedColor,
-                                                                    1f to focusedColor
-                                                                )
-                                                            }
-                                                        } else {
-                                                            // Left-to-right continuous gradient wipe for LTR words
-                                                            when {
-                                                                percent <= 0f -> unfocusedSolidBrush
-                                                                percent >= 1f -> SolidColor(focusedColor)
-                                                                else -> Brush.horizontalGradient(
-                                                                    0f to focusedColor,
-                                                                    (percent - feather).coerceIn(0f, 1f) to focusedColor,
-                                                                    (percent + feather).coerceIn(0f, 1f) to unfocusedColor,
-                                                                    1f to unfocusedColor
-                                                                )
-                                                            }
-                                                        }
-                                                    },
-                                                    percent = {
-                                                        ((liveTime.intValue - wordStartMs) / wordDurationMs)
+                                                var wLeft = Float.POSITIVE_INFINITY
+                                                var wRight = Float.NEGATIVE_INFINITY
+                                                for (chIdx in segFirstChar..segLastChar) {
+                                                    val box = measureResult.getBoundingBox(chIdx)
+                                                    val bL = min(box.left, box.right)
+                                                    val bR = max(box.left, box.right)
+                                                    if (bR > bL) {
+                                                        wLeft = min(wLeft, bL)
+                                                        wRight = max(wRight, bR)
                                                     }
+                                                }
+                                                if (!wLeft.isFinite() || !wRight.isFinite() || wRight <= wLeft) {
+                                                    val fallbackBox = measureResult.getBoundingBox(segFirstChar)
+                                                    wLeft = min(fallbackBox.left, fallbackBox.right)
+                                                    wRight = max(fallbackBox.left, fallbackBox.right).coerceAtLeast(wLeft + 2f)
+                                                }
+
+                                                val cTop = if (lineIdx == 0) -28f else measureResult.getLineTop(lineIdx) - 6f
+                                                val cBottom = if (lineIdx == lineCount - 1) size.height + 28f else measureResult.getLineBottom(lineIdx) + 6f
+
+                                                val seg = WordVisualSegment(
+                                                    unit = unit,
+                                                    lineIndex = lineIdx,
+                                                    wordLeft = wLeft,
+                                                    wordRight = wRight,
+                                                    clipLeft = wLeft - 4f,
+                                                    clipRight = wRight + 4f,
+                                                    clipTop = cTop,
+                                                    clipBottom = cBottom
                                                 )
-                                            } else {
-                                                // Emphasized LTR word (`>= 1000ms` and `2..7` chars): yourLyrics character bloom & lift
-                                                val trimmedLen = wordText.trim().length.coerceAtLeast(1)
-                                                val charDur = wordDurationMs / wordText.length.coerceAtLeast(1)
+                                                segmentsByLine[lineIdx].add(seg)
+                                            }
+
+                                            // Pre-compute per-character segments for emphasized LTR words (`>= 1000ms` and `2..7` chars)
+                                            if (unit.isEmphasized && !unit.isRtl) {
+                                                val trimmedLen = unit.trimmedText.length.coerceAtLeast(1)
+                                                val charSegs = ArrayList<EmphasizedCharSegment>(trimmedLen)
                                                 var nonSpaceIdx = 0
-
-                                                wordText.forEachIndexed { charOffset, ch ->
-                                                    if (ch.isWhitespace()) return@forEachIndexed
-                                                    val chStr = ch.toString()
+                                                for (charOffset in 0 until wordText.length) {
+                                                    val ch = wordText[charOffset]
+                                                    if (ch.isWhitespace()) continue
                                                     val globalCharIdx = (unit.startCharIndex + charOffset).coerceIn(0, totalChars - 1)
-                                                    val baseBox = measureResult.getBoundingBox(globalCharIdx)
-
-                                                    val empState = AmlAnimationCurves.computeCharEmphasisState(
-                                                        wordText = wordText.trim(),
-                                                        wordStartTimeMs = wordStartMs,
-                                                        wordEndTimeMs = wordEndMs,
-                                                        currentPositionMs = nowMs,
-                                                        charIndex = nonSpaceIdx,
-                                                        charTotal = trimmedLen
+                                                    val lineIdx = measureResult.getLineForOffset(globalCharIdx).coerceIn(0, lineCount - 1)
+                                                    val box = measureResult.getBoundingBox(globalCharIdx)
+                                                    val cLeft = min(box.left, box.right)
+                                                    val cRight = max(box.left, box.right).coerceAtLeast(cLeft + 1f)
+                                                    val cTop = if (lineIdx == 0) -28f else measureResult.getLineTop(lineIdx) - 6f
+                                                    val cBottom = if (lineIdx == lineCount - 1) size.height + 28f else measureResult.getLineBottom(lineIdx) + 6f
+                                                    charSegs.add(
+                                                        EmphasizedCharSegment(
+                                                            nonSpaceIdx = nonSpaceIdx,
+                                                            trimmedLen = trimmedLen,
+                                                            charLeft = cLeft,
+                                                            charRight = cRight,
+                                                            clipLeft = cLeft,
+                                                            clipRight = cRight,
+                                                            clipTop = cTop,
+                                                            clipBottom = cBottom,
+                                                            boxCenter = box.center
+                                                        )
                                                     )
                                                     nonSpaceIdx++
-
-                                                    val chLayout = measurer.measure(
-                                                        text = chStr,
-                                                        style = effectiveLineStyle,
-                                                        constraints = measureResult.layoutInput.constraints
-                                                    )
-
-                                                    val dxPx = empState.dxEm * effectiveLineStyle.fontSize.toPx()
-                                                    val dyPx = empState.dyPx
-                                                    val charStartTime = wordStartMs + charOffset * charDur
-
-                                                    drawPasses += DrawWord(
-                                                        time = charStartTime + charDur,
-                                                        word = chStr,
-                                                        layout = chLayout,
-                                                        topLeft = Offset(
-                                                            x = baseBox.topLeft.x + dxPx,
-                                                            y = baseBox.topLeft.y + dyPx
-                                                        ),
-                                                        scale = empState.scale,
-                                                        glowAlpha = empState.glowAlpha,
-                                                        brush = { feather, percent ->
-                                                            when {
-                                                                percent <= 0f -> unfocusedSolidBrush
-                                                                percent >= 1f -> SolidColor(focusedColor)
-                                                                else -> Brush.horizontalGradient(
-                                                                    0f to focusedColor,
-                                                                    (percent - feather).coerceIn(0f, 1f) to focusedColor,
-                                                                    (percent + feather).coerceIn(0f, 1f) to unfocusedColor,
-                                                                    1f to unfocusedColor
-                                                                )
-                                                            }
-                                                        },
-                                                        percent = {
-                                                            (liveTime.intValue - charStartTime) / charDur.coerceAtLeast(1f)
-                                                        }
-                                                    )
+                                                }
+                                                if (charSegs.isNotEmpty()) {
+                                                    charSegs.sortBy { it.charLeft }
+                                                    charSegs.first().clipLeft -= 10f
+                                                    charSegs.last().clipRight += 10f
+                                                    for (m in 0 until charSegs.size - 1) {
+                                                        val mid = (charSegs[m].charRight + charSegs[m + 1].charLeft) * 0.5f
+                                                        charSegs[m].clipRight = mid
+                                                        charSegs[m + 1].clipLeft = mid
+                                                    }
+                                                    emphasizedSegmentsByUnit[unit] = charSegs
                                                 }
                                             }
                                         }
 
+                                        // Compute seamless horizontal clip midpoints between adjacent words on each visual line
+                                        val allWordSegments = ArrayList<WordVisualSegment>(wordRunUnits.size + 4)
+                                        for (lineIdx in 0 until lineCount) {
+                                            val lineSegs = segmentsByLine[lineIdx]
+                                            if (lineSegs.isEmpty()) continue
+                                            lineSegs.sortBy { it.wordLeft }
+                                            lineSegs.first().clipLeft = -16f
+                                            lineSegs.last().clipRight = size.width + 16f
+                                            for (m in 0 until lineSegs.size - 1) {
+                                                val mid = (lineSegs[m].wordRight + lineSegs[m + 1].wordLeft) * 0.5f
+                                                lineSegs[m].clipRight = mid
+                                                lineSegs[m + 1].clipLeft = mid
+                                            }
+                                            allWordSegments.addAll(lineSegs)
+                                        }
+
+                                        val fontSizePx = effectiveLineStyle.fontSize.toPx()
+
                                         onDrawBehind {
-                                            drawPasses.fastForEach { l ->
-                                                val pct = l.percent()
-                                                val pivot = Offset(
-                                                    x = l.topLeft.x + l.layout.size.width * 0.5f,
-                                                    y = l.topLeft.y + l.layout.size.height * 0.5f
-                                                )
-                                                withTransform({
-                                                    if (l.scale != 1f) {
-                                                        scale(l.scale, l.scale, pivot)
-                                                    }
-                                                }) {
-                                                    if (l.glowAlpha > 0.01f) {
-                                                        drawText(
-                                                            textLayoutResult = l.layout,
-                                                            topLeft = l.topLeft,
-                                                            color = Color.White.copy(alpha = (l.glowAlpha * 0.55f).coerceIn(0f, 0.45f)),
-                                                            shadow = Shadow(
-                                                                color = Color.White.copy(alpha = l.glowAlpha.coerceIn(0f, 0.7f)),
-                                                                offset = Offset.Zero,
-                                                                blurRadius = 18f
-                                                            )
+                                            val nowMs = liveTime.intValue.toFloat()
+
+                                            allWordSegments.fastForEach { seg ->
+                                                val unit = seg.unit
+                                                val wordElapsedMs = nowMs - unit.startTimeMs
+                                                val risePx = AmlAnimationCurves.wordRiseOffsetPx(wordElapsedMs)
+                                                val pct = unit.computeProgress(nowMs)
+
+                                                val segWidth = (seg.wordRight - seg.wordLeft).coerceAtLeast(4f)
+                                                val featherPx = (segWidth * 0.28f).coerceIn(10f, 36f)
+
+                                                val wordBrush: Brush = when {
+                                                    pct <= 0f -> unfocusedSolidBrush
+                                                    pct >= 1f -> focusedSolidBrush
+                                                    unit.isRtl -> {
+                                                        val currentX = (seg.wordRight + featherPx) - pct * (segWidth + 2f * featherPx)
+                                                        Brush.linearGradient(
+                                                            0f to unfocusedColor,
+                                                            1f to focusedColor,
+                                                            start = Offset(currentX - featherPx, 0f),
+                                                            end = Offset(currentX + featherPx, 0f)
                                                         )
                                                     }
-                                                    drawText(
-                                                        textLayoutResult = l.layout,
-                                                        topLeft = l.topLeft,
-                                                        brush = l.brush(0.24f, pct)
-                                                    )
+                                                    else -> {
+                                                        val currentX = (seg.wordLeft - featherPx) + pct * (segWidth + 2f * featherPx)
+                                                        Brush.linearGradient(
+                                                            0f to focusedColor,
+                                                            1f to unfocusedColor,
+                                                            start = Offset(currentX - featherPx, 0f),
+                                                            end = Offset(currentX + featherPx, 0f)
+                                                        )
+                                                    }
+                                                }
+
+                                                val empSegs = emphasizedSegmentsByUnit[unit]
+                                                if (empSegs == null || unit.isRtl) {
+                                                    withTransform({
+                                                        translate(left = 0f, top = risePx)
+                                                        clipRect(
+                                                            left = seg.clipLeft,
+                                                            top = seg.clipTop,
+                                                            right = seg.clipRight,
+                                                            bottom = seg.clipBottom
+                                                        )
+                                                    }) {
+                                                        drawText(
+                                                            textLayoutResult = measureResult,
+                                                            brush = wordBrush
+                                                        )
+                                                    }
+                                                } else {
+                                                    empSegs.fastForEach { charSeg ->
+                                                        val empState = AmlAnimationCurves.computeCharEmphasisState(
+                                                            wordText = unit.trimmedText,
+                                                            wordStartTimeMs = unit.startTimeMs,
+                                                            wordEndTimeMs = unit.endTimeMs,
+                                                            currentPositionMs = nowMs,
+                                                            charIndex = charSeg.nonSpaceIdx,
+                                                            charTotal = charSeg.trimmedLen
+                                                        )
+                                                        val dxPx = empState.dxEm * fontSizePx
+                                                        val dyPx = empState.dyPx
+
+                                                        withTransform({
+                                                            translate(left = dxPx, top = dyPx)
+                                                            if (empState.scale != 1f) {
+                                                                scale(empState.scale, empState.scale, pivot = charSeg.boxCenter)
+                                                            }
+                                                            clipRect(
+                                                                left = charSeg.clipLeft,
+                                                                top = charSeg.clipTop,
+                                                                right = charSeg.clipRight,
+                                                                bottom = charSeg.clipBottom
+                                                            )
+                                                        }) {
+                                                            if (empState.glowAlpha > 0.01f) {
+                                                                drawText(
+                                                                    textLayoutResult = measureResult,
+                                                                    color = Color.White.copy(alpha = (empState.glowAlpha * 0.5f).coerceIn(0f, 0.42f)),
+                                                                    shadow = Shadow(
+                                                                        color = Color.White.copy(alpha = empState.glowAlpha.coerceIn(0f, 0.65f)),
+                                                                        offset = Offset.Zero,
+                                                                        blurRadius = 16f
+                                                                    )
+                                                                )
+                                                            }
+                                                            drawText(
+                                                                textLayoutResult = measureResult,
+                                                                brush = wordBrush
+                                                            )
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -1428,11 +1551,6 @@ fun LazyItemScope.LyricItem(
                                                 label = "TranslationAlpha"
                                             )
 
-                                            val translationOtherSidePadding = Modifier.padding(
-                                                start = 20.dp,
-                                                end = 20.dp
-                                            )
-
                                             Text(
                                                 text = subStr,
                                                 fontFamily = if (isSubRtl) SFArabic else SFProDisplay,
@@ -1440,11 +1558,12 @@ fun LazyItemScope.LyricItem(
                                                 color = subTextBasicColor,
                                                 fontWeight = FontWeight.Medium,
                                                 modifier = Modifier
+                                                    .fillMaxWidth()
                                                     .graphicsLayer {
                                                         this.alpha = translationAlpha.value
                                                         compositingStrategy = CompositingStrategy.ModulateAlpha
                                                     }
-                                                    .then(translationOtherSidePadding)
+                                                    .padding(horizontal = 16.dp)
                                                     .padding(top = 4.dp),
                                                 lineHeight = (subTextSize + 5).sp,
                                                 letterSpacing = if (isSubRtl) 0.sp else 0.2.sp,
@@ -1463,7 +1582,7 @@ fun LazyItemScope.LyricItem(
                                         bgLine = bgLine,
                                         parentLineActive = isCurrentLambda(),
                                         liveTimeMs = liveTime.intValue.toFloat(),
-                                        otherSide = otherSide || isRtlLine,
+                                        anchorRight = anchorRight,
                                         showTranslation = showTranslation,
                                         subTextBasicColor = subTextBasicColor,
                                         onClick = onClick
@@ -1487,7 +1606,7 @@ private fun AmlBackgroundVocalRow(
     bgLine: AmlBackgroundLine,
     parentLineActive: Boolean,
     liveTimeMs: Float,
-    otherSide: Boolean,
+    anchorRight: Boolean,
     showTranslation: Boolean,
     subTextBasicColor: Color,
     onClick: () -> Unit
@@ -1509,9 +1628,8 @@ private fun AmlBackgroundVocalRow(
         label = "BgVocalAlpha"
     )
 
-    val alignRight = otherSide || isBgRtl
-    val textAlign = if (alignRight) TextAlign.End else TextAlign.Start
-    val rowAlign = if (alignRight) Alignment.End else Alignment.Start
+    val textAlign = if (anchorRight) TextAlign.Right else TextAlign.Left
+    val rowAlign = if (anchorRight) Alignment.End else Alignment.Start
 
     AnimatedVisibility(
         visible = parentLineActive || isBgActive,
@@ -1522,12 +1640,12 @@ private fun AmlBackgroundVocalRow(
             horizontalAlignment = rowAlign,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 2.dp)
+                .padding(horizontal = 16.dp, vertical = 2.dp)
                 .graphicsLayer {
                     scaleX = slideScale.value
                     scaleY = slideScale.value
                     alpha = slideAlpha.value
-                    transformOrigin = if (alignRight) TransformOrigin(1f, 0f) else TransformOrigin(0f, 0f)
+                    transformOrigin = if (anchorRight) TransformOrigin(1f, 0f) else TransformOrigin(0f, 0f)
                 }
                 .clickable(
                     indication = null,
@@ -1564,9 +1682,11 @@ private fun AmlBackgroundVocalRow(
                     textAlign = textAlign,
                     brush = bgBrush
                 ),
-                modifier = Modifier.graphicsLayer {
-                    translationY = liftY
-                }
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        translationY = liftY
+                    }
             )
 
             val bgSecondary = if (showTranslation) {
@@ -1584,7 +1704,9 @@ private fun AmlBackgroundVocalRow(
                     lineHeight = 18.sp,
                     color = subTextBasicColor.copy(alpha = 0.55f),
                     textAlign = textAlign,
-                    modifier = Modifier.padding(top = 2.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 2.dp)
                 )
             }
         }
@@ -1623,16 +1745,17 @@ private fun LyricCard(
 @Composable
 fun AmlInterludeDotsView(
     state: com.lyricsflow.player.code.utils.lrc.InterludeDotsVisualState,
-    color: Color
+    color: Color,
+    anchorRight: Boolean = false
 ) {
     Box(
         modifier = Modifier.graphicsLayer {
             scaleX = state.groupScale
             scaleY = state.groupScale
             alpha = state.groupAlpha
-            transformOrigin = TransformOrigin(0f, 0.5f)
+            transformOrigin = if (anchorRight) TransformOrigin(1f, 0.5f) else TransformOrigin(0f, 0.5f)
         },
-        contentAlignment = Alignment.CenterStart
+        contentAlignment = if (anchorRight) Alignment.CenterEnd else Alignment.CenterStart
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(9.dp),
@@ -1741,16 +1864,4 @@ val BackgroundArabicTextStyle = TextStyle(
         alignment = LineHeightStyle.Alignment.Center,
         trim = LineHeightStyle.Trim.None
     )
-)
-
-@Stable
-private data class DrawWord(
-    val time: Float,
-    val word: String,
-    val layout: TextLayoutResult,
-    val topLeft: Offset,
-    val scale: Float = 1f,
-    val glowAlpha: Float = 0f,
-    val brush: (px: Float, percent: Float) -> Brush,
-    val percent: () -> Float
 )

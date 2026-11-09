@@ -3,13 +3,16 @@ package com.lyricsflow.player.ui.pages
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +27,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
@@ -32,16 +36,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.AudioFile
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.ConfirmationNumber
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
@@ -69,9 +80,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -88,10 +101,17 @@ import com.lyricsflow.player.data.libraries.SettingsLibrary
 import com.lyricsflow.player.data.objects.LibraryObject
 import com.lyricsflow.player.ui.UI
 import com.lyricsflow.player.ui.theme.SFProDisplay
+import com.lyricsflow.player.ui.theme.isFlamingoInDarkMode
 import com.lyricsflow.player.ui.theme.withNight
 import com.lyricsflow.player.ui.toUI
+import com.lyricsflow.player.ui.widgets.backdrop.backdrops.layerBackdrop
+import com.lyricsflow.player.ui.widgets.backdrop.backdrops.rememberLayerBackdrop
 import com.lyricsflow.player.ui.widgets.basic.AnimatedAlbumCoverOverlay
 import com.lyricsflow.player.ui.widgets.basic.rememberOnlineAnimatedVideoState
+import com.lyricsflow.player.ui.widgets.glass.LiquidGlassCircleButton
+import com.lyricsflow.player.ui.widgets.glass.LiquidGlassPillGroup
+import com.lyricsflow.player.ui.widgets.glass.iosPressScale
+import com.lyricsflow.player.ui.widgets.glass.liquidGlass
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -99,6 +119,44 @@ import java.io.File
 import java.util.Locale
 
 private val AppleCrimson = Color(0xFFFA2D48)
+
+private fun parseHexColorOrNull(hex: String?): Color? {
+    val clean = hex?.trim()?.removePrefix("#").orEmpty()
+    if (clean.length != 6 && clean.length != 8) return null
+    return runCatching {
+        val longVal = clean.toLong(16)
+        if (clean.length == 6) {
+            Color(0xFF000000L or longVal)
+        } else {
+            Color(longVal)
+        }
+    }.getOrNull()
+}
+
+private fun darkenForAmbientBackground(color: Color?, fallbackDark: Color = Color(0xFF0F0D0B)): Color {
+    if (color == null) return fallbackDark
+    return Color(
+        red = (color.red * 0.24f).coerceIn(0.04f, 0.22f),
+        green = (color.green * 0.24f).coerceIn(0.04f, 0.22f),
+        blue = (color.blue * 0.24f).coerceIn(0.04f, 0.22f),
+        alpha = 1f
+    )
+}
+
+private fun shareCatalogEntity(context: Context, title: String, subtitle: String, type: String, id: String) {
+    runCatching {
+        val shareText = buildString {
+            append(title)
+            if (subtitle.isNotBlank()) append(" — ").append(subtitle)
+            if (id.isNotBlank()) append("\nhttps://music.apple.com/us/$type/$id")
+        }
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            this.type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, shareText)
+        }
+        context.startActivity(Intent.createChooser(intent, "Share $title"))
+    }
+}
 
 // ============================================================================
 // 1. APPLE MUSIC ONLINE ALBUM VIEW (`fetchAlbumDetails` in `upload.js`)
@@ -135,15 +193,26 @@ fun OnlineAlbumView(navController: NavController) {
         isLoading = false
     }
 
-    val bgColor = Color(0xFFF8F8FA) withNight Color(0xFF0A0A0C)
+    val isDark = isFlamingoInDarkMode()
+    val parsedKeyBg = remember(albumDetail?.bgColorHex) {
+        parseHexColorOrNull(albumDetail?.bgColorHex)
+    }
+    val bgColor = if (isDark) {
+        darkenForAmbientBackground(parsedKeyBg, Color(0xFF14110E))
+    } else {
+        Color(0xFFF8F8FA)
+    }
     val textColor = Color.Black withNight Color.White
-    val secondaryColor = (Color.Black withNight Color.White).copy(alpha = 0.58f)
+    val secondaryColor = (Color.Black withNight Color.White).copy(alpha = 0.60f)
     val cardBg = Color(0x12000000) withNight Color(0x1EFFFFFF)
 
     val resolvedTitle = albumDetail?.name?.ifBlank { fallbackTitle } ?: fallbackTitle.ifBlank { "Album" }
     val resolvedArtist = albumDetail?.artistName?.ifBlank { fallbackArtist } ?: fallbackArtist
     val resolvedArtwork = albumDetail?.artworkUrl?.ifBlank { fallbackArtwork } ?: fallbackArtwork
     val editorial = albumDetail?.editorialNotes.orEmpty()
+    var isSavedAlbum by remember(albumId, resolvedTitle) {
+        mutableStateOf(SettingsLibrary.isAlbumSaved(albumId.ifBlank { resolvedTitle }))
+    }
 
     val animatedCoverState = rememberOnlineAnimatedVideoState(
         cacheKey = "album_$albumId",
@@ -154,32 +223,39 @@ fun OnlineAlbumView(navController: NavController) {
         active = true
     )
 
+    val heroBackdrop = rememberLayerBackdrop {
+        drawRect(bgColor)
+        drawContent()
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(bgColor),
         contentPadding = PaddingValues(bottom = 185.dp)
     ) {
-        // Full-bleed Apple Music Animated Album Header with bottom gradient fade
+        // Full-bleed iOS 27 Apple Music Animated Album Header with Liquid Glass Controls (Screenshot 3)
         item(key = "online_album_hero") {
+            val tracks = albumDetail?.tracks.orEmpty()
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(430.dp)
+                    .height(475.dp)
             ) {
-                // Static high-res cover + animated cover video with smooth bottom fade
+                // Static high-res cover + animated cover video with smooth bottom fade into ambient bgColor
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .layerBackdrop(heroBackdrop)
                         .graphicsLayer {
                             compositingStrategy = CompositingStrategy.Offscreen
                         }
                         .drawWithCache {
                             val fadeBrush = Brush.verticalGradient(
                                 0.00f to Color.Black,
-                                0.58f to Color.Black,
-                                0.78f to Color.Black.copy(alpha = 0.65f),
-                                0.92f to Color.Black.copy(alpha = 0.18f),
+                                0.48f to Color.Black,
+                                0.72f to Color.Black.copy(alpha = 0.72f),
+                                0.88f to Color.Black.copy(alpha = 0.25f),
                                 1.00f to Color.Transparent
                             )
                             onDrawWithContent {
@@ -195,34 +271,85 @@ fun OnlineAlbumView(navController: NavController) {
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()
                         )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(Color(0xFF2C2520), bgColor)
+                                    )
+                                )
+                        )
                     }
                     AnimatedAlbumCoverOverlay(state = animatedCoverState)
                 }
 
-                // Floating Top Bar
+                // Floating iOS 27 Top Liquid Glass Navigation Bar: Left Circle `<` + Right Shared Capsule (`Share` + `•••`)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
                         .align(Alignment.TopCenter),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = Color.Black.copy(alpha = 0.42f),
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clickable {
-                                Vibrator.click(context)
-                                navController.popBackStack()
-                            }
+                    LiquidGlassCircleButton(
+                        onClick = {
+                            Vibrator.click(context)
+                            navController.popBackStack()
+                        },
+                        size = 42.dp,
+                        backdrop = heroBackdrop
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    LiquidGlassPillGroup(
+                        height = 42.dp,
+                        backdrop = heroBackdrop
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .iosPressScale {
+                                    Vibrator.click(context)
+                                    shareCatalogEntity(context, resolvedTitle, resolvedArtist, "album", albumId)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = "Back",
+                                imageVector = Icons.Rounded.Share,
+                                contentDescription = "Share Album",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .iosPressScale {
+                                    Vibrator.click(context)
+                                    val key = albumId.ifBlank { resolvedTitle }
+                                    SettingsLibrary.toggleAlbumSaved(key)
+                                    isSavedAlbum = SettingsLibrary.isAlbumSaved(key)
+                                    Toast.makeText(
+                                        context,
+                                        if (isSavedAlbum) "Added to Library" else "Removed from Library",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.MoreHoriz,
+                                contentDescription = "More Options",
                                 tint = Color.White,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -230,12 +357,12 @@ fun OnlineAlbumView(navController: NavController) {
                     }
                 }
 
-                // Album Title, Artist Link, Metadata at bottom of hero fade
+                // Bottom Overlay: Centered Album Title, Artist Name, Lossless Metadata + 3 iOS 27 Action Buttons (Shuffle, White Pill Play, Download)
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
-                        .padding(horizontal = 22.dp, vertical = 6.dp),
+                        .padding(horizontal = 20.dp, vertical = 10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Row(
@@ -246,9 +373,9 @@ fun OnlineAlbumView(navController: NavController) {
                             text = resolvedTitle,
                             fontFamily = SFProDisplay,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 25.sp,
-                            lineHeight = 30.sp,
-                            color = textColor,
+                            fontSize = 24.sp,
+                            lineHeight = 29.sp,
+                            color = Color.White,
                             textAlign = TextAlign.Center,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
@@ -259,172 +386,202 @@ fun OnlineAlbumView(navController: NavController) {
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(3.dp))
 
                     Text(
                         text = resolvedArtist,
                         fontFamily = SFProDisplay,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Medium,
                         fontSize = 18.sp,
-                        color = AppleCrimson,
+                        color = Color.White.copy(alpha = 0.92f),
                         textAlign = TextAlign.Center,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.clickable {
+                        modifier = Modifier.iosPressScale {
                             Vibrator.click(context)
                             val targetArtId = albumDetail?.artistId.orEmpty()
-                            if (targetArtId.isNotBlank()) {
-                                LibraryObject.openOnlineArtist(
-                                    artistId = targetArtId,
-                                    name = resolvedArtist,
-                                    artworkUrl = resolvedArtwork
-                                )
-                                navController.toUI(UI.OnlineArtistInfo)
-                            }
+                            LibraryObject.openOnlineArtist(
+                                artistId = targetArtId,
+                                name = resolvedArtist,
+                                artworkUrl = ""
+                            )
+                            navController.toUI(UI.OnlineArtistInfo)
                         }
                     )
 
+                    val audioQualityLabel = remember(albumDetail?.audioTraits) {
+                        val traits = albumDetail?.audioTraits.orEmpty()
+                        when {
+                            traits.any { it.contains("hi-res", ignoreCase = true) } -> "Hi-Res Lossless"
+                            traits.any { it.contains("atmos", ignoreCase = true) } -> "Dolby Atmos · Lossless"
+                            else -> "Hi-Res Lossless"
+                        }
+                    }
                     val metaParts = buildList {
-                        albumDetail?.genre?.takeIf { it.isNotBlank() }?.uppercase(Locale.ROOT)?.let { add(it) }
+                        albumDetail?.genre?.takeIf { it.isNotBlank() }?.let { add(it) }
                         albumDetail?.releaseYear?.takeIf { it.isNotBlank() }?.let { add(it) }
-                        add("LOSSLESS")
                     }
-                    if (metaParts.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = metaParts.joinToString(" · "),
-                            fontFamily = SFProDisplay,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.5.sp,
-                            letterSpacing = 0.6.sp,
-                            color = secondaryColor
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        if (metaParts.isNotEmpty()) {
+                            Text(
+                                text = metaParts.joinToString(" · ") + " · ",
+                                fontFamily = SFProDisplay,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 12.sp,
+                                color = Color.White.copy(alpha = 0.68f)
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Rounded.GraphicEq,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.72f),
+                            modifier = Modifier.size(13.dp)
                         )
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = audioQualityLabel,
+                            fontFamily = SFProDisplay,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.68f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // iOS 27 Centered 3-Button Row: Circle Liquid Glass Shuffle | Wide White Pill Play | Circle Liquid Glass Download
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(18.dp)
+                    ) {
+                        LiquidGlassCircleButton(
+                            onClick = {
+                                Vibrator.click(context)
+                                val randomTrack = tracks.randomOrNull() ?: return@LiquidGlassCircleButton
+                                scope.launch(Dispatchers.IO) {
+                                    MediaController.playOnlineTrack(
+                                        track = randomTrack,
+                                        contextTracks = tracks,
+                                        shuffleModeEnabled = true,
+                                        appendSimilar = true
+                                    )
+                                }
+                            },
+                            size = 48.dp,
+                            enabled = tracks.isNotEmpty(),
+                            backdrop = heroBackdrop
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Shuffle,
+                                contentDescription = "Shuffle",
+                                tint = Color.White,
+                                modifier = Modifier.size(21.dp)
+                            )
+                        }
+
+                        // Center Wide White Pill Play Button (`▶ Play`)
+                        Surface(
+                            shape = RoundedCornerShape(100.dp),
+                            color = Color.White,
+                            shadowElevation = 6.dp,
+                            modifier = Modifier
+                                .width(166.dp)
+                                .height(50.dp)
+                                .iosPressScale(enabled = tracks.isNotEmpty(), pressedScale = 0.95f) {
+                                    Vibrator.click(context)
+                                    val first = tracks.firstOrNull() ?: return@iosPressScale
+                                    scope.launch(Dispatchers.IO) {
+                                        MediaController.playOnlineTrack(
+                                            track = first,
+                                            contextTracks = tracks,
+                                            shuffleModeEnabled = false,
+                                            appendSimilar = true
+                                        )
+                                    }
+                                }
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.PlayArrow,
+                                    contentDescription = "Play",
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    text = "Play",
+                                    fontFamily = SFProDisplay,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 17.sp,
+                                    color = Color.Black
+                                )
+                            }
+                        }
+
+                        LiquidGlassCircleButton(
+                            onClick = {
+                                Vibrator.click(context)
+                                val key = albumId.ifBlank { resolvedTitle }
+                                SettingsLibrary.toggleAlbumSaved(key)
+                                isSavedAlbum = SettingsLibrary.isAlbumSaved(key)
+                                Toast.makeText(
+                                    context,
+                                    if (isSavedAlbum) "Saved $resolvedTitle" else "Removed $resolvedTitle",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            size = 48.dp,
+                            backdrop = heroBackdrop
+                        ) {
+                            Icon(
+                                imageVector = if (isSavedAlbum) Icons.Rounded.Check else Icons.Rounded.ArrowDownward,
+                                contentDescription = "Save or Download Album",
+                                tint = Color.White,
+                                modifier = Modifier.size(21.dp)
+                            )
+                        }
                     }
                 }
             }
         }
 
-        // Apple Music Play & Shuffle Pill Buttons
-        item(key = "online_album_actions") {
-            val tracks = albumDetail?.tracks.orEmpty()
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = AppleCrimson,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .clickable(enabled = tracks.isNotEmpty()) {
-                            Vibrator.click(context)
-                            val first = tracks.firstOrNull() ?: return@clickable
-                            scope.launch(Dispatchers.IO) {
-                                MediaController.playOnlineTrack(
-                                    track = first,
-                                    contextTracks = tracks,
-                                    shuffleModeEnabled = false,
-                                    appendSimilar = true
-                                )
-                            }
-                        }
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.PlayArrow,
-                            contentDescription = "Play",
-                            tint = Color.White,
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Play",
-                            fontFamily = SFProDisplay,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = Color.White
-                        )
-                    }
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = cardBg,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .clickable(enabled = tracks.isNotEmpty()) {
-                            Vibrator.click(context)
-                            val randomTrack = tracks.randomOrNull() ?: return@clickable
-                            scope.launch(Dispatchers.IO) {
-                                MediaController.playOnlineTrack(
-                                    track = randomTrack,
-                                    contextTracks = tracks,
-                                    shuffleModeEnabled = true,
-                                    appendSimilar = true
-                                )
-                            }
-                        }
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Shuffle,
-                            contentDescription = "Shuffle",
-                            tint = AppleCrimson,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Shuffle",
-                            fontFamily = SFProDisplay,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = AppleCrimson
-                        )
-                    }
-                }
-            }
-        }
-
-        // Editorial Notes Preview Card
+        // iOS 27 Editorial Quote Preview with Inline `MORE` Button (Screenshot 3)
         if (editorial.isNotBlank()) {
             item(key = "online_album_editorial") {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = cardBg,
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 6.dp)
                         .clickable { showEditorialSheet = true }
+                        .padding(horizontal = 20.dp, vertical = 10.dp)
                 ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Text(
-                            text = editorial,
-                            fontFamily = SFProDisplay,
-                            fontSize = 13.5.sp,
-                            lineHeight = 19.sp,
-                            color = secondaryColor,
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "MORE",
-                            fontFamily = SFProDisplay,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.5.sp,
-                            color = AppleCrimson
-                        )
-                    }
+                    Text(
+                        text = editorial,
+                        fontFamily = SFProDisplay,
+                        fontSize = 14.5.sp,
+                        lineHeight = 20.sp,
+                        color = textColor.copy(alpha = 0.72f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(end = 52.dp)
+                    )
+                    Text(
+                        text = "MORE",
+                        fontFamily = SFProDisplay,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.5.sp,
+                        color = textColor,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .background(bgColor.copy(alpha = 0.92f), RoundedCornerShape(4.dp))
+                            .padding(start = 6.dp)
+                    )
                 }
             }
         }
@@ -442,7 +599,21 @@ fun OnlineAlbumView(navController: NavController) {
             }
         } else {
             val tracks = albumDetail?.tracks.orEmpty()
+            val popularIds = albumDetail?.popularTrackIds.orEmpty()
             val hasMultipleDiscs = tracks.map { it.discNumber }.distinct().size > 1
+
+            // Top divider before track 1 (Screenshot 3)
+            if (tracks.isNotEmpty()) {
+                item(key = "online_album_top_divider") {
+                    Spacer(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
+                            .height(0.5.dp)
+                            .background(secondaryColor.copy(alpha = 0.22f))
+                    )
+                }
+            }
 
             itemsIndexed(tracks, key = { idx, t -> "album_track_${t.id}_$idx" }) { index, track ->
                 val prevDisc = tracks.getOrNull(index - 1)?.discNumber
@@ -459,6 +630,7 @@ fun OnlineAlbumView(navController: NavController) {
                 }
 
                 val isPlayingThis = MediaController.musicPlaying.value?.mediaId == track.id
+                val isPopular = track.id in popularIds || index < 2
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -473,16 +645,31 @@ fun OnlineAlbumView(navController: NavController) {
                                 )
                             }
                         }
-                        .padding(horizontal = 20.dp, vertical = 11.dp),
+                        .padding(start = 10.dp, end = 20.dp, top = 13.dp, bottom = 13.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Popularity Dot (`•`) + Track Number (Screenshot 3)
+                    Box(
+                        modifier = Modifier.width(14.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isPopular) {
+                            Box(
+                                modifier = Modifier
+                                    .size(5.dp)
+                                    .clip(CircleShape)
+                                    .background(secondaryColor.copy(alpha = 0.8f))
+                            )
+                        }
+                    }
+
                     Text(
                         text = "${track.trackNumber}",
                         fontFamily = SFProDisplay,
                         fontWeight = if (isPlayingThis) FontWeight.Bold else FontWeight.Medium,
-                        fontSize = 15.sp,
+                        fontSize = 15.5.sp,
                         color = if (isPlayingThis) AppleCrimson else secondaryColor,
-                        modifier = Modifier.width(30.dp)
+                        modifier = Modifier.width(28.dp)
                     )
 
                     Column(
@@ -495,7 +682,7 @@ fun OnlineAlbumView(navController: NavController) {
                                 text = track.title,
                                 fontFamily = SFProDisplay,
                                 fontWeight = FontWeight.SemiBold,
-                                fontSize = 16.sp,
+                                fontSize = 16.5.sp,
                                 color = if (isPlayingThis) AppleCrimson else textColor,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -518,21 +705,24 @@ fun OnlineAlbumView(navController: NavController) {
                         }
                     }
 
-                    if (track.durationMs > 0L) {
-                        Text(
-                            text = formatDurationMs(track.durationMs),
-                            fontFamily = SFProDisplay,
-                            fontSize = 13.sp,
-                            color = secondaryColor
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Rounded.MoreHoriz,
+                        contentDescription = "Track Options",
+                        tint = textColor.copy(alpha = 0.75f),
+                        modifier = Modifier
+                            .size(20.dp)
+                            .clickable {
+                                Vibrator.click(context)
+                                shareCatalogEntity(context, track.title, track.artist, "song", track.id)
+                            }
+                    )
                 }
 
                 if (index < tracks.lastIndex) {
                     Spacer(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 50.dp, end = 20.dp)
+                            .padding(start = 52.dp, end = 20.dp)
                             .height(0.5.dp)
                             .background(secondaryColor.copy(alpha = 0.2f))
                     )
@@ -670,7 +860,7 @@ fun OnlineAlbumView(navController: NavController) {
 }
 
 // ============================================================================
-// 2. APPLE MUSIC ONLINE ARTIST VIEW (`openArtistView` in `upload.js`)
+// 2. APPLE MUSIC iOS 27 ONLINE ARTIST VIEW (`openArtistView` in `upload.js` — Screenshot 2)
 // ============================================================================
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -683,10 +873,10 @@ fun OnlineArtistView(navController: NavController) {
     val fallbackName by LibraryObject.targetOnlineArtistName
     val fallbackArtwork by LibraryObject.targetOnlineArtistArtwork
 
-    var artistDetail by remember(artistId) { mutableStateOf<LyricsFlowApi.CatalogArtistDetail?>(null) }
-    var isLoading by remember(artistId) { mutableStateOf(true) }
+    var artistDetail by remember(artistId, fallbackName) { mutableStateOf<LyricsFlowApi.CatalogArtistDetail?>(null) }
+    var isLoading by remember(artistId, fallbackName) { mutableStateOf(true) }
     var showBioSheet by remember { mutableStateOf(false) }
-    var showAllTopSongs by remember(artistId) { mutableStateOf(false) }
+    var showAllTopSongs by remember(artistId, fallbackName) { mutableStateOf(false) }
 
     BackHandler { navController.popBackStack() }
 
@@ -699,14 +889,26 @@ fun OnlineArtistView(navController: NavController) {
         isLoading = false
     }
 
-    val bgColor = Color(0xFFF8F8FA) withNight Color(0xFF0A0A0C)
+    val isDark = isFlamingoInDarkMode()
+    val bgColor = Color(0xFFF8F8FA) withNight Color(0xFF0A0E14)
     val textColor = Color.Black withNight Color.White
     val secondaryColor = (Color.Black withNight Color.White).copy(alpha = 0.58f)
-    val cardBg = Color(0x12000000) withNight Color(0x1EFFFFFF)
+    val cardBg = Color(0x12000000) withNight Color(0xFF1A2029)
 
     val resolvedName = artistDetail?.name?.ifBlank { fallbackName } ?: fallbackName.ifBlank { "Artist" }
     val resolvedArtwork = artistDetail?.artworkUrl?.ifBlank { fallbackArtwork } ?: fallbackArtwork
-    val isFollowed = SettingsLibrary.isArtistFollowed(resolvedName)
+    val resolvedLogoUrl = artistDetail?.logoUrl.orEmpty()
+    val concertBadge = artistDetail?.upcomingConcertBadge.orEmpty()
+
+    // Artist signature keyColor (`attr.keyColor`, e.g. #DF3478 hot pink in Screenshot 2)
+    val artistAccentColor = remember(artistDetail?.keyColorHex) {
+        val parsed = parseHexColorOrNull(artistDetail?.keyColorHex)
+        if (parsed != null && parsed.luminance() > 0.08f) parsed else Color(0xFFE03177)
+    }
+
+    var isFollowed by remember(resolvedName) {
+        mutableStateOf(SettingsLibrary.isArtistFollowed(resolvedName))
+    }
 
     val heroVideoState = rememberOnlineAnimatedVideoState(
         cacheKey = "artist_hero_${artistId.ifBlank { resolvedName }}",
@@ -716,30 +918,39 @@ fun OnlineArtistView(navController: NavController) {
         active = !artistDetail?.heroVideoUrl.isNullOrBlank()
     )
 
+    val heroBackdrop = rememberLayerBackdrop {
+        drawRect(bgColor)
+        drawContent()
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(bgColor),
         contentPadding = PaddingValues(bottom = 185.dp)
     ) {
-        // Apple Music Full-Bleed Artist Hero Banner with Motion Video & Bottom Gradient Fade
+        // Apple Music iOS 27 Full-Bleed Artist Hero Banner with Motion Video, Stylized Logo, Concert Pill & 3 Centered Circular Buttons (Screenshot 2)
         item(key = "online_artist_hero") {
+            val topSongs = artistDetail?.topSongs.orEmpty()
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(410.dp)
+                    .height(470.dp)
             ) {
+                // Full-bleed Portrait Artwork / Motion Video + Ambient Blur Fade at Bottom
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .layerBackdrop(heroBackdrop)
                         .graphicsLayer {
                             compositingStrategy = CompositingStrategy.Offscreen
                         }
                         .drawWithCache {
                             val fadeBrush = Brush.verticalGradient(
                                 0.00f to Color.Black,
-                                0.55f to Color.Black,
-                                0.80f to Color.Black.copy(alpha = 0.55f),
+                                0.52f to Color.Black,
+                                0.78f to Color.Black.copy(alpha = 0.62f),
+                                0.92f to Color.Black.copy(alpha = 0.20f),
                                 1.00f to Color.Transparent
                             )
                             onDrawWithContent {
@@ -760,8 +971,8 @@ fun OnlineArtistView(navController: NavController) {
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(
-                                    Brush.linearGradient(
-                                        listOf(Color(0xFFFA2D48), Color(0xFF1F1F24))
+                                    Brush.verticalGradient(
+                                        listOf(artistAccentColor.copy(alpha = 0.75f), bgColor)
                                     )
                                 )
                         )
@@ -769,137 +980,227 @@ fun OnlineArtistView(navController: NavController) {
                     AnimatedAlbumCoverOverlay(state = heroVideoState)
                 }
 
-                // Floating Top Action Bar (Back, Favorite Star, Info Bio)
+                // Ambient glow behind the artist logo & buttons
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(210.dp)
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color.Transparent,
+                                    artistAccentColor.copy(alpha = 0.22f),
+                                    bgColor
+                                )
+                            )
+                        )
+                )
+
+                // Floating Top iOS 27 Liquid Glass Nav Bar: Left Circle `<` + Right Shared Capsule (`Share` + `•••`)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
                         .align(Alignment.TopCenter),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = Color.Black.copy(alpha = 0.45f),
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clickable {
-                                Vibrator.click(context)
-                                navController.popBackStack()
-                            }
+                    LiquidGlassCircleButton(
+                        onClick = {
+                            Vibrator.click(context)
+                            navController.popBackStack()
+                        },
+                        size = 42.dp,
+                        backdrop = heroBackdrop
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    LiquidGlassPillGroup(
+                        height = 42.dp,
+                        backdrop = heroBackdrop
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .iosPressScale {
+                                    Vibrator.click(context)
+                                    shareCatalogEntity(context, resolvedName, "", "artist", artistDetail?.id ?: artistId)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = "Back",
+                                imageVector = Icons.Rounded.Share,
+                                contentDescription = "Share Artist",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .iosPressScale {
+                                    Vibrator.click(context)
+                                    if (!artistDetail?.bio.isNullOrBlank()) {
+                                        showBioSheet = true
+                                    } else {
+                                        SettingsLibrary.toggleArtistFollowed(resolvedName)
+                                        isFollowed = SettingsLibrary.isArtistFollowed(resolvedName)
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.MoreHoriz,
+                                contentDescription = "More",
                                 tint = Color.White,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
                     }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Surface(
-                            shape = CircleShape,
-                            color = Color.Black.copy(alpha = 0.45f),
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clickable {
-                                    Vibrator.click(context)
-                                    SettingsLibrary.toggleArtistFollowed(resolvedName)
-                                }
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = if (isFollowed) Icons.Rounded.Star else Icons.Rounded.StarBorder,
-                                    contentDescription = "Favorite Artist",
-                                    tint = if (isFollowed) AppleCrimson else Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-
-                        if (!artistDetail?.bio.isNullOrBlank()) {
-                            Surface(
-                                shape = CircleShape,
-                                color = Color.Black.copy(alpha = 0.45f),
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .clickable {
-                                        Vibrator.click(context)
-                                        showBioSheet = true
-                                    }
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Info,
-                                        contentDescription = "About Artist",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
                 }
 
-                // Bottom Overlay: Artist Name + Crimson Circular Play Button
-                Row(
+                // Bottom Centered Stack: Concert Badge Pill -> Stylized Artist Logo / Name -> 3 Circular Buttons (`i`, Giant Play, `☆`)
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
-                        .padding(horizontal = 20.dp, vertical = 14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = resolvedName,
-                            fontFamily = SFProDisplay,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 34.sp,
-                            lineHeight = 38.sp,
-                            color = textColor,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        artistDetail?.genre?.takeIf { it.isNotBlank() }?.let { g ->
+                    // Optional Concert Badge (`🗓 20 Aug · Hasselt` in Screenshot 2)
+                    if (concertBadge.isNotBlank()) {
+                        Row(
+                            modifier = Modifier
+                                .padding(bottom = 10.dp)
+                                .clip(RoundedCornerShape(100.dp))
+                                .background(Color.Black.copy(alpha = 0.48f))
+                                .border(BorderStroke(0.5.dp, Color.White.copy(alpha = 0.16f)), RoundedCornerShape(100.dp))
+                                .padding(horizontal = 12.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.ConfirmationNumber,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(13.dp)
+                            )
                             Text(
-                                text = g,
+                                text = concertBadge,
                                 fontFamily = SFProDisplay,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 14.sp,
-                                color = secondaryColor
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 12.5.sp,
+                                color = Color.White
                             )
                         }
                     }
 
-                    val topSongs = artistDetail?.topSongs.orEmpty()
-                    Surface(
-                        shape = CircleShape,
-                        color = AppleCrimson,
-                        modifier = Modifier
-                            .size(50.dp)
-                            .clickable(enabled = topSongs.isNotEmpty()) {
-                                Vibrator.click(context)
-                                val first = topSongs.firstOrNull() ?: return@clickable
-                                scope.launch(Dispatchers.IO) {
-                                    MediaController.playOnlineTrack(
-                                        track = first,
-                                        contextTracks = topSongs,
-                                        shuffleModeEnabled = false,
-                                        appendSimilar = true
-                                    )
-                                }
-                            }
+                    // Stylized Artist Logo (`musicContentColorLogoTrimmed`) OR Bold Centered Title
+                    if (resolvedLogoUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = resolvedLogoUrl,
+                            contentDescription = resolvedName,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier
+                                .height(68.dp)
+                                .widthIn(max = 280.dp)
+                                .padding(bottom = 14.dp)
+                        )
+                    } else {
+                        Text(
+                            text = resolvedName,
+                            fontFamily = SFProDisplay,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 36.sp,
+                            lineHeight = 40.sp,
+                            color = Color.White,
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(bottom = 14.dp)
+                        )
+                    }
+
+                    // 3 Centered Circular Hero Action Buttons (`i` Bio, Giant `artistAccentColor` Play, `☆` Favorite — Screenshot 2)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(24.dp)
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
+                        // Left: Circular Liquid Glass `i` Info Button
+                        LiquidGlassCircleButton(
+                            onClick = {
+                                Vibrator.click(context)
+                                if (!artistDetail?.bio.isNullOrBlank()) {
+                                    showBioSheet = true
+                                } else {
+                                    Toast.makeText(context, resolvedName, Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            size = 44.dp,
+                            backdrop = heroBackdrop
+                        ) {
+                            Text(
+                                text = "i",
+                                fontFamily = FontFamily.Serif,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = artistAccentColor
+                            )
+                        }
+
+                        // Center: Giant 64.dp Solid `artistAccentColor` Circular Play Button
+                        Surface(
+                            shape = CircleShape,
+                            color = artistAccentColor,
+                            shadowElevation = 8.dp,
+                            modifier = Modifier
+                                .size(64.dp)
+                                .iosPressScale(enabled = topSongs.isNotEmpty(), pressedScale = 0.93f) {
+                                    Vibrator.click(context)
+                                    val first = topSongs.firstOrNull() ?: return@iosPressScale
+                                    scope.launch(Dispatchers.IO) {
+                                        MediaController.playOnlineTrack(
+                                            track = first,
+                                            contextTracks = topSongs,
+                                            shuffleModeEnabled = false,
+                                            appendSimilar = true
+                                        )
+                                    }
+                                }
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Rounded.PlayArrow,
+                                    contentDescription = "Play Artist",
+                                    tint = Color(0xFF1A0812),
+                                    modifier = Modifier.size(34.dp)
+                                )
+                            }
+                        }
+
+                        // Right: Circular Liquid Glass `☆` / `★` Favorite Button
+                        LiquidGlassCircleButton(
+                            onClick = {
+                                Vibrator.click(context)
+                                SettingsLibrary.toggleArtistFollowed(resolvedName)
+                                isFollowed = SettingsLibrary.isArtistFollowed(resolvedName)
+                            },
+                            size = 44.dp,
+                            backdrop = heroBackdrop
+                        ) {
                             Icon(
-                                imageVector = Icons.Rounded.PlayArrow,
-                                contentDescription = "Play Artist",
-                                tint = Color.White,
-                                modifier = Modifier.size(28.dp)
+                                imageVector = if (isFollowed) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+                                contentDescription = "Favorite Artist",
+                                tint = artistAccentColor,
+                                modifier = Modifier.size(22.dp)
                             )
                         }
                     }
@@ -915,86 +1216,106 @@ fun OnlineArtistView(navController: NavController) {
                         .padding(vertical = 48.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = AppleCrimson)
+                    CircularProgressIndicator(color = artistAccentColor)
                 }
             }
         } else {
-            // 1. Latest Release Card (`upload.js` `artist-latest-card`)
+            // 1. Featured / Latest Release Rounded Glass Card (Screenshot 2: `1 May 2026`, `Midnight Sun: Girls Trip [E]`, `20 songs`, right `+` circle)
             artistDetail?.latestRelease?.let { latest ->
                 item(key = "online_artist_latest_release") {
-                    Column(
+                    var isLatestSaved by remember(latest.id) {
+                        mutableStateOf(SettingsLibrary.isAlbumSaved(latest.id))
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(24.dp),
+                        color = cardBg,
+                        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 10.dp)
-                    ) {
-                        Text(
-                            text = "Latest Release",
-                            fontFamily = SFProDisplay,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 21.sp,
-                            color = textColor,
-                            modifier = Modifier.padding(bottom = 10.dp)
-                        )
-                        Surface(
-                            shape = RoundedCornerShape(14.dp),
-                            color = cardBg,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    Vibrator.click(context)
-                                    LibraryObject.openOnlineAlbum(
-                                        albumId = latest.id,
-                                        title = latest.title,
-                                        artist = resolvedName,
-                                        artworkUrl = latest.artworkUrl
-                                    )
-                                    navController.toUI(UI.OnlineAlbumInfo)
-                                }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                AsyncImage(
-                                    model = latest.artworkUrl,
-                                    contentDescription = latest.title,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier
-                                        .size(86.dp)
-                                        .clip(RoundedCornerShape(10.dp))
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .iosPressScale(pressedScale = 0.98f) {
+                                Vibrator.click(context)
+                                LibraryObject.openOnlineAlbum(
+                                    albumId = latest.id,
+                                    title = latest.title,
+                                    artist = resolvedName,
+                                    artworkUrl = latest.artworkUrl
                                 )
-                                Column(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .padding(horizontal = 14.dp)
-                                ) {
-                                    if (latest.releaseYear.isNotBlank()) {
-                                        Text(
-                                            text = latest.releaseYear,
-                                            fontFamily = SFProDisplay,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 11.sp,
-                                            color = AppleCrimson
-                                        )
-                                    }
+                                navController.toUI(UI.OnlineAlbumInfo)
+                            }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AsyncImage(
+                                model = latest.artworkUrl,
+                                contentDescription = latest.title,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(96.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                            )
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                val releaseLabel = latest.editorialSubtitle.ifBlank { latest.releaseYear }
+                                if (releaseLabel.isNotBlank()) {
+                                    Text(
+                                        text = releaseLabel,
+                                        fontFamily = SFProDisplay,
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 13.sp,
+                                        color = secondaryColor
+                                    )
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         text = latest.title,
                                         fontFamily = SFProDisplay,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 17.sp,
+                                        fontSize = 16.5.sp,
                                         color = textColor,
                                         maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false)
                                     )
-                                    if (latest.trackCount > 0) {
-                                        Text(
-                                            text = "${latest.trackCount} songs",
-                                            fontFamily = SFProDisplay,
-                                            fontSize = 13.sp,
-                                            color = secondaryColor,
-                                            modifier = Modifier.padding(top = 2.dp)
-                                        )
+                                    if (latest.isExplicit) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        ExplicitBadge()
                                     }
+                                }
+                                if (latest.trackCount > 0) {
+                                    Text(
+                                        text = "${latest.trackCount} songs",
+                                        fontFamily = SFProDisplay,
+                                        fontSize = 14.sp,
+                                        color = secondaryColor
+                                    )
+                                }
+                            }
+                            // Right circular `+` / `✓` button (Screenshot 2)
+                            Surface(
+                                shape = CircleShape,
+                                color = Color.White.copy(alpha = if (isDark) 0.12f else 0.08f),
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .iosPressScale {
+                                        Vibrator.click(context)
+                                        SettingsLibrary.toggleAlbumSaved(latest.id)
+                                        isLatestSaved = SettingsLibrary.isAlbumSaved(latest.id)
+                                    }
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = if (isLatestSaved) Icons.Rounded.Check else Icons.Rounded.Add,
+                                        contentDescription = "Add Album",
+                                        tint = textColor,
+                                        modifier = Modifier.size(20.dp)
+                                    )
                                 }
                             }
                         }
@@ -1002,15 +1323,15 @@ fun OnlineArtistView(navController: NavController) {
                 }
             }
 
-            // 2. Top Songs Section
+            // 2. Top Songs > Section (Screenshot 2)
             val topSongs = artistDetail?.topSongs.orEmpty()
             if (topSongs.isNotEmpty()) {
                 item(key = "online_artist_top_songs_header") {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clickable { showAllTopSongs = !showAllTopSongs }
                             .padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
@@ -1020,84 +1341,98 @@ fun OnlineArtistView(navController: NavController) {
                             fontSize = 21.sp,
                             color = textColor
                         )
-                        if (topSongs.size > 6) {
-                            Text(
-                                text = if (showAllTopSongs) "Show Less" else "See All",
-                                fontFamily = SFProDisplay,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 15.sp,
-                                color = AppleCrimson,
-                                modifier = Modifier.clickable {
-                                    showAllTopSongs = !showAllTopSongs
-                                }
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                            contentDescription = "See All Top Songs",
+                            tint = secondaryColor,
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                 }
 
-                val displayedSongs = if (showAllTopSongs) topSongs else topSongs.take(6)
+                val displayedSongs = if (showAllTopSongs) topSongs else topSongs.take(8)
                 itemsIndexed(displayedSongs, key = { idx, s -> "artist_top_song_${s.id}_$idx" }) { index, song ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                Vibrator.click(context)
-                                scope.launch(Dispatchers.IO) {
-                                    MediaController.playOnlineTrack(
-                                        track = song,
-                                        contextTracks = topSongs,
-                                        shuffleModeEnabled = false,
-                                        appendSimilar = true
-                                    )
+                    Column {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    Vibrator.click(context)
+                                    scope.launch(Dispatchers.IO) {
+                                        MediaController.playOnlineTrack(
+                                            track = song,
+                                            contextTracks = topSongs,
+                                            shuffleModeEnabled = false,
+                                            appendSimilar = true
+                                        )
+                                    }
                                 }
-                            }
-                            .padding(horizontal = 20.dp, vertical = 7.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        AsyncImage(
-                            model = song.artworkUrl,
-                            contentDescription = song.title,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(50.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                        )
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(horizontal = 14.dp)
+                                .padding(horizontal = 20.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = song.title,
-                                    fontFamily = SFProDisplay,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 16.sp,
-                                    color = textColor,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f, fill = false)
-                                )
-                                if (song.isExplicit) {
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    ExplicitBadge()
+                            AsyncImage(
+                                model = song.artworkUrl,
+                                contentDescription = song.title,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(52.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                            )
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = 14.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = song.title,
+                                        fontFamily = SFProDisplay,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 16.sp,
+                                        color = textColor,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false)
+                                    )
+                                    if (song.isExplicit) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        ExplicitBadge()
+                                    }
                                 }
+                                val subParts = buildList {
+                                    song.album.takeIf { it.isNotBlank() }?.let { add(it) }
+                                    song.releaseYear?.let { add(it.toString()) }
+                                }
+                                Text(
+                                    text = subParts.joinToString(" · ").ifBlank { resolvedName },
+                                    fontFamily = SFProDisplay,
+                                    fontSize = 13.5.sp,
+                                    color = secondaryColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
-                            Text(
-                                text = song.album.ifBlank { resolvedName },
-                                fontFamily = SFProDisplay,
-                                fontSize = 13.sp,
-                                color = secondaryColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                            Icon(
+                                imageVector = Icons.Rounded.MoreHoriz,
+                                contentDescription = "More",
+                                tint = textColor.copy(alpha = 0.72f),
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .clickable {
+                                        Vibrator.click(context)
+                                        shareCatalogEntity(context, song.title, song.artist, "song", song.id)
+                                    }
                             )
                         }
-                        Icon(
-                            imageVector = Icons.Rounded.PlayArrow,
-                            contentDescription = "Play",
-                            tint = AppleCrimson,
-                            modifier = Modifier.size(22.dp)
-                        )
+                        if (index < displayedSongs.lastIndex) {
+                            Spacer(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 86.dp, end = 20.dp)
+                                    .height(0.5.dp)
+                                    .background(secondaryColor.copy(alpha = 0.18f))
+                            )
+                        }
                     }
                 }
             }
@@ -1234,7 +1569,7 @@ fun OnlineArtistView(navController: NavController) {
                             modifier = Modifier.padding(bottom = 10.dp)
                         )
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(20.dp),
                             color = cardBg,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1252,11 +1587,11 @@ fun OnlineArtistView(navController: NavController) {
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    text = "READ MORE",
+                                    text = "MORE",
                                     fontFamily = SFProDisplay,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 12.sp,
-                                    color = AppleCrimson
+                                    color = artistAccentColor
                                 )
                             }
                         }
@@ -1292,7 +1627,7 @@ fun OnlineArtistView(navController: NavController) {
                                 Column(
                                     modifier = Modifier
                                         .width(108.dp)
-                                        .clickable {
+                                        .iosPressScale {
                                             Vibrator.click(context)
                                             LibraryObject.openOnlineArtist(
                                                 artistId = simArtist.id,
@@ -1421,27 +1756,34 @@ fun OnlinePlaylistView(navController: NavController) {
         active = !playlistDetail?.animatedVideoUrl.isNullOrBlank()
     )
 
+    val heroBackdrop = rememberLayerBackdrop {
+        drawRect(bgColor)
+        drawContent()
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(bgColor),
         contentPadding = PaddingValues(bottom = 185.dp)
     ) {
+        val tracks = playlistDetail?.tracks.orEmpty()
         item(key = "online_playlist_hero") {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(410.dp)
+                    .height(450.dp)
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .layerBackdrop(heroBackdrop)
                         .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
                         .drawWithCache {
                             val fadeBrush = Brush.verticalGradient(
                                 0.00f to Color.Black,
-                                0.58f to Color.Black,
-                                0.85f to Color.Black.copy(alpha = 0.35f),
+                                0.52f to Color.Black,
+                                0.80f to Color.Black.copy(alpha = 0.45f),
                                 1.00f to Color.Transparent
                             )
                             onDrawWithContent {
@@ -1465,24 +1807,59 @@ fun OnlinePlaylistView(navController: NavController) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
                         .align(Alignment.TopCenter),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = Color.Black.copy(alpha = 0.42f),
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clickable {
-                                Vibrator.click(context)
-                                navController.popBackStack()
-                            }
+                    LiquidGlassCircleButton(
+                        onClick = {
+                            Vibrator.click(context)
+                            navController.popBackStack()
+                        },
+                        size = 42.dp,
+                        backdrop = heroBackdrop
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    LiquidGlassPillGroup(
+                        height = 42.dp,
+                        backdrop = heroBackdrop
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .iosPressScale {
+                                    Vibrator.click(context)
+                                    shareCatalogEntity(context, resolvedTitle, resolvedCurator, "playlist", playlistId)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = "Back",
+                                imageVector = Icons.Rounded.Share,
+                                contentDescription = "Share Playlist",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .iosPressScale {
+                                    Vibrator.click(context)
+                                    Toast.makeText(context, resolvedTitle, Toast.LENGTH_SHORT).show()
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.MoreHoriz,
+                                contentDescription = "More",
                                 tint = Color.White,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -1494,14 +1871,14 @@ fun OnlinePlaylistView(navController: NavController) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
-                        .padding(horizontal = 22.dp, vertical = 8.dp),
+                        .padding(horizontal = 22.dp, vertical = 10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
                         text = resolvedTitle,
                         fontFamily = SFProDisplay,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 26.sp,
+                        fontSize = 25.sp,
                         color = textColor,
                         textAlign = TextAlign.Center,
                         maxLines = 2,
@@ -1513,65 +1890,63 @@ fun OnlinePlaylistView(navController: NavController) {
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 16.sp,
                         color = AppleCrimson,
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier = Modifier.padding(top = 3.dp, bottom = 14.dp)
                     )
-                }
-            }
-        }
 
-        val tracks = playlistDetail?.tracks.orEmpty()
-        item(key = "online_playlist_actions") {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = AppleCrimson,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .clickable(enabled = tracks.isNotEmpty()) {
-                            Vibrator.click(context)
-                            val first = tracks.firstOrNull() ?: return@clickable
-                            scope.launch(Dispatchers.IO) {
-                                MediaController.playOnlineTrack(first, tracks, shuffleModeEnabled = false)
-                            }
-                        }
-                ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
+                        horizontalArrangement = Arrangement.spacedBy(18.dp)
                     ) {
-                        Icon(Icons.Rounded.PlayArrow, null, tint = Color.White, modifier = Modifier.size(22.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Play", fontFamily = SFProDisplay, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
-                    }
-                }
+                        LiquidGlassCircleButton(
+                            onClick = {
+                                Vibrator.click(context)
+                                val rand = tracks.randomOrNull() ?: return@LiquidGlassCircleButton
+                                scope.launch(Dispatchers.IO) {
+                                    MediaController.playOnlineTrack(rand, tracks, shuffleModeEnabled = true)
+                                }
+                            },
+                            size = 48.dp,
+                            enabled = tracks.isNotEmpty(),
+                            backdrop = heroBackdrop
+                        ) {
+                            Icon(Icons.Rounded.Shuffle, "Shuffle", tint = Color.White, modifier = Modifier.size(21.dp))
+                        }
 
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = cardBg,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .clickable(enabled = tracks.isNotEmpty()) {
-                            Vibrator.click(context)
-                            val rand = tracks.randomOrNull() ?: return@clickable
-                            scope.launch(Dispatchers.IO) {
-                                MediaController.playOnlineTrack(rand, tracks, shuffleModeEnabled = true)
+                        Surface(
+                            shape = RoundedCornerShape(100.dp),
+                            color = Color.White,
+                            shadowElevation = 6.dp,
+                            modifier = Modifier
+                                .width(166.dp)
+                                .height(50.dp)
+                                .iosPressScale(enabled = tracks.isNotEmpty(), pressedScale = 0.95f) {
+                                    Vibrator.click(context)
+                                    val first = tracks.firstOrNull() ?: return@iosPressScale
+                                    scope.launch(Dispatchers.IO) {
+                                        MediaController.playOnlineTrack(first, tracks, shuffleModeEnabled = false)
+                                    }
+                                }
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(Icons.Rounded.PlayArrow, null, tint = Color.Black, modifier = Modifier.size(24.dp))
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text("Play", fontFamily = SFProDisplay, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.Black)
                             }
                         }
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(Icons.Rounded.Shuffle, null, tint = AppleCrimson, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Shuffle", fontFamily = SFProDisplay, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = AppleCrimson)
+
+                        LiquidGlassCircleButton(
+                            onClick = {
+                                Vibrator.click(context)
+                                Toast.makeText(context, "Saved $resolvedTitle", Toast.LENGTH_SHORT).show()
+                            },
+                            size = 48.dp,
+                            backdrop = heroBackdrop
+                        ) {
+                            Icon(Icons.Rounded.ArrowDownward, "Save", tint = Color.White, modifier = Modifier.size(21.dp))
+                        }
                     }
                 }
             }

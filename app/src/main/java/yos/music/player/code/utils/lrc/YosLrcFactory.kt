@@ -157,39 +157,25 @@ class YosLrcFactory(private val formatText: Boolean = true) {
 
             var deleteType = -1
 
-            if (lyric.endsWith(":") || lyric.endsWith("：")) {
-                otherSide = !otherSide
-            } else if (lines.size > 1) {
+            if (lines.size > 1) {
                 val currentSinger = lines[1].second
-                if (currentSinger.matches(Regex(".+\\s*:\\s*"))) {
+                val fixedOtherSide = currentSinger.toFixedOtherSide()
+                if (fixedOtherSide != null && currentSinger.matches(Regex("^[vV][12]\\s*[:：]\\s*.*"))) {
                     deleteType = 0
-                    val fixedOtherSide = currentSinger.toFixedOtherSide()
-                    if (fixedOtherSide != null) {
-                        otherSide = fixedOtherSide
-                    } else if (lastSinger != null && lastSinger == currentSinger) {
-                        // 保持 otherSide 不变
-                    } else {
-                        if (otherSideFirstTime) {
-                            otherSide = !otherSide
-                        } else {
-                            otherSideFirstTime = true
-                        }
-                    }
+                    otherSide = fixedOtherSide
                     lastSinger = currentSinger
                 }
             }
 
-            /*if (runCatching { lyric.ifNeedMirror() }.getOrDefault(false)) {
-                otherSideResult.add(!otherSide)
-            } else {
-                otherSideResult.add(otherSide)
-            }*/
-
             otherSideResult.add(otherSide)
 
-
-            lines.filterIndexed { index, char ->
-                !((index == 1 && char.second.matches(Regex(".+\\s*:\\s*"))) && deleteType == 0)
+            lines.mapIndexedNotNull { index, char ->
+                if (index == 1 && deleteType == 0) {
+                    val stripped = char.second.replaceFirst(Regex("^[vV][12]\\s*[:：]\\s*"), "")
+                    if (stripped.isEmpty()) null else (char.first to stripped)
+                } else {
+                    char
+                }
             }
         }
 

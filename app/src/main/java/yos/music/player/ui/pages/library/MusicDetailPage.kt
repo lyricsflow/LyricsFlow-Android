@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -63,6 +64,9 @@ import com.lyricsflow.player.code.utils.others.Vibrator
 import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
 import com.lyricsflow.player.ui.theme.withNight
 import com.lyricsflow.player.ui.widgets.basic.SearchTextField
+import com.lyricsflow.player.ui.widgets.glass.iosPressScale
+import com.lyricsflow.player.ui.widgets.glass.liquidGlass
+import com.lyricsflow.player.ui.widgets.glass.liquidGlassCircle
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -263,30 +267,35 @@ fun MusicDetailCircleButton(
     val backgroundColor = if (!showBackground) {
         Color.Transparent
     } else if (accent) {
-        Color.White.copy(alpha = 0.14f)
+        MaterialTheme.colorScheme.primary
     } else {
         Color.Black.copy(alpha = 0.36f)
     }
-    val tint = if (selected || accent) {
+    val tint = if (accent) {
+        Color.White
+    } else if (selected) {
         MaterialTheme.colorScheme.primary
     } else {
         Color.White
     }
+    val buttonSize = if (accent) 60.dp else 52.dp
 
     Box(
         modifier = modifier
             .alpha(if (enabled) 1f else 0.42f)
-            .size(56.dp)
-            .clip(CircleShape)
-            .background(backgroundColor)
-            .clickable(
-                enabled = enabled,
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {
-                    Vibrator.click(context)
-                    onClick()
-                },
+            .size(buttonSize)
+            .iosPressScale(enabled = enabled, pressedScale = 0.93f) {
+                Vibrator.click(context)
+                onClick()
+            }
+            .then(
+                if (showBackground && !accent) {
+                    Modifier.liquidGlassCircle(surfaceTint = backgroundColor)
+                } else {
+                    Modifier
+                        .clip(CircleShape)
+                        .background(backgroundColor)
+                }
             ),
         contentAlignment = Alignment.Center,
     ) {
@@ -306,10 +315,16 @@ fun MusicDetailActionPill(
 ) {
     Row(
         modifier = modifier
-            .height(56.dp)
-            .clip(YosRoundedCornerShape(18.dp))
-            .background(Color.Black.copy(alpha = 0.36f))
-            .padding(horizontal = 6.dp, vertical = 5.dp),
+            .height(52.dp)
+            .liquidGlass(
+                shape = RoundedCornerShape(100.dp),
+                blurRadius = 10.dp,
+                refractionHeight = 16.dp,
+                refractionAmount = 20.dp,
+                depthEffect = false,
+                surfaceTint = Color.Black.copy(alpha = 0.36f)
+            )
+            .padding(horizontal = 8.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
     )
@@ -621,10 +636,16 @@ private fun MusicDetailTopBarActionPill(
 ) {
     Row(
         modifier = Modifier
-            .height(44.dp)
-            .clip(YosRoundedCornerShape(18.dp))
-            .background(surfaceColor)
-            .padding(horizontal = 4.dp, vertical = 4.dp),
+            .height(42.dp)
+            .liquidGlass(
+                shape = RoundedCornerShape(100.dp),
+                blurRadius = 10.dp,
+                refractionHeight = 14.dp,
+                refractionAmount = 18.dp,
+                depthEffect = false,
+                surfaceTint = surfaceColor
+            )
+            .padding(horizontal = 6.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
     )
@@ -635,9 +656,9 @@ private fun MusicDetailTopBarPillDivider(iconTint: Color) {
     Spacer(
         modifier = Modifier
             .padding(vertical = 6.dp)
-            .width(1.dp)
+            .width(0.5.dp)
             .fillMaxHeight()
-            .alpha(0.12f)
+            .alpha(0.16f)
             .background(iconTint),
     )
 }
@@ -661,18 +682,13 @@ private fun MusicDetailTopBarButton(
 
     Box(
         modifier = Modifier
-            .size(44.dp)
+            .size(42.dp)
             .then(modifier)
-            .clip(CircleShape)
-            .background(surfaceColor)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {
-                    Vibrator.click(context)
-                    onClick()
-                },
-            ),
+            .iosPressScale(pressedScale = 0.92f) {
+                Vibrator.click(context)
+                onClick()
+            }
+            .liquidGlassCircle(surfaceTint = surfaceColor),
         contentAlignment = Alignment.Center,
     ) {
         Icon(

@@ -53,6 +53,7 @@ import coil.size.Precision
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.lyricsflow.player.R
+import com.lyricsflow.player.code.utils.lrc.LyricsFlowApi
 import com.lyricsflow.player.data.libraries.ArtistLibrary
 import com.lyricsflow.player.data.libraries.MusicLibrary
 import com.lyricsflow.player.data.libraries.SettingsLibrary
@@ -63,6 +64,7 @@ import com.lyricsflow.player.ui.toUI
 import com.lyricsflow.player.ui.widgets.basic.SearchTextField
 import com.lyricsflow.player.ui.widgets.basic.Title
 import com.lyricsflow.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.ui.widgets.glass.iosPressScale
 
 @Composable
 fun LocalArtists(navController: NavController) {
@@ -71,7 +73,11 @@ fun LocalArtists(navController: NavController) {
             .fillMaxSize()
         /*.statusBarsPadding()*/
     ) {
-        val artistsList = ArtistLibrary.sortedArtists(MusicLibrary.artists)
+        val artistsList = remember(MusicLibrary.artists, SettingsLibrary.FollowedArtists) {
+            ArtistLibrary.sortedArtists(
+                (MusicLibrary.artists + SettingsLibrary.followedArtists).distinct()
+            )
+        }
 
         val searchText = remember("LocalArtists_searchText") {
             mutableStateOf("")
@@ -155,9 +161,15 @@ fun LocalArtists(navController: NavController) {
                     contentType = { _, _ -> "LocalArtists_item" }*/
                 ) { index, artist ->
                     ArtistItem(artistName = artist) {
-                        LibraryObject.setTargetArtistName(artist)
-                        LibraryObject.setArtistSongsSearchOnOpen(false)
-                        navController.toUI(UI.ArtistInfo)
+                        val localSongsForArtist = MusicLibrary.Artist[artist]
+                        if (localSongsForArtist.isNotEmpty()) {
+                            LibraryObject.setTargetArtistName(artist)
+                            LibraryObject.setArtistSongsSearchOnOpen(false)
+                            navController.toUI(UI.ArtistInfo)
+                        } else {
+                            LibraryObject.openOnlineArtist(artistId = "", name = artist)
+                            navController.toUI(UI.OnlineArtistInfo)
+                        }
                     }
 
                     key(index) {
@@ -189,59 +201,67 @@ private fun LazyItemScope.ArtistItem(
         modifier = Modifier
             .animateItem(fadeInSpec = null, fadeOutSpec = null)
             .fillMaxWidth()
-            .height(56.dp)
-            .clickable(onClick = onClick)
+            .height(60.dp)
+            .iosPressScale(pressedScale = 0.98f, onClick = onClick)
             .padding(start = 18.dp, end = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         val songs = MusicLibrary.Artist[artistName]
+        val realArtistAvatar = remember(artistName) { mutableStateOf("") }
+        LaunchedEffect(artistName) {
+            val url = LyricsFlowApi.fetchArtistAvatarUrl(artistName)
+            if (url.isNotBlank()) {
+                realArtistAvatar.value = url
+            }
+        }
         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp)) {
             YosWrapper {
                 val shape = CircleShape
-
-                    val density = LocalDensity.current
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(data = songs.getOrNull(0)?.thumb).crossfade(true)
-                            .error(R.drawable.songcredits_monogram_person)
-                            .placeholder(R.drawable.songcredits_monogram_person)
-                            .fallback(R.drawable.songcredits_monogram_person)
-                            .allowHardware(true)
-                            .precision(Precision.INEXACT)
-                            .size(128)
-                            .build(),
-                        contentDescription = "Artist_Image",
-                        contentScale = ContentScale.Crop,
-                        modifier = modifier
-                            .size(48.dp)
-                            .aspectRatio(1f)
-                            .graphicsLayer {
-                                compositingStrategy = CompositingStrategy.Offscreen
-                                clip = true
-                                this.shape = shape
+                val density = LocalDensity.current
+                val imageData: Any? = realArtistAvatar.value.ifBlank { null } ?: songs.getOrNull(0)?.thumb
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(data = imageData)
+                        .crossfade(true)
+                        .error(R.drawable.songcredits_monogram_person)
+                        .placeholder(R.drawable.songcredits_monogram_person)
+                        .fallback(R.drawable.songcredits_monogram_person)
+                        .allowHardware(true)
+                        .precision(Precision.INEXACT)
+                        .size(160)
+                        .build(),
+                    contentDescription = "Artist_Image",
+                    contentScale = ContentScale.Crop,
+                    modifier = modifier
+                        .size(48.dp)
+                        .aspectRatio(1f)
+                        .graphicsLayer {
+                            compositingStrategy = CompositingStrategy.Offscreen
+                            clip = true
+                            this.shape = shape
+                        }
+                        .drawWithCache {
+                            onDrawWithContent {
+                                drawContent()
+                                val outline = shape.createOutline(
+                                    Size(size.width, size.height),
+                                    LayoutDirection.Ltr,
+                                    density
+                                )
+                                drawOutline(
+                                    outline = outline,
+                                    color = Color.DarkGray.copy(alpha = 0.08f),
+                                    style = Stroke(width = 6f)
+                                )
+                                drawOutline(
+                                    outline = outline,
+                                    color = Color.DarkGray.copy(alpha = 0.4f),
+                                    style = Stroke(width = 6f),
+                                    blendMode = BlendMode.Overlay
+                                )
                             }
-                            .drawWithCache {
-                                onDrawWithContent {
-                                    drawContent()
-                                    val outline = shape.createOutline(
-                                        Size(size.width, size.height),
-                                        LayoutDirection.Ltr,
-                                        density
-                                    )
-                                    drawOutline(
-                                        outline = outline,
-                                        color = Color.DarkGray.copy(alpha = 0.08f),
-                                        style = Stroke(width = 6f)
-                                    )
-                                    drawOutline(
-                                        outline = outline,
-                                        color = Color.DarkGray.copy(alpha = 0.4f),
-                                        style = Stroke(width = 6f),
-                                        blendMode = BlendMode.Overlay
-                                    )
-                                }
-                            }
-                    )
+                        }
+                )
             }
         }
         Spacer(modifier = Modifier.width(15.dp))

@@ -2,16 +2,30 @@ package com.lyricsflow.player.ui.widgets.glass
 
 import android.os.Build
 import androidx.annotation.ChecksSdkIntAtLeast
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -19,6 +33,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.lyricsflow.player.data.libraries.SettingsLibrary
@@ -200,4 +215,95 @@ fun rememberLiquidGlassBackdrop(): LayerBackdrop {
         drawRect(bg)
         drawContent()
     }
+}
+
+/**
+ * Tactile iOS 27 spring press-scale modifier (`0.94f` on press, snappy spring release).
+ */
+@Composable
+fun Modifier.iosPressScale(
+    enabled: Boolean = true,
+    pressedScale: Float = 0.94f,
+    onClick: () -> Unit
+): Modifier {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed && enabled) pressedScale else 1f,
+        animationSpec = spring(
+            dampingRatio = 0.72f,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "iosPressScale"
+    )
+    return this
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
+        .clickable(
+            interactionSource = interactionSource,
+            indication = null,
+            enabled = enabled,
+            onClick = onClick
+        )
+}
+
+/**
+ * iOS 27 Apple Music Circular Liquid Glass Button (`<` Back, `i` Bio, `☆` Star, Shuffle, Download).
+ */
+@Composable
+fun LiquidGlassCircleButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    size: Dp = 42.dp,
+    enabled: Boolean = true,
+    backdrop: Backdrop = LocalAppBackdrop.current,
+    surfaceTint: Color? = Color(0xFF1A1A1E).copy(alpha = 0.34f),
+    content: @Composable BoxScope.() -> Unit
+) {
+    Box(
+        modifier = modifier
+            .size(size)
+            .iosPressScale(enabled = enabled, pressedScale = 0.92f, onClick = onClick)
+            .liquidGlassCircle(
+                backdrop = backdrop,
+                blurRadius = 10.dp,
+                refractionHeight = 14.dp,
+                refractionAmount = 18.dp,
+                surfaceTint = surfaceTint
+            ),
+        contentAlignment = Alignment.Center,
+        content = content
+    )
+}
+
+/**
+ * iOS 27 Apple Music Shared Capsule Pill Group (e.g. Top-Right `Share` + `•••` More pill in Artist & Album views).
+ */
+@Composable
+fun LiquidGlassPillGroup(
+    modifier: Modifier = Modifier,
+    height: Dp = 42.dp,
+    backdrop: Backdrop = LocalAppBackdrop.current,
+    surfaceTint: Color? = Color(0xFF1A1A1E).copy(alpha = 0.34f),
+    content: @Composable RowScope.() -> Unit
+) {
+    Row(
+        modifier = modifier
+            .height(height)
+            .liquidGlass(
+                backdrop = backdrop,
+                shape = RoundedCornerShape(100.dp),
+                blurRadius = 10.dp,
+                refractionHeight = 16.dp,
+                refractionAmount = 20.dp,
+                depthEffect = false,
+                surfaceTint = surfaceTint
+            )
+            .padding(horizontal = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        content = content
+    )
 }

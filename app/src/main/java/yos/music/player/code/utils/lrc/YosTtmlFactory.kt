@@ -36,10 +36,12 @@ class YosTtmlFactory {
             val subtitleByKey = rootElement.parseMetadataTextByKey("translations")
             val transliterationByKey = rootElement.parseMetadataTextByKey("transliterations")
             val songwriters = rootElement.parseSongwriters()
-            val oppositeAgents = rootElement.parseOppositeAgents()
+            val (headPrimaryAgent, oppositeAgents) = rootElement.parseAgentsInfo()
+            val bodyAgent = bodyElement.readAttribute("agent") ?: bodyElement.readAttribute("ttm:agent")
 
             val lyricEntries = mutableListOf<List<Pair<Float, String>>>()
             val endTimes = mutableListOf<Float>()
+            val rawLineAgents = mutableListOf<String?>()
             val otherSideForLines = mutableListOf<Boolean>()
             val transliterations = mutableListOf<String?>()
             val subtitles = mutableListOf<String?>()
@@ -48,24 +50,27 @@ class YosTtmlFactory {
             val sections = mutableMapOf<Int, String>()
 
             val divElements = bodyElement.directChildElementsByLocalName("div")
-            val pWithSectionList = mutableListOf<Pair<Element, String?>>()
+            val pWithSectionList = mutableListOf<Triple<Element, String?, String?>>()
 
             if (divElements.isNotEmpty()) {
                 divElements.forEach { div ->
                     val songPart = div.readAttribute("songPart")
                         ?: div.readAttribute("itunes:songPart")
+                    val divAgent = div.readAttribute("agent")
+                        ?: div.readAttribute("ttm:agent")
+                        ?: bodyAgent
                     val pList = div.descendantsByLocalName("p")
                     pList.forEachIndexed { idx, p ->
-                        pWithSectionList.add(p to if (idx == 0) songPart else null)
+                        pWithSectionList.add(Triple(p, if (idx == 0) songPart else null, divAgent))
                     }
                 }
             } else {
                 bodyElement.descendantsByLocalName("p").forEach { p ->
-                    pWithSectionList.add(p to null)
+                    pWithSectionList.add(Triple(p, null, bodyAgent))
                 }
             }
 
-            pWithSectionList.forEach { (lineElement, sectionName) ->
+            pWithSectionList.forEach { (lineElement, sectionName, inheritedAgent) ->
                 val rawLineBegin = lineElement.readTimeAttribute("begin")
                 val parsedLine = lineElement.parseRichParagraph(rawLineBegin ?: 0f)
                 val leadSyllables = parsedLine.leadSyllables
@@ -89,15 +94,12 @@ class YosTtmlFactory {
                     if (!sectionName.isNullOrBlank()) {
                         sections[lineIndex] = sectionName
                     }
-                    val agentId = lineElement.readAttribute("agent")
-                    val isOpposite = agentId != null && (
-                        agentId.equals("v2", ignoreCase = true) ||
-                            agentId.equals("v2000", ignoreCase = true) ||
-                            oppositeAgents.contains(agentId)
-                        )
+                    val agentId = (lineElement.readAttribute("agent")
+                        ?: lineElement.readAttribute("ttm:agent")
+                        ?: inheritedAgent)?.trim()
                     lyricEntries.add(linePairs)
                     endTimes.add(lineEnd.coerceAtLeast(lineBegin))
-                    otherSideForLines.add(isOpposite)
+                    rawLineAgents.add(agentId)
                     transliterations.add(
                         parsedLine.inlineRomanization
                             ?: lyricKey?.let { transliterationByKey[it] }
@@ -127,16 +129,13 @@ class YosTtmlFactory {
                 if (!sectionName.isNullOrBlank()) {
                     sections[lineIndex] = sectionName
                 }
-                val agentId = lineElement.readAttribute("agent")
-                val isOpposite = agentId != null && (
-                    agentId.equals("v2", ignoreCase = true) ||
-                        agentId.equals("v2000", ignoreCase = true) ||
-                        oppositeAgents.contains(agentId)
-                    )
+                val agentId = (lineElement.readAttribute("agent")
+                    ?: lineElement.readAttribute("ttm:agent")
+                    ?: inheritedAgent)?.trim()
 
                 lyricEntries.add(linePairs)
                 endTimes.add(lineEnd.coerceAtLeast(lineBegin))
-                otherSideForLines.add(isOpposite)
+                rawLineAgents.add(agentId)
                 transliterations.add(
                     parsedLine.inlineRomanization
                         ?: lyricKey?.let { transliterationByKey[it] }
@@ -151,6 +150,35 @@ class YosTtmlFactory {
 
             if (lyricEntries.isEmpty()) {
                 return null
+            }
+
+            // Resolve Duet vs Non-Duet (`isOpposite` / `otherSideForLines`) ported from `main/js/ttml-parser.js` & `lyrics-applyer.js`
+            val distinctLineAgents = rawLineAgents.mapNotNull { it?.lowercase() }.distinct()
+            val primaryAgentLower = when {
+                distinctLineAgents.contains("v1") -> "v1"
+                headPrimaryAgent != null && distinctLineAgents.contains(headPrimaryAgent.lowercase()) -> headPrimaryAgent.lowercase()
+                else -> distinctLineAgents.firstOrNull() ?: headPrimaryAgent?.lowercase()
+            }
+            val hasMultipleAgents = distinctLineAgents.size >= 2
+
+            rawLineAgents.forEach { rawAgent ->
+                val agentLower = rawAgent?.lowercase()
+                val isOpposite = if (agentLower == null) {
+                    false
+                } else if (hasMultipleAgents && primaryAgentLower != null) {
+                    agentLower != primaryAgentLower
+                } else {
+                    (agentLower == "v2" || agentLower == "v2000" || oppositeAgents.contains(agentLower)) &&
+                        distinctLineAgents.size > 1
+                }
+                otherSideForLines.add(isOpposite)
+            }
+
+            // Guard: if every line was marked opposite (solo track with a single non-v1 agent), reset to false
+            if (otherSideForLines.all { it }) {
+                for (idx in otherSideForLines.indices) {
+                    otherSideForLines[idx] = false
+                }
             }
 
             YosParsedLyricData(
@@ -512,22 +540,29 @@ class YosTtmlFactory {
         return writers
     }
 
-    private fun Element.parseOppositeAgents(): Set<String> {
+    private fun Element.parseAgentsInfo(): Pair<String?, Set<String>> {
         val agents = mutableListOf<String>()
         val opposite = mutableSetOf<String>()
+        var primaryAgent: String? = null
         descendantsByLocalName("agent").forEach { el ->
-            val id = el.readAttribute("id") ?: el.readAttribute("xml:id") ?: return@forEach
+            val id = (el.readAttribute("id") ?: el.readAttribute("xml:id"))?.trim()?.lowercase() ?: return@forEach
             val type = el.readAttribute("type")?.lowercase()
+            val role = el.readAttribute("role")?.lowercase()
+            if (id == "v1" || role == "lead") {
+                if (primaryAgent == null) primaryAgent = id
+            }
             if (type == "person" || type == "character" || type == null) {
+                if (primaryAgent == null) primaryAgent = id
                 agents.add(id)
             } else if (type == "group" || type == "other") {
                 opposite.add(id)
             }
         }
         if (agents.size >= 2) {
-            agents.drop(1).forEach { opposite.add(it) }
+            val lead = primaryAgent ?: agents.first()
+            agents.filter { it != lead }.forEach { opposite.add(it) }
         }
-        return opposite
+        return primaryAgent to opposite
     }
 
     private fun DocumentBuilderFactory.setFeatureIfSupported(feature: String, enabled: Boolean) {

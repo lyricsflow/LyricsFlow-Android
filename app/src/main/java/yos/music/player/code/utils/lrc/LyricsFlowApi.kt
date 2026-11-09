@@ -16,7 +16,9 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import java.security.MessageDigest
+import java.text.SimpleDateFormat
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 
 data class LyricsFlowCatalogItem(
     val id: String,
@@ -96,6 +98,8 @@ object LyricsFlowApi {
         )
     }
 
+    private val artistAvatarCache = ConcurrentHashMap<String, String>()
+
     data class CatalogAlbumDetail(
         val id: String,
         val name: String,
@@ -103,6 +107,9 @@ object LyricsFlowApi {
         val artistId: String = "",
         val artworkUrl: String = "",
         val animatedVideoUrl: String? = null,
+        val bgColorHex: String = "",
+        val audioTraits: List<String> = emptyList(),
+        val popularTrackIds: Set<String> = emptySet(),
         val genre: String = "",
         val releaseYear: String = "",
         val releaseDateFormatted: String = "",
@@ -122,6 +129,9 @@ object LyricsFlowApi {
         val name: String,
         val artworkUrl: String = "",
         val heroVideoUrl: String? = null,
+        val logoUrl: String = "",
+        val keyColorHex: String = "",
+        val upcomingConcertBadge: String = "",
         val bio: String = "",
         val genre: String = "",
         val origin: String = "",
@@ -401,12 +411,20 @@ object LyricsFlowApi {
             val lineStart = line.firstOrNull()?.first ?: 0f
             val lineEnd = endTimes.getOrElse(lineIdx) { lineStart + 2500f }
             val segments = if (line.size > 2) line.subList(1, line.size - 1) else emptyList()
-            if (segments.isEmpty()) {
+            val isWordSyncedLine = segments.size > 1 || segments.any { it.first > lineStart + 10f }
+            if (!isWordSyncedLine) {
                 emptyList()
             } else {
                 var prevEnd = lineStart
                 segments.mapIndexed { segIdx, pair ->
-                    val segEnd = pair.first.coerceAtLeast(prevEnd + 40f)
+                    val segEnd = when {
+                        pair.first > prevEnd + 5f -> pair.first
+                        segIdx < segments.lastIndex -> {
+                            segments.getOrNull(segIdx + 1)?.first?.takeIf { it > prevEnd + 5f }
+                                ?: (prevEnd + 220f)
+                        }
+                        else -> lineEnd.coerceAtLeast(prevEnd + 280f)
+                    }
                     val rawSeg = pair.second
                     val cleanSeg = rawSeg.trim()
                     val isPartOfWord = !rawSeg.endsWith(" ") && segIdx < segments.lastIndex
@@ -425,10 +443,16 @@ object LyricsFlowApi {
             line.lastOrNull()?.second?.takeIf { it.isNotBlank() }
         }
         val emptyTranslit = List(entries.size) { null as String? }
+        val lrcOtherSide = com.lyricsflow.player.data.objects.MediaViewModelObject.otherSideForLines.toList()
+        val normalizedOtherSide = if (lrcOtherSide.size == entries.size && !lrcOtherSide.all { it }) {
+            lrcOtherSide
+        } else {
+            List(entries.size) { false }
+        }
         return YosParsedLyricData(
             entries = entries,
             endTimes = endTimes,
-            otherSideForLines = List(entries.size) { false },
+            otherSideForLines = normalizedOtherSide,
             transliterations = emptyTranslit,
             subtitles = subtitles,
             isTtml = false,
@@ -772,14 +796,16 @@ object LyricsFlowApi {
                     }
                     "artist" -> {
                         val artId = item.optLong("artistId", 0L).takeIf { it > 0L }?.toString() ?: continue
+                        val artName = item.optString("artistName")
+                        val resolvedAvatar = art.ifBlank { fetchArtistAvatarUrl(artName, artId) }
                         artists.add(
                             LyricsFlowCatalogItem(
                                 id = artId,
                                 type = "artists",
-                                title = item.optString("artistName"),
+                                title = artName,
                                 subtitle = item.optString("primaryGenreName", "Artist"),
                                 artistId = artId,
-                                artworkUrl = art
+                                artworkUrl = resolvedAvatar
                             )
                         )
                     }
@@ -880,11 +906,7 @@ object LyricsFlowApi {
                         .ifBlank { attrs.optString("curatorName") }
                         .ifBlank { attrs.optJSONArray("genreNames")?.optString(0).orEmpty() }
                     val albumName = attrs.optString("albumName", if (rawType == "albums") name else "")
-                    val artworkUrl = resolveArtworkUrl(
-                        attrs.optJSONObject("artwork")
-                            ?: attrs.optJSONObject("editorialArtwork")?.optJSONObject("subscriptionHero")
-                            ?: attrs.optJSONObject("editorialArtwork")?.optJSONObject("storeFlowcase")
-                    )
+                    val artworkUrl = extractBestArtistOrEntityArtwork(attrs, 600)
                     val durationMs = attrs.optLong("durationInMillis", 0L)
                     val isExplicit = attrs.optString("contentRating").equals("explicit", ignoreCase = true)
                     val releaseYear = attrs.optString("releaseDate").take(4)
@@ -921,7 +943,7 @@ object LyricsFlowApi {
                         val name = attrs.optString("name")
                         if (name.isBlank()) continue
                         val subtitle = attrs.optString("artistName").ifBlank { attrs.optString("curatorName") }
-                        val artworkUrl = resolveArtworkUrl(attrs.optJSONObject("artwork"))
+                        val artworkUrl = extractBestArtistOrEntityArtwork(attrs, 600)
                         items.add(
                             LyricsFlowCatalogItem(
                                 id = entity.optString("id", key),
@@ -1018,37 +1040,73 @@ object LyricsFlowApi {
             fetchAlbumAnimatedArtUrl(cleanId)
         }
 
-        // 1. Primary `/album?album=...` endpoint from `upload.js`
-        runCatching {
-            val url = "$API_BASE/album?album=${encode(cleanId)}&l=en-US" +
-                "&include=artists,tracks,record-labels,music-videos" +
+        // 1. Primary `/album?album=...` AND `/v1/catalog/kz/albums/${cleanId}` endpoints from `upload.js`
+        val endpoints = listOf(
+            "$API_BASE/album?album=${encode(cleanId)}&l=en-US" +
+                "&art[url]=c,f&include=artists,tracks,record-labels,music-videos" +
                 "&views=appears-on,other-versions,related-albums,related-videos" +
-                "&extend=artistUrl,editorialArtwork,editorialNotes,editorialVideo,composerName"
-            val text = httpGet(url, 10000)
-            if (!text.isNullOrBlank()) {
+                "&extend=artistUrl,editorialArtwork,editorialNotes,editorialVideo,composerName,audioTraits",
+            "$API_BASE/v1/catalog/kz/albums/${encode(cleanId)}?art[url]=c,f" +
+                "&extend=artistUrl,editorialArtwork,editorialNotes,editorialVideo,composerName,audioTraits" +
+                "&format[resources]=map&include=artists,tracks,record-labels,music-videos" +
+                "&views=appears-on,other-versions,related-albums,related-videos&l=en-GB&platform=web"
+        )
+
+        for (url in endpoints) {
+            runCatching {
+                val text = httpGet(url, 10000) ?: return@runCatching
                 val root = JSONObject(text)
-                val dataArr = root.optJSONArray("data")
-                val albumObj = dataArr?.optJSONObject(0) ?: root.optJSONObject("album") ?: root
+                val resources = root.optJSONObject("resources")
+                val rawDataObj = root.optJSONObject("raw_data")
+
+                // Unwrap `raw_data.data[0]`, `resources.albums[cleanId]`, `data[0]`, or `album` (`upload.js` lines 3240-3326)
+                val albumObj = rawDataObj?.optJSONArray("data")?.optJSONObject(0)
+                    ?: root.optJSONArray("data")?.optJSONObject(0)
+                    ?: resources?.optJSONObject("albums")?.let { albumsMap ->
+                        albumsMap.optJSONObject(cleanId) ?: albumsMap.keys().asSequence().firstOrNull()?.let { albumsMap.optJSONObject(it) }
+                    }
+                    ?: root.optJSONObject("album")
+                    ?: root
+
                 val attrs = albumObj.optJSONObject("attributes") ?: albumObj
-                val name = attrs.optString("name").ifBlank { fallbackTitle }
+                val name = attrs.optString("name").ifBlank { root.optString("album_name") }.ifBlank { fallbackTitle }
                 if (name.isNotBlank()) {
-                    val artistName = attrs.optString("artistName").ifBlank { fallbackArtist }
+                    val artistName = attrs.optString("artistName")
+                        .ifBlank { root.optString("artist_name") }
+                        .ifBlank { fallbackArtist }
                     val rels = albumObj.optJSONObject("relationships")
                     val artistId = rels?.optJSONObject("artists")?.optJSONArray("data")
-                        ?.optJSONObject(0)?.optString("id").orEmpty()
-                    val artworkUrl = resolveArtworkUrl(attrs.optJSONObject("artwork"), 1000, 1000)
+                        ?.optJSONObject(0)?.optString("id")
+                        ?.ifBlank { root.optString("artist_id") }
+                        ?: root.optString("artist_id")
+
+                    val artworkObj = attrs.optJSONObject("artwork")
+                        ?: attrs.optJSONObject("editorialArtwork")?.optJSONObject("subscriptionHero")
+                        ?: attrs.optJSONObject("editorialArtwork")?.optJSONObject("storeFlowcase")
+                    val artworkUrl = resolveArtworkUrl(artworkObj, 1200, 1200)
+                        .ifBlank { cleanArtworkUrlString(root.optString("artwork_url"), 1200) }
+                    val bgColorHex = artworkObj?.optString("bgColor")?.removePrefix("#").orEmpty()
+
                     val editorialVideoUrl = extractEditorialVideoUrl(attrs.optJSONObject("editorialVideo"))
                     val releaseDate = attrs.optString("releaseDate")
                     val releaseYear = releaseDate.take(4)
                     val genre = attrs.optJSONArray("genreNames")?.optString(0).orEmpty()
-                    val editorialNotes = attrs.optJSONObject("editorialNotes")?.optString("standard")
-                        ?.ifBlank { attrs.optJSONObject("editorialNotes")?.optString("short").orEmpty() }
-                        ?.replace(Regex("<[^>]*>"), "")
-                        .orEmpty()
+                    val editorialNotes = attrs.optJSONObject("editorialNotes")?.let { notes ->
+                        notes.optString("standard")
+                            .ifBlank { notes.optString("short") }
+                            .ifBlank { notes.optString("tagline") }
+                    }.orEmpty()
+                        .ifBlank { attrs.optString("plainEditorialNotes") }
+                        .replace(Regex("<[^>]*>"), "")
+                        .trim()
+
                     val copyright = attrs.optString("copyright")
                     val recordLabel = attrs.optString("recordLabel").ifBlank {
-                        rels?.optJSONObject("record-labels")?.optJSONArray("data")
-                            ?.optJSONObject(0)?.optJSONObject("attributes")?.optString("name").orEmpty()
+                        val rlData = rels?.optJSONObject("record-labels")?.optJSONArray("data")?.optJSONObject(0)
+                        val rlId = rlData?.optString("id").orEmpty()
+                        rlData?.optJSONObject("attributes")?.optString("name")
+                            ?: resources?.optJSONObject("record-labels")?.optJSONObject(rlId)?.optJSONObject("attributes")?.optString("name")
+                            ?: ""
                     }
                     val recordLabelId = rels?.optJSONObject("record-labels")?.optJSONArray("data")
                         ?.optJSONObject(0)?.optString("id").orEmpty()
@@ -1057,21 +1115,42 @@ object LyricsFlowApi {
                         name.contains(" - Single", ignoreCase = true) ||
                         name.contains(" - EP", ignoreCase = true)
 
-                    // Parse tracks
+                    val audioTraits = mutableListOf<String>()
+                    attrs.optJSONArray("audioTraits")?.let { arr ->
+                        for (i in 0 until arr.length()) {
+                            arr.optString(i)?.takeIf { it.isNotBlank() }?.let { audioTraits.add(it) }
+                        }
+                    }
+
+                    // Parse tracks (`relationships.tracks.data` with `resources.songs` dereferencing OR `parsed_tracks` from `upload.js`)
+                    val tracks = mutableListOf<CatalogTrackResult>()
+                    val popularTrackIds = mutableSetOf<String>()
                     val tracksData = rels?.optJSONObject("tracks")?.optJSONArray("data")
                         ?: attrs.optJSONArray("tracks")
-                    val tracks = mutableListOf<CatalogTrackResult>()
-                    if (tracksData != null) {
+
+                    if (tracksData != null && tracksData.length() > 0) {
                         for (i in 0 until tracksData.length()) {
-                            val tObj = tracksData.optJSONObject(i) ?: continue
+                            val rawTrack = tracksData.optJSONObject(i) ?: continue
+                            val rawId = rawTrack.optString("id")
+                            val rawType = rawTrack.optString("type").ifBlank { "songs" }
+                            val tObj = if (resources != null && rawId.isNotBlank()) {
+                                resources.optJSONObject(rawType)?.optJSONObject(rawId)
+                                    ?: resources.optJSONObject("songs")?.optJSONObject(rawId)
+                                    ?: rawTrack
+                            } else {
+                                rawTrack
+                            }
                             val tAttrs = tObj.optJSONObject("attributes") ?: tObj
-                            val tId = tObj.optString("id")
-                            val tName = tAttrs.optString("name")
+                            val tId = tObj.optString("id").ifBlank { rawId }
+                            val tName = tAttrs.optString("name").ifBlank { tAttrs.optString("title") }
                             if (tId.isBlank() || tName.isBlank()) continue
                             val tArt = resolveArtworkUrl(tAttrs.optJSONObject("artwork"), 600, 600).ifBlank { artworkUrl }
                             val tArtistId = tObj.optJSONObject("relationships")?.optJSONObject("artists")
                                 ?.optJSONArray("data")?.optJSONObject(0)?.optString("id")
                                 ?.ifBlank { artistId } ?: artistId
+                            if (tAttrs.optBoolean("isMasteredForItunes", false) || i < 2) {
+                                popularTrackIds.add(tId)
+                            }
                             tracks.add(
                                 CatalogTrackResult(
                                     id = tId,
@@ -1090,19 +1169,54 @@ object LyricsFlowApi {
                                     genre = genre,
                                     composerName = tAttrs.optString("composerName"),
                                     hasLyrics = tAttrs.optBoolean("hasLyrics", true),
-                                    type = tObj.optString("type", "songs")
+                                    type = rawType
                                 )
                             )
                         }
                     }
 
-                    // Parse related / more by artist
+                    // Fallback to `parsed_tracks` array in `/album` response (`upload.js` line 3264)
+                    if (tracks.isEmpty()) {
+                        val parsedTracks = root.optJSONArray("parsed_tracks")
+                        if (parsedTracks != null) {
+                            for (i in 0 until parsedTracks.length()) {
+                                val pt = parsedTracks.optJSONObject(i) ?: continue
+                                val tId = pt.optString("id").ifBlank { pt.optString("song_id") }
+                                val tName = pt.optString("name").ifBlank { pt.optString("title") }
+                                if (tId.isBlank() || tName.isBlank()) continue
+                                val tArt = cleanArtworkUrlString(pt.optString("artwork_url"), 600).ifBlank { artworkUrl }
+                                tracks.add(
+                                    CatalogTrackResult(
+                                        id = tId,
+                                        title = tName,
+                                        artist = pt.optString("artist").ifBlank { pt.optString("artistName") }.ifBlank { artistName },
+                                        artistId = pt.optString("artist_id").ifBlank { artistId },
+                                        album = name,
+                                        albumId = cleanId,
+                                        artworkUrl = tArt,
+                                        durationMs = pt.optLong("duration_ms", pt.optLong("durationInMillis", 0L)),
+                                        trackNumber = pt.optInt("track_number", pt.optInt("trackNumber", i + 1)),
+                                        discNumber = pt.optInt("disc_number", pt.optInt("discNumber", 1)),
+                                        isExplicit = pt.optBoolean("explicit", false) ||
+                                            pt.optString("contentRating").equals("explicit", ignoreCase = true),
+                                        previewUrl = pt.optString("preview_url").ifBlank { pt.optString("previewUrl") },
+                                        releaseYear = releaseYear.toIntOrNull(),
+                                        genre = genre,
+                                        composerName = pt.optString("composerName")
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    // Parse related / more by artist (dereferencing `resources.albums` when `format[resources]=map` is used)
                     val views = albumObj.optJSONObject("views")
-                    val relatedAlbums = parseAlbumShelfView(views?.optJSONObject("related-albums"))
+                    val relatedAlbums = parseAlbumShelfView(views?.optJSONObject("related-albums"), resources)
+                    val otherVersions = parseAlbumShelfView(views?.optJSONObject("other-versions"), resources)
                     val moreByArtist = if (artistId.isNotBlank()) {
                         fetchArtistAlbumsList(artistId, excludeAlbumId = cleanId)
                     } else {
-                        emptyList()
+                        otherVersions
                     }
 
                     val resolvedAnimatedUrl = editorialVideoUrl ?: animatedArtDeferred.await()
@@ -1115,9 +1229,12 @@ object LyricsFlowApi {
                             artistId = artistId,
                             artworkUrl = artworkUrl,
                             animatedVideoUrl = resolvedAnimatedUrl,
+                            bgColorHex = bgColorHex,
+                            audioTraits = audioTraits,
+                            popularTrackIds = popularTrackIds,
                             genre = genre,
                             releaseYear = releaseYear,
-                            releaseDateFormatted = releaseDate,
+                            releaseDateFormatted = formatReleaseDateHuman(releaseDate),
                             editorialNotes = editorialNotes,
                             copyright = copyright,
                             recordLabel = recordLabel,
@@ -1184,7 +1301,7 @@ object LyricsFlowApi {
                     animatedVideoUrl = animatedArtDeferred.await(),
                     genre = genre,
                     releaseYear = releaseYear,
-                    releaseDateFormatted = releaseDate,
+                    releaseDateFormatted = formatReleaseDateHuman(releaseDate),
                     copyright = copyright,
                     isExplicit = isExplicit,
                     tracks = tracks
@@ -1208,7 +1325,9 @@ object LyricsFlowApi {
 
     private fun fetchArtistAlbumsList(artistId: String, excludeAlbumId: String = ""): List<LyricsFlowCatalogItem> {
         return runCatching {
-            val text = httpGet("$API_BASE/artist/albums?artist=${encode(artistId)}&limit=25&l=en-US", 6000) ?: return emptyList()
+            val text = httpGet("$API_BASE/artist/albums?artist=${encode(artistId)}&limit=25&l=en-US", 6000)
+                ?: httpGet("$API_BASE/artist/albums?artistId=${encode(artistId)}&limit=25&l=en-US", 6000)
+                ?: return emptyList()
             val root = JSONObject(text)
             val dataArr = root.optJSONArray("data") ?: return emptyList()
             val list = mutableListOf<LyricsFlowCatalogItem>()
@@ -1228,7 +1347,7 @@ object LyricsFlowApi {
                         albumName = name,
                         albumId = id,
                         artistId = artistId,
-                        artworkUrl = resolveArtworkUrl(attrs.optJSONObject("artwork"), 500, 500),
+                        artworkUrl = resolveArtworkUrl(attrs.optJSONObject("artwork"), 600, 600),
                         isExplicit = attrs.optString("contentRating").equals("explicit", ignoreCase = true),
                         releaseYear = attrs.optString("releaseDate").take(4),
                         trackCount = attrs.optInt("trackCount", 0)
@@ -1239,26 +1358,36 @@ object LyricsFlowApi {
         }.getOrDefault(emptyList())
     }
 
-    private fun parseAlbumShelfView(viewObj: JSONObject?): List<LyricsFlowCatalogItem> {
+    private fun parseAlbumShelfView(viewObj: JSONObject?, resources: JSONObject? = null): List<LyricsFlowCatalogItem> {
         val dataArr = viewObj?.optJSONArray("data") ?: return emptyList()
         val list = mutableListOf<LyricsFlowCatalogItem>()
         for (i in 0 until dataArr.length()) {
-            val item = dataArr.optJSONObject(i) ?: continue
-            val id = item.optString("id")
+            val rawItem = dataArr.optJSONObject(i) ?: continue
+            val rawId = rawItem.optString("id")
+            val rawType = rawItem.optString("type", "albums")
+            val item = if (resources != null && rawId.isNotBlank()) {
+                resources.optJSONObject(rawType)?.optJSONObject(rawId) ?: rawItem
+            } else {
+                rawItem
+            }
+            val id = item.optString("id").ifBlank { rawId }
             val attrs = item.optJSONObject("attributes") ?: item
             val name = attrs.optString("name")
             if (id.isBlank() || name.isBlank()) continue
+            val releaseDate = attrs.optString("releaseDate")
             list.add(
                 LyricsFlowCatalogItem(
                     id = id,
-                    type = item.optString("type", "albums"),
+                    type = rawType,
                     title = name,
-                    subtitle = attrs.optString("artistName"),
+                    subtitle = attrs.optString("artistName").ifBlank { attrs.optString("curatorName") },
                     albumName = name,
                     albumId = id,
-                    artworkUrl = resolveArtworkUrl(attrs.optJSONObject("artwork"), 500, 500),
+                    artworkUrl = extractBestArtistOrEntityArtwork(attrs, 600),
                     isExplicit = attrs.optString("contentRating").equals("explicit", ignoreCase = true),
-                    releaseYear = attrs.optString("releaseDate").take(4)
+                    releaseYear = releaseDate.take(4),
+                    editorialSubtitle = formatReleaseDateHuman(releaseDate),
+                    trackCount = attrs.optInt("trackCount", 0)
                 )
             )
         }
@@ -1266,157 +1395,623 @@ object LyricsFlowApi {
     }
 
     // =========================================================================
-    // ONLINE ARTIST DETAILS (`openArtistView` in `upload.js`)
+    // ONLINE ARTIST DETAILS (`openArtistView` in `upload.js` & `parseAmpArtistResponse` in `amp-parser.js`)
     // =========================================================================
+
+    /**
+     * Resolves an artist's actual Apple Music portrait photo (cached in-memory).
+     * Never returns a random album cover unless no artist entity exists on Apple Music.
+     */
+    suspend fun fetchArtistAvatarUrl(artistName: String, artistId: String = ""): String = withContext(Dispatchers.IO) {
+        val cleanName = artistName.trim()
+        val cacheKey = (artistId.takeIf { it.all(Char::isDigit) && it.isNotBlank() } ?: cleanName.lowercase(Locale.ROOT)).trim()
+        if (cacheKey.isBlank()) return@withContext ""
+        artistAvatarCache[cacheKey]?.takeIf { it.isNotBlank() }?.let { return@withContext it }
+
+        // 1. If we have a numeric artistId, query `/v1/catalog/kz/artists/$artistId` directly
+        if (artistId.isNotBlank() && artistId.all(Char::isDigit)) {
+            runCatching {
+                val url = "$API_BASE/v1/catalog/kz/artists/$artistId?art[url]=c,f&extend=editorialArtwork,hero&l=en-GB&platform=web"
+                val text = httpGet(url, 6000)
+                if (!text.isNullOrBlank()) {
+                    val root = JSONObject(text)
+                    val artistObj = root.optJSONArray("data")?.optJSONObject(0)
+                        ?: root.optJSONObject("resources")?.optJSONObject("artists")?.optJSONObject(artistId)
+                    val attrs = artistObj?.optJSONObject("attributes")
+                    val resolved = extractBestArtistOrEntityArtwork(attrs, 800)
+                    if (resolved.isNotBlank()) {
+                        artistAvatarCache[cacheKey] = resolved
+                        if (cleanName.isNotBlank()) artistAvatarCache[cleanName.lowercase(Locale.ROOT)] = resolved
+                        return@withContext resolved
+                    }
+                }
+            }
+        }
+
+        if (cleanName.isBlank()) return@withContext ""
+
+        // 2. Search AMP catalog specifically for `types=artists`
+        runCatching {
+            val url = "$API_BASE/v1/catalog/kz/search?term=${encode(cleanName)}&types=artists&limit=5&art[url]=c,f&extend=editorialArtwork,hero&format[resources]=map&l=en-GB&platform=web"
+            val text = httpGet(url, 6000)
+            if (!text.isNullOrBlank()) {
+                val root = JSONObject(text)
+                val artistsMap = root.optJSONObject("resources")?.optJSONObject("artists")
+                if (artistsMap != null) {
+                    var bestUrl = ""
+                    val keys = artistsMap.keys()
+                    while (keys.hasNext()) {
+                        val k = keys.next()
+                        val obj = artistsMap.optJSONObject(k) ?: continue
+                        val attrs = obj.optJSONObject("attributes") ?: continue
+                        val name = attrs.optString("name")
+                        val art = extractBestArtistOrEntityArtwork(attrs, 800)
+                        if (art.isNotBlank()) {
+                            if (name.equals(cleanName, ignoreCase = true)) {
+                                bestUrl = art
+                                break
+                            } else if (bestUrl.isBlank()) {
+                                bestUrl = art
+                            }
+                        }
+                    }
+                    if (bestUrl.isNotBlank()) {
+                        artistAvatarCache[cacheKey] = bestUrl
+                        artistAvatarCache[cleanName.lowercase(Locale.ROOT)] = bestUrl
+                        return@withContext bestUrl
+                    }
+                }
+                val dataArr = root.optJSONObject("results")?.optJSONObject("artists")?.optJSONArray("data")
+                if (dataArr != null && dataArr.length() > 0) {
+                    for (i in 0 until dataArr.length()) {
+                        val obj = dataArr.optJSONObject(i) ?: continue
+                        val attrs = obj.optJSONObject("attributes") ?: obj
+                        val art = extractBestArtistOrEntityArtwork(attrs, 800)
+                        if (art.isNotBlank()) {
+                            artistAvatarCache[cacheKey] = art
+                            artistAvatarCache[cleanName.lowercase(Locale.ROOT)] = art
+                            return@withContext art
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Fallback to `/search?term=...&types=artists`
+        runCatching {
+            val url = "$API_BASE/search?term=${encode(cleanName)}&types=artists&limit=3&l=en-US"
+            val text = httpGet(url, 6000)
+            if (!text.isNullOrBlank()) {
+                val parsed = parseAmpOrStandardSearchJson(JSONObject(text))
+                val art = parsed.artists.firstOrNull { it.artworkUrl.isNotBlank() }?.artworkUrl.orEmpty()
+                if (art.isNotBlank()) {
+                    artistAvatarCache[cacheKey] = art
+                    artistAvatarCache[cleanName.lowercase(Locale.ROOT)] = art
+                    return@withContext art
+                }
+            }
+        }
+
+        ""
+    }
 
     suspend fun fetchArtistDetails(
         artistId: String,
         fallbackName: String = ""
     ): CatalogArtistDetail? = withContext(Dispatchers.IO) {
-        val cleanId = artistId.trim()
-        if (cleanId.isEmpty()) return@withContext null
+        val rawId = artistId.trim()
+        val searchName = fallbackName.trim().ifBlank { rawId }
+        if (rawId.isEmpty() && searchName.isEmpty()) return@withContext null
 
-        // 1. Fetch `/artist?id=$cleanId...` & `/artist/albums?artist=$cleanId` in parallel
-        val artistViewsDeferred = async(Dispatchers.IO) {
-            val url = "$API_BASE/artist?id=${encode(cleanId)}&storefront=us&l=en-US" +
-                "&include=albums,music-videos,playlists,station" +
-                "&views=top-songs,full-albums,singles-eps,featured-playlists,latest-release,appears-on-albums,similar-artists" +
-                "&extend=editorialArtwork,editorialVideo,editorialNotes,artistBio,bornOrFormed,origin"
-            httpGet(url, 10000)
-        }
-        val artistAlbumsDeferred = async(Dispatchers.IO) {
-            httpGet("$API_BASE/artist/albums?artist=${encode(cleanId)}&limit=80&l=en-US", 8000)
-        }
-
-        val primaryText = artistViewsDeferred.await()
-        val albumsText = artistAlbumsDeferred.await()
-
-        if (!primaryText.isNullOrBlank()) {
+        // Step 1: Resolve numeric Apple Music artist ID (`upload.js` lines 3655-3686)
+        var resolvedArtistId = if (rawId.isNotBlank() && rawId.all(Char::isDigit)) rawId else ""
+        if (resolvedArtistId.isBlank() && searchName.isNotBlank()) {
             runCatching {
-                val root = JSONObject(primaryText)
-                val artistObj = root.optJSONArray("data")?.optJSONObject(0) ?: root.optJSONObject("artist") ?: root
-                val attrs = artistObj.optJSONObject("attributes") ?: artistObj
-                val name = attrs.optString("name").ifBlank { fallbackName }
-                if (name.isNotBlank()) {
-                    val artworkUrl = resolveArtworkUrl(
-                        attrs.optJSONObject("editorialArtwork")?.optJSONObject("subscriptionHero")
-                            ?: attrs.optJSONObject("editorialArtwork")?.optJSONObject("bannerUber")
-                            ?: attrs.optJSONObject("artwork"),
-                        1200,
-                        1200
-                    )
-                    val heroVideoUrl = extractEditorialVideoUrl(attrs.optJSONObject("editorialVideo"))
-                    val bio = attrs.optString("artistBio")
-                        .ifBlank { attrs.optJSONObject("editorialNotes")?.optString("standard").orEmpty() }
-                        .ifBlank { attrs.optJSONObject("editorialNotes")?.optString("short").orEmpty() }
-                        .replace(Regex("<[^>]*>"), "")
-                    val genre = attrs.optJSONArray("genreNames")?.optString(0).orEmpty()
-                    val origin = attrs.optString("origin")
-                    val formedYear = attrs.optString("bornOrFormed")
-
-                    val views = artistObj.optJSONObject("views")
-                    val rels = artistObj.optJSONObject("relationships")
-
-                    val topSongs = parseArtistTrackView(views?.optJSONObject("top-songs"), cleanId, name)
-                    val latestRelease = parseAlbumShelfView(views?.optJSONObject("latest-release")).firstOrNull()
-                    val essentialAlbums = parseAlbumShelfView(views?.optJSONObject("essential-albums"))
-                    val fullAlbumsFromView = parseAlbumShelfView(views?.optJSONObject("full-albums"))
-                    val singlesFromView = parseAlbumShelfView(views?.optJSONObject("singles-eps"))
-                    val appearsOn = parseAlbumShelfView(views?.optJSONObject("appears-on-albums"))
-                    val playlists = parseAlbumShelfView(views?.optJSONObject("featured-playlists")).ifEmpty {
-                        parseAlbumShelfView(rels?.optJSONObject("playlists"))
-                    }
-                    val musicVideos = parseArtistTrackView(
-                        views?.optJSONObject("top-music-videos") ?: rels?.optJSONObject("music-videos"),
-                        cleanId,
-                        name,
-                        defaultType = "music-videos"
-                    )
-                    val similarArtists = parseAlbumShelfView(views?.optJSONObject("similar-artists")).map {
-                        it.copy(type = "artists", artistId = it.id)
-                    }
-
-                    // Supplement albums and singles from `/artist/albums` if needed
-                    val allDiscography = mutableListOf<LyricsFlowCatalogItem>()
-                    if (!albumsText.isNullOrBlank()) {
-                        runCatching {
-                            val dArr = JSONObject(albumsText).optJSONArray("data")
-                            if (dArr != null) {
-                                for (i in 0 until dArr.length()) {
-                                    val item = dArr.optJSONObject(i) ?: continue
-                                    val id = item.optString("id")
-                                    val aAttrs = item.optJSONObject("attributes") ?: item
-                                    val aName = aAttrs.optString("name")
-                                    if (id.isBlank() || aName.isBlank()) continue
-                                    allDiscography.add(
-                                        LyricsFlowCatalogItem(
-                                            id = id,
-                                            type = "albums",
-                                            title = aName,
-                                            subtitle = aAttrs.optString("artistName").ifBlank { name },
-                                            albumName = aName,
-                                            albumId = id,
-                                            artistId = cleanId,
-                                            artworkUrl = resolveArtworkUrl(aAttrs.optJSONObject("artwork"), 500, 500),
-                                            isExplicit = aAttrs.optString("contentRating").equals("explicit", ignoreCase = true),
-                                            releaseYear = aAttrs.optString("releaseDate").take(4),
-                                            trackCount = aAttrs.optInt("trackCount", 0)
-                                        )
-                                    )
-                                }
+                val searchUrl = "$API_BASE/v1/catalog/kz/search?term=${encode(searchName)}&types=artists&limit=5&format[resources]=map&l=en-GB&platform=web"
+                val text = httpGet(searchUrl, 6000)
+                if (!text.isNullOrBlank()) {
+                    val root = JSONObject(text)
+                    val artistsMap = root.optJSONObject("resources")?.optJSONObject("artists")
+                    if (artistsMap != null) {
+                        val keys = artistsMap.keys()
+                        var firstId = ""
+                        while (keys.hasNext()) {
+                            val k = keys.next()
+                            if (firstId.isBlank()) firstId = k
+                            val n = artistsMap.optJSONObject(k)?.optJSONObject("attributes")?.optString("name").orEmpty()
+                            if (n.equals(searchName, ignoreCase = true)) {
+                                resolvedArtistId = k
+                                break
                             }
                         }
+                        if (resolvedArtistId.isBlank()) resolvedArtistId = firstId
                     }
-
-                    val finalAlbums = fullAlbumsFromView.ifEmpty {
-                        allDiscography.filter {
-                            !it.title.contains(" - Single", ignoreCase = true) &&
-                                !it.title.contains(" - EP", ignoreCase = true) &&
-                                (it.trackCount == 0 || it.trackCount > 3)
+                }
+            }
+            if (resolvedArtistId.isBlank()) {
+                runCatching {
+                    val itunesText = httpGet("$ITUNES_SEARCH_API?term=${encode(searchName)}&entity=musicArtist&limit=3", 5000)
+                    if (!itunesText.isNullOrBlank()) {
+                        val results = JSONObject(itunesText).optJSONArray("results")
+                        if (results != null && results.length() > 0) {
+                            resolvedArtistId = results.optJSONObject(0)?.optLong("artistId", 0L)?.takeIf { it > 0L }?.toString().orEmpty()
                         }
                     }
-                    val finalSingles = singlesFromView.ifEmpty {
-                        allDiscography.filter {
-                            it.title.contains(" - Single", ignoreCase = true) ||
-                                it.title.contains(" - EP", ignoreCase = true) ||
-                                (it.trackCount in 1..3)
+                }
+            }
+        }
+
+        // Step 2: Fetch rich AMP Compound Artist Endpoint (`upload.js` line 3691 & `amp-parser.js` line 8)
+        // plus `/artist` and `/artist/albums` in parallel
+        if (resolvedArtistId.isNotBlank()) {
+            val ampCompoundDeferred = async(Dispatchers.IO) {
+                val ampUrl = "$API_BASE/v1/catalog/kz/artists/${encode(resolvedArtistId)}" +
+                    "?art[url]=c,f" +
+                    "&extend=artistBio,editorialArtwork,editorialVideo,extendedAssetUrls,hasBiographyContent,hero,keyColor,plainEditorialNotes,seoDescription,seoTitle" +
+                    "&extend[canvas-shelves-header]=badge&extend[concerts]=tickets" +
+                    "&filter[canvas-shelves-collection.contents.type]=albums,apple-curators,artists,concerts,music-movies,music-videos,playlists,songs,stations,uploaded-videos,venues" +
+                    "&format[resources]=map" +
+                    "&include=canvas,default-playable-content" +
+                    "&include[canvas-shelves-collection]=contents" +
+                    "&include[canvas-shelves-group]=children" +
+                    "&include[concerts]=artists,venues" +
+                    "&include[songs]=albums" +
+                    "&l=en-GB" +
+                    "&limit[canvas-shelves-collection:contents]=12" +
+                    "&limit[canvas-shelves-collection:contents{displayStyle}]=artist-featured-track-lockup:24" +
+                    "&omit[resource]=autos&platform=web" +
+                    "&relate[canvas-shelves-collection]=see-all"
+                httpGet(ampUrl, 10000)
+            }
+            val legacyArtistDeferred = async(Dispatchers.IO) {
+                val url = "$API_BASE/artist?artistId=${encode(resolvedArtistId)}&id=${encode(resolvedArtistId)}&storefront=us&l=en-US" +
+                    "&include=albums,music-videos,playlists,station" +
+                    "&views=top-songs,full-albums,singles-eps,featured-playlists,latest-release,appears-on-albums,similar-artists" +
+                    "&extend=editorialArtwork,editorialVideo,editorialNotes,artistBio,bornOrFormed,origin,hero,keyColor"
+                httpGet(url, 9000)
+            }
+            val artistAlbumsDeferred = async(Dispatchers.IO) {
+                httpGet("$API_BASE/artist/albums?artistId=${encode(resolvedArtistId)}&artist=${encode(resolvedArtistId)}&limit=80&l=en-US", 8000)
+            }
+
+            val ampText = ampCompoundDeferred.await()
+            val legacyText = legacyArtistDeferred.await()
+            val albumsText = artistAlbumsDeferred.await()
+
+            // Parse discography supplement first so either parser can use it
+            val allDiscography = mutableListOf<LyricsFlowCatalogItem>()
+            if (!albumsText.isNullOrBlank()) {
+                runCatching {
+                    val dRoot = JSONObject(albumsText)
+                    val dArr = dRoot.optJSONArray("data") ?: dRoot.optJSONObject("raw_data")?.optJSONArray("data")
+                    if (dArr != null) {
+                        for (i in 0 until dArr.length()) {
+                            val item = dArr.optJSONObject(i) ?: continue
+                            val id = item.optString("id")
+                            val aAttrs = item.optJSONObject("attributes") ?: item
+                            val aName = aAttrs.optString("name")
+                            if (id.isBlank() || aName.isBlank()) continue
+                            val relDate = aAttrs.optString("releaseDate")
+                            allDiscography.add(
+                                LyricsFlowCatalogItem(
+                                    id = id,
+                                    type = "albums",
+                                    title = aName,
+                                    subtitle = aAttrs.optString("artistName").ifBlank { fallbackName },
+                                    albumName = aName,
+                                    albumId = id,
+                                    artistId = resolvedArtistId,
+                                    artworkUrl = resolveArtworkUrl(aAttrs.optJSONObject("artwork"), 600, 600),
+                                    isExplicit = aAttrs.optString("contentRating").equals("explicit", ignoreCase = true),
+                                    releaseYear = relDate.take(4),
+                                    editorialSubtitle = formatReleaseDateHuman(relDate),
+                                    trackCount = aAttrs.optInt("trackCount", 0)
+                                )
+                            )
                         }
                     }
+                }
+            }
 
-                    return@withContext CatalogArtistDetail(
-                        id = cleanId,
-                        name = name,
-                        artworkUrl = artworkUrl,
-                        heroVideoUrl = heroVideoUrl,
-                        bio = bio,
-                        genre = genre,
-                        origin = origin,
-                        formedYear = formedYear,
-                        latestRelease = latestRelease ?: finalAlbums.firstOrNull() ?: finalSingles.firstOrNull(),
-                        topSongs = topSongs,
-                        essentialAlbums = essentialAlbums,
-                        albums = finalAlbums,
-                        singlesAndEps = finalSingles,
-                        appearsOn = appearsOn,
-                        playlists = playlists,
-                        musicVideos = musicVideos,
-                        similarArtists = similarArtists
+            // Try parsing the rich AMP `format[resources]=map` response (`parseAmpArtistResponse` in `amp-parser.js`)
+            if (!ampText.isNullOrBlank()) {
+                runCatching {
+                    val parsedAmp = parseAmpCompoundArtistJson(
+                        root = JSONObject(ampText),
+                        artistId = resolvedArtistId,
+                        fallbackName = fallbackName,
+                        discographySupplement = allDiscography
                     )
+                    if (parsedAmp != null) {
+                        if (parsedAmp.artworkUrl.isNotBlank()) {
+                            artistAvatarCache[resolvedArtistId] = parsedAmp.artworkUrl
+                            artistAvatarCache[parsedAmp.name.lowercase(Locale.ROOT)] = parsedAmp.artworkUrl
+                        }
+                        return@withContext parsedAmp
+                    }
+                }
+            }
+
+            // Try parsing `/artist` response
+            if (!legacyText.isNullOrBlank()) {
+                runCatching {
+                    val root = JSONObject(legacyText)
+                    val artistObj = root.optJSONObject("raw_data")?.optJSONArray("data")?.optJSONObject(0)
+                        ?: root.optJSONArray("data")?.optJSONObject(0)
+                        ?: root.optJSONObject("artist")
+                        ?: root
+                    val attrs = artistObj.optJSONObject("attributes") ?: artistObj
+                    val name = attrs.optString("name").ifBlank { root.optString("artist_name") }.ifBlank { fallbackName }
+                    if (name.isNotBlank()) {
+                        val artworkUrl = extractBestArtistOrEntityArtwork(attrs, 1400)
+                        val heroVideoUrl = extractEditorialVideoUrl(attrs.optJSONObject("editorialVideo"))
+                        val logoUrl = resolveLogoUrl(
+                            attrs.optJSONObject("editorialArtwork")?.optJSONObject("musicContentColorLogoTrimmed")?.optString("url")
+                        )
+                        val keyColorHex = attrs.optString("keyColor").removePrefix("#").ifBlank {
+                            attrs.optJSONObject("artwork")?.optString("bgColor")?.removePrefix("#").orEmpty()
+                        }
+                        val bio = attrs.optString("artistBio")
+                            .ifBlank { attrs.optString("plainEditorialNotes") }
+                            .ifBlank { attrs.optJSONObject("editorialNotes")?.optString("standard").orEmpty() }
+                            .ifBlank { attrs.optJSONObject("editorialNotes")?.optString("short").orEmpty() }
+                            .replace(Regex("<[^>]*>"), "")
+                            .trim()
+                        val genre = attrs.optJSONArray("genreNames")?.optString(0).orEmpty()
+                        val origin = attrs.optString("origin")
+                        val formedYear = attrs.optString("bornOrFormed")
+
+                        val views = artistObj.optJSONObject("views")
+                        val rels = artistObj.optJSONObject("relationships")
+
+                        val topSongs = parseArtistTrackView(views?.optJSONObject("top-songs"), resolvedArtistId, name)
+                        val latestRelease = parseAlbumShelfView(views?.optJSONObject("latest-release")).firstOrNull()
+                        val essentialAlbums = parseAlbumShelfView(
+                            views?.optJSONObject("featured-albums") ?: views?.optJSONObject("essential-albums")
+                        )
+                        val fullAlbumsFromView = parseAlbumShelfView(views?.optJSONObject("full-albums"))
+                        val singlesFromView = parseAlbumShelfView(
+                            views?.optJSONObject("singles") ?: views?.optJSONObject("singles-eps")
+                        )
+                        val appearsOn = parseAlbumShelfView(views?.optJSONObject("appears-on-albums"))
+                        val playlists = parseAlbumShelfView(views?.optJSONObject("featured-playlists")).ifEmpty {
+                            parseAlbumShelfView(rels?.optJSONObject("playlists"))
+                        }
+                        val musicVideos = parseArtistTrackView(
+                            views?.optJSONObject("top-music-videos") ?: rels?.optJSONObject("music-videos"),
+                            resolvedArtistId,
+                            name,
+                            defaultType = "music-videos"
+                        )
+                        val similarArtists = parseAlbumShelfView(views?.optJSONObject("similar-artists")).map {
+                            it.copy(type = "artists", artistId = it.id)
+                        }
+
+                        val finalAlbums = fullAlbumsFromView.ifEmpty {
+                            allDiscography.filter {
+                                !it.title.contains(" - Single", ignoreCase = true) &&
+                                    !it.title.contains(" - EP", ignoreCase = true) &&
+                                    (it.trackCount == 0 || it.trackCount > 3)
+                            }
+                        }
+                        val finalSingles = singlesFromView.ifEmpty {
+                            allDiscography.filter {
+                                it.title.contains(" - Single", ignoreCase = true) ||
+                                    it.title.contains(" - EP", ignoreCase = true) ||
+                                    (it.trackCount in 1..3)
+                            }
+                        }
+
+                        if (artworkUrl.isNotBlank()) {
+                            artistAvatarCache[resolvedArtistId] = artworkUrl
+                            artistAvatarCache[name.lowercase(Locale.ROOT)] = artworkUrl
+                        }
+
+                        return@withContext CatalogArtistDetail(
+                            id = resolvedArtistId,
+                            name = name,
+                            artworkUrl = artworkUrl,
+                            heroVideoUrl = heroVideoUrl,
+                            logoUrl = logoUrl,
+                            keyColorHex = keyColorHex,
+                            bio = bio,
+                            genre = genre,
+                            origin = origin,
+                            formedYear = formedYear,
+                            latestRelease = latestRelease ?: finalAlbums.firstOrNull() ?: finalSingles.firstOrNull(),
+                            topSongs = topSongs,
+                            essentialAlbums = essentialAlbums,
+                            albums = finalAlbums,
+                            singlesAndEps = finalSingles,
+                            appearsOn = appearsOn,
+                            playlists = playlists,
+                            musicVideos = musicVideos,
+                            similarArtists = similarArtists
+                        )
+                    }
                 }
             }
         }
 
         // Fallback via catalog search if artist endpoint didn't resolve
-        val searchFallback = searchFullCatalog(fallbackName.ifBlank { cleanId }, limit = 25)
+        val searchFallback = searchFullCatalog(searchName, limit = 25)
         val matchedArtist = searchFallback.artists.firstOrNull()
+        val realAvatar = matchedArtist?.artworkUrl?.takeIf { it.isNotBlank() }
+            ?: fetchArtistAvatarUrl(searchName, resolvedArtistId)
         CatalogArtistDetail(
-            id = cleanId,
+            id = resolvedArtistId.ifBlank { rawId },
             name = matchedArtist?.title ?: fallbackName.ifBlank { "Artist" },
-            artworkUrl = matchedArtist?.artworkUrl ?: searchFallback.songs.firstOrNull()?.artworkUrl.orEmpty(),
+            artworkUrl = realAvatar,
             topSongs = searchFallback.songs,
             albums = searchFallback.albums,
             playlists = searchFallback.playlists,
             musicVideos = searchFallback.musicVideos
+        )
+    }
+
+    /**
+     * Port of `parseAmpArtistResponse` from `main/js/amp-parser.js` (lines 7-168) + `upload.js` (lines 3705-3785).
+     */
+    private fun parseAmpCompoundArtistJson(
+        root: JSONObject,
+        artistId: String,
+        fallbackName: String,
+        discographySupplement: List<LyricsFlowCatalogItem>
+    ): CatalogArtistDetail? {
+        val res = root.optJSONObject("resources") ?: return null
+        val artistsMap = res.optJSONObject("artists") ?: return null
+        val mainArtist = artistsMap.optJSONObject(artistId)
+            ?: artistsMap.keys().asSequence().firstOrNull()?.let { artistsMap.optJSONObject(it) }
+            ?: return null
+
+        val attr = mainArtist.optJSONObject("attributes") ?: return null
+        val name = attr.optString("name").ifBlank { fallbackName }
+        if (name.isBlank()) return null
+
+        val artworkUrl = extractBestArtistOrEntityArtwork(attr, 1400)
+        val heroVideoUrl = extractEditorialVideoUrl(attr.optJSONObject("editorialVideo"))
+        val logoUrl = resolveLogoUrl(
+            attr.optJSONObject("editorialArtwork")?.optJSONObject("musicContentColorLogoTrimmed")?.optString("url")
+        )
+        val keyColorHex = attr.optString("keyColor").removePrefix("#").ifBlank {
+            attr.optJSONObject("artwork")?.optString("bgColor")?.removePrefix("#").orEmpty()
+        }
+        val bio = attr.optString("artistBio")
+            .ifBlank { attr.optString("plainEditorialNotes") }
+            .ifBlank { attr.optJSONObject("editorialNotes")?.optString("standard").orEmpty() }
+            .ifBlank { attr.optJSONObject("editorialNotes")?.optString("short").orEmpty() }
+            .replace(Regex("<[^>]*>"), "")
+            .trim()
+        val genre = attr.optJSONArray("genreNames")?.optString(0).orEmpty()
+        val origin = attr.optString("origin")
+        val formedYear = attr.optString("bornOrFormed")
+
+        val songsMap = res.optJSONObject("songs")
+        val albumsMap = res.optJSONObject("albums")
+        val playlistsMap = res.optJSONObject("playlists")
+        val videosMap = res.optJSONObject("music-videos")
+        val concertsMap = res.optJSONObject("concerts")
+        val venuesMap = res.optJSONObject("venues")
+        val shelvesMap = res.optJSONObject("canvas-shelves-collection")
+
+        var latestRelease: LyricsFlowCatalogItem? = null
+        val topSongs = mutableListOf<CatalogTrackResult>()
+        val essentialAlbums = mutableListOf<LyricsFlowCatalogItem>()
+        val albums = mutableListOf<LyricsFlowCatalogItem>()
+        val singles = mutableListOf<LyricsFlowCatalogItem>()
+        val appearsOn = mutableListOf<LyricsFlowCatalogItem>()
+        val playlists = mutableListOf<LyricsFlowCatalogItem>()
+        val musicVideos = mutableListOf<CatalogTrackResult>()
+        val similarArtists = mutableListOf<LyricsFlowCatalogItem>()
+
+        fun parseAlbumFromMap(id: String): LyricsFlowCatalogItem? {
+            val aObj = albumsMap?.optJSONObject(id) ?: return null
+            val aAttr = aObj.optJSONObject("attributes") ?: return null
+            val aName = aAttr.optString("name")
+            if (aName.isBlank()) return null
+            val relDate = aAttr.optString("releaseDate")
+            return LyricsFlowCatalogItem(
+                id = id,
+                type = "albums",
+                title = aName,
+                subtitle = aAttr.optString("artistName").ifBlank { name },
+                albumName = aName,
+                albumId = id,
+                artistId = artistId,
+                artworkUrl = extractBestArtistOrEntityArtwork(aAttr, 600),
+                isExplicit = aAttr.optString("contentRating").equals("explicit", ignoreCase = true),
+                releaseYear = relDate.take(4),
+                editorialSubtitle = formatReleaseDateHuman(relDate),
+                trackCount = aAttr.optInt("trackCount", 0)
+            )
+        }
+
+        fun parseSongFromMap(id: String, idx: Int, defaultType: String = "songs"): CatalogTrackResult? {
+            val mapToUse = if (defaultType == "music-videos") videosMap else songsMap
+            val sObj = mapToUse?.optJSONObject(id) ?: songsMap?.optJSONObject(id) ?: return null
+            val sAttr = sObj.optJSONObject("attributes") ?: return null
+            val sName = sAttr.optString("name")
+            if (sName.isBlank()) return null
+            val sAlbumId = sObj.optJSONObject("relationships")?.optJSONObject("albums")
+                ?.optJSONArray("data")?.optJSONObject(0)?.optString("id").orEmpty()
+            return CatalogTrackResult(
+                id = id,
+                title = sName,
+                artist = sAttr.optString("artistName").ifBlank { name },
+                artistId = artistId,
+                album = sAttr.optString("albumName"),
+                albumId = sAlbumId,
+                artworkUrl = resolveArtworkUrl(sAttr.optJSONObject("artwork"), 600, 600),
+                durationMs = sAttr.optLong("durationInMillis", 0L),
+                trackNumber = sAttr.optInt("trackNumber", idx + 1),
+                discNumber = sAttr.optInt("discNumber", 1),
+                isExplicit = sAttr.optString("contentRating").equals("explicit", ignoreCase = true),
+                previewUrl = sAttr.optJSONArray("previews")?.optJSONObject(0)?.optString("url").orEmpty(),
+                releaseYear = sAttr.optString("releaseDate").take(4).toIntOrNull(),
+                genre = sAttr.optJSONArray("genreNames")?.optString(0).orEmpty(),
+                type = defaultType
+            )
+        }
+
+        if (shelvesMap != null) {
+            val shelfKeys = shelvesMap.keys()
+            while (shelfKeys.hasNext()) {
+                val shelfKey = shelfKeys.next()
+                val shelf = shelvesMap.optJSONObject(shelfKey) ?: continue
+                val contentsData = shelf.optJSONObject("relationships")?.optJSONObject("contents")?.optJSONArray("data")
+                    ?: continue
+
+                when {
+                    shelfKey.contains("_FeaturedRelease_") || shelfKey.contains("_LatestRelease_") -> {
+                        val firstRef = contentsData.optJSONObject(0)
+                        if (firstRef != null) {
+                            latestRelease = parseAlbumFromMap(firstRef.optString("id"))
+                        }
+                    }
+                    shelfKey.contains("_TopSongs_") -> {
+                        for (i in 0 until contentsData.length()) {
+                            val ref = contentsData.optJSONObject(i) ?: continue
+                            parseSongFromMap(ref.optString("id"), i, "songs")?.let { topSongs.add(it) }
+                        }
+                    }
+                    shelfKey.contains("_EssentialAlbums_") || shelfKey.contains("_FeaturedAlbums_") -> {
+                        for (i in 0 until contentsData.length()) {
+                            val ref = contentsData.optJSONObject(i) ?: continue
+                            parseAlbumFromMap(ref.optString("id"))?.let { essentialAlbums.add(it) }
+                        }
+                    }
+                    shelfKey.contains("_Albums_") -> {
+                        for (i in 0 until contentsData.length()) {
+                            val ref = contentsData.optJSONObject(i) ?: continue
+                            parseAlbumFromMap(ref.optString("id"))?.let { albums.add(it) }
+                        }
+                    }
+                    shelfKey.contains("_ArtistSingles_") || shelfKey.contains("_Singles_") -> {
+                        for (i in 0 until contentsData.length()) {
+                            val ref = contentsData.optJSONObject(i) ?: continue
+                            parseAlbumFromMap(ref.optString("id"))?.let { singles.add(it) }
+                        }
+                    }
+                    shelfKey.contains("_AppearsOn_") -> {
+                        for (i in 0 until contentsData.length()) {
+                            val ref = contentsData.optJSONObject(i) ?: continue
+                            parseAlbumFromMap(ref.optString("id"))?.let { appearsOn.add(it) }
+                        }
+                    }
+                    shelfKey.contains("_ArtistPlaylists_") || shelfKey.contains("_Playlists_") -> {
+                        for (i in 0 until contentsData.length()) {
+                            val ref = contentsData.optJSONObject(i) ?: continue
+                            val plId = ref.optString("id")
+                            val plObj = playlistsMap?.optJSONObject(plId) ?: continue
+                            val plAttr = plObj.optJSONObject("attributes") ?: continue
+                            val plName = plAttr.optString("name")
+                            if (plName.isBlank()) continue
+                            playlists.add(
+                                LyricsFlowCatalogItem(
+                                    id = plId,
+                                    type = "playlists",
+                                    title = plName,
+                                    subtitle = plAttr.optString("curatorName", "Apple Music"),
+                                    artworkUrl = extractBestArtistOrEntityArtwork(plAttr, 600)
+                                )
+                            )
+                        }
+                    }
+                    shelfKey.contains("_MusicVideos_") -> {
+                        for (i in 0 until contentsData.length()) {
+                            val ref = contentsData.optJSONObject(i) ?: continue
+                            parseSongFromMap(ref.optString("id"), i, "music-videos")?.let { musicVideos.add(it) }
+                        }
+                    }
+                    shelfKey.contains("_SimilarArtists_") -> {
+                        for (i in 0 until contentsData.length()) {
+                            val ref = contentsData.optJSONObject(i) ?: continue
+                            val simId = ref.optString("id")
+                            val simObj = artistsMap.optJSONObject(simId) ?: continue
+                            val simAttr = simObj.optJSONObject("attributes") ?: continue
+                            val simName = simAttr.optString("name")
+                            if (simName.isBlank()) continue
+                            similarArtists.add(
+                                LyricsFlowCatalogItem(
+                                    id = simId,
+                                    type = "artists",
+                                    title = simName,
+                                    subtitle = "Artist",
+                                    artistId = simId,
+                                    artworkUrl = extractBestArtistOrEntityArtwork(simAttr, 600)
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // If shelves didn't populate songs/albums, fallback to the resource maps directly
+        if (topSongs.isEmpty() && songsMap != null) {
+            val keys = songsMap.keys()
+            var idx = 0
+            while (keys.hasNext()) {
+                val k = keys.next()
+                parseSongFromMap(k, idx++, "songs")?.let { topSongs.add(it) }
+            }
+        }
+
+        // Extract upcoming concert badge if available (e.g., "20 Aug · Hasselt" in Screenshot 2)
+        var upcomingConcertBadge = ""
+        if (concertsMap != null) {
+            val cKey = concertsMap.keys().asSequence().firstOrNull()
+            val cObj = cKey?.let { concertsMap.optJSONObject(it) }
+            val cAttr = cObj?.optJSONObject("attributes")
+            if (cAttr != null) {
+                val startDate = cAttr.optString("startDate").ifBlank { cAttr.optString("eventDate") }
+                val datePart = formatShortDayMonth(startDate)
+                val venueId = cObj.optJSONObject("relationships")?.optJSONObject("venues")
+                    ?.optJSONArray("data")?.optJSONObject(0)?.optString("id").orEmpty()
+                val venueAttr = venuesMap?.optJSONObject(venueId)?.optJSONObject("attributes")
+                val city = venueAttr?.optString("city")
+                    ?.ifBlank { venueAttr.optString("name") }
+                    ?: cAttr.optString("city").ifBlank { cAttr.optString("venueName") }
+                upcomingConcertBadge = listOf(datePart, city).filter { it.isNotBlank() }.joinToString(" · ")
+            }
+        }
+
+        val finalAlbums = albums.ifEmpty {
+            discographySupplement.filter {
+                !it.title.contains(" - Single", ignoreCase = true) &&
+                    !it.title.contains(" - EP", ignoreCase = true) &&
+                    (it.trackCount == 0 || it.trackCount > 3)
+            }
+        }
+        val finalSingles = singles.ifEmpty {
+            discographySupplement.filter {
+                it.title.contains(" - Single", ignoreCase = true) ||
+                    it.title.contains(" - EP", ignoreCase = true) ||
+                    (it.trackCount in 1..3)
+            }
+        }
+
+        return CatalogArtistDetail(
+            id = artistId,
+            name = name,
+            artworkUrl = artworkUrl,
+            heroVideoUrl = heroVideoUrl,
+            logoUrl = logoUrl,
+            keyColorHex = keyColorHex,
+            upcomingConcertBadge = upcomingConcertBadge,
+            bio = bio,
+            genre = genre,
+            origin = origin,
+            formedYear = formedYear,
+            latestRelease = latestRelease ?: finalAlbums.firstOrNull() ?: finalSingles.firstOrNull(),
+            topSongs = topSongs,
+            essentialAlbums = essentialAlbums,
+            albums = finalAlbums,
+            singlesAndEps = finalSingles,
+            appearsOn = appearsOn,
+            playlists = playlists,
+            musicVideos = musicVideos,
+            similarArtists = similarArtists
         )
     }
 
@@ -1694,9 +2289,10 @@ object LyricsFlowApi {
     private fun extractEditorialVideoUrl(editorialVideo: JSONObject?): String? {
         if (editorialVideo == null) return null
         val candidateKeys = listOf(
-            "motionDetailTall",
             "motionArtistFullscreen16x9",
             "motionArtistWide16x9",
+            "motionDetailTall",
+            "motionTallVideo3x4",
             "motionDetailSquare",
             "motionSquareVideo1x1",
             "motionArtistSquare1x1"
@@ -1709,19 +2305,134 @@ object LyricsFlowApi {
     }
 
     /**
-     * Port of `resolveArtworkUrl` from `main/js/amp-parser.js`.
+     * Extracts the best portrait or cover artwork from an AMP `attributes` object (`upload.js` lines 3711-3719 & `amp-parser.js` lines 36-41).
+     * Checks `hero[0].content[0].artwork`, `artwork`, `editorialArtwork.storeFlowcase`, `bannerUber`, `centeredFullscreenBackground`, `subscriptionHero`, and `editorialVideo.*.previewFrame`.
+     */
+    fun extractBestArtistOrEntityArtwork(attrs: JSONObject?, size: Int = 800): String {
+        if (attrs == null) return ""
+        val heroArt = attrs.optJSONArray("hero")
+            ?.optJSONObject(0)
+            ?.optJSONArray("content")
+            ?.optJSONObject(0)
+            ?.optJSONObject("artwork")
+        if (heroArt != null) {
+            val u = resolveArtworkUrl(heroArt, size, size)
+            if (u.isNotBlank()) return u
+        }
+
+        attrs.optJSONObject("artwork")?.let { artObj ->
+            val u = resolveArtworkUrl(artObj, size, size)
+            if (u.isNotBlank()) return u
+        }
+
+        val edArt = attrs.optJSONObject("editorialArtwork")
+        if (edArt != null) {
+            val edKeys = listOf(
+                "storeFlowcase",
+                "subscriptionHero",
+                "bannerUber",
+                "centeredFullscreenBackground",
+                "superHeroWide",
+                "FullscreenBackground"
+            )
+            for (k in edKeys) {
+                val u = resolveArtworkUrl(edArt.optJSONObject(k), size, size)
+                if (u.isNotBlank()) return u
+            }
+        }
+
+        val edVid = attrs.optJSONObject("editorialVideo")
+        if (edVid != null) {
+            val vidKeys = listOf(
+                "motionArtistFullscreen16x9",
+                "motionArtistWide16x9",
+                "motionArtistSquare1x1",
+                "motionDetailTall",
+                "motionDetailSquare"
+            )
+            for (k in vidKeys) {
+                val previewObj = edVid.optJSONObject(k)?.optJSONObject("previewFrame")
+                val u = resolveArtworkUrl(previewObj, size, size)
+                if (u.isNotBlank()) return u
+            }
+        }
+
+        return ""
+    }
+
+    /**
+     * Port of `cleanArtworkUrl` from `main/js/upload.js` (lines 76-108) and `resolveArtworkUrl` from `main/js/amp-parser.js`.
      */
     fun resolveArtworkUrl(artworkObj: JSONObject?, width: Int = 600, height: Int = 600): String {
         if (artworkObj == null) return ""
         val template = artworkObj.optString("url").takeIf { it.isNotBlank() }
             ?: artworkObj.optJSONObject("subscriptionHero")?.optString("url")
             ?: artworkObj.optJSONObject("storeFlowcase")?.optString("url")
+            ?: artworkObj.optJSONObject("bannerUber")?.optString("url")
             ?: return ""
-        return template
+        return cleanArtworkUrlString(template, maxOf(width, height))
+    }
+
+    fun cleanArtworkUrlString(rawUrl: String?, size: Int = 600): String {
+        val url = rawUrl?.trim().orEmpty()
+        if (url.isEmpty()) return ""
+        val isPng = url.contains("Logo", ignoreCase = true) || url.endsWith(".png", ignoreCase = true)
+        val ext = if (isPng) "png" else "jpg"
+
+        if (url.contains("/{w}x{h}bb.")) {
+            return url
+                .replace(Regex("/\\{w\\}x\\{h\\}bb\\.([a-zA-Z0-9]+|\\{f\\})"), "/${size}x${size}bb.$ext")
+                .replace("{w}", size.toString())
+                .replace("{h}", size.toString())
+                .replace("{c}", "")
+                .replace("{f}", ext)
+        }
+
+        if (url.contains("{w}") || url.contains("{h}") || url.contains("{c}") || url.contains("{f}")) {
+            return url
+                .replace("{w}", size.toString())
+                .replace("{h}", size.toString())
+                .replace("{c}", "")
+                .replace("{f}", ext)
+        }
+
+        return url.replace(Regex("/\\d+x\\d+(bb)?\\.(jpg|png|webp)", RegexOption.IGNORE_CASE)) { match ->
+            val matchedExt = match.groupValues.getOrNull(2)?.ifBlank { "jpg" } ?: "jpg"
+            "/${size}x${size}bb.$matchedExt"
+        }
+    }
+
+    /**
+     * Port of `cleanLogo` in `main/js/amp-parser.js` (line 23) for `musicContentColorLogoTrimmed`.
+     */
+    fun resolveLogoUrl(rawUrl: String?, width: Int = 800, height: Int = 300): String {
+        val url = rawUrl?.trim().orEmpty()
+        if (url.isEmpty()) return ""
+        return url
             .replace("{w}", width.toString())
             .replace("{h}", height.toString())
             .replace("{c}", "bb")
-            .replace("{f}", "jpg")
+            .replace("{f}", "png")
+    }
+
+    private fun formatReleaseDateHuman(isoDate: String): String {
+        val clean = isoDate.trim().take(10)
+        if (clean.length < 10) return isoDate.take(4)
+        return runCatching {
+            val parser = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+            val parsed = parser.parse(clean) ?: return@runCatching isoDate.take(4)
+            SimpleDateFormat("d MMM yyyy", Locale.US).format(parsed)
+        }.getOrDefault(isoDate.take(4))
+    }
+
+    private fun formatShortDayMonth(isoDate: String): String {
+        val clean = isoDate.trim().take(10)
+        if (clean.length < 10) return ""
+        return runCatching {
+            val parser = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+            val parsed = parser.parse(clean) ?: return@runCatching ""
+            SimpleDateFormat("d MMM", Locale.US).format(parsed)
+        }.getOrDefault("")
     }
 
     private fun resolveItunesTrackId(title: String, artist: String): String? {
@@ -1750,7 +2461,13 @@ object LyricsFlowApi {
     private fun httpGet(urlString: String, timeoutMs: Int = 8000): String? {
         var conn: HttpURLConnection? = null
         return try {
-            conn = (URL(urlString).openConnection() as HttpURLConnection).apply {
+            val sanitizedUrl = urlString
+                .replace("[", "%5B")
+                .replace("]", "%5D")
+                .replace("{", "%7B")
+                .replace("}", "%7D")
+                .replace(" ", "%20")
+            conn = (URL(sanitizedUrl).openConnection() as HttpURLConnection).apply {
                 connectTimeout = timeoutMs
                 readTimeout = timeoutMs
                 requestMethod = "GET"
