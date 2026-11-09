@@ -29,7 +29,7 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Ensure Gradle Wrapper Distribution (with retry & mirror fallback)
+      - name: Ensure Gradle Wrapper Distribution (with retry)
         run: |
           for attempt in 1 2 3 4 5; do
             echo "Verifying Gradle distribution (attempt $attempt)..."
@@ -38,9 +38,6 @@ jobs:
             fi
             echo "Gradle wrapper download failed on attempt $attempt, retrying in 5s..."
             rm -rf ~/.gradle/wrapper/dists/*/*.part ~/.gradle/wrapper/dists/*/*.lck || true
-            if [ "$attempt" -ge 3 ]; then
-              sed -i 's|https://services.gradle.org/distributions/|https\\://downloads.gradle-dn.com/distributions/|g' gradle/wrapper/gradle-wrapper.properties
-            fi
             sleep 5
           done
 
