@@ -18,6 +18,9 @@ object SettingsLibrary {
     val FollowedArtists: List<String>
         get() = followedArtistsSaver.map { it.value }
 
+    val followedArtists: List<String>
+        get() = FollowedArtists
+
     fun isArtistFollowed(artistName: String): Boolean
     {
         return FollowedArtists.contains(artistName)
@@ -41,6 +44,44 @@ object SettingsLibrary {
             unfollowArtist(artistName)
         } else {
             followArtist(artistName)
+        }
+    }
+
+    @Stable
+    private var savedAlbumsSaver by mutableDataSaverListStateOf(
+        dataSaverInterface = SettingsSaver,
+        key = "settings_library_saved_albums",
+        initialValue = listOf<YosStringWrapper>()
+    )
+
+    val SavedAlbums: List<String>
+        get() = savedAlbumsSaver.map { it.value }
+
+    fun isAlbumSaved(albumKey: String): Boolean
+    {
+        return albumKey.isNotBlank() && SavedAlbums.contains(albumKey)
+    }
+
+    fun saveAlbum(albumKey: String)
+    {
+        if (albumKey.isNotBlank() && !isAlbumSaved(albumKey)) {
+            savedAlbumsSaver = savedAlbumsSaver + YosStringWrapper(albumKey)
+        }
+    }
+
+    fun unsaveAlbum(albumKey: String)
+    {
+        if (albumKey.isNotBlank()) {
+            savedAlbumsSaver = savedAlbumsSaver - YosStringWrapper(albumKey)
+        }
+    }
+
+    fun toggleAlbumSaved(albumKey: String)
+    {
+        if (isAlbumSaved(albumKey)) {
+            unsaveAlbum(albumKey)
+        } else {
+            saveAlbum(albumKey)
         }
     }
 

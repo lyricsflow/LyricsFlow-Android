@@ -75,7 +75,7 @@ fun LocalArtists(navController: NavController) {
     ) {
         val artistsList = remember(MusicLibrary.artists, SettingsLibrary.FollowedArtists) {
             ArtistLibrary.sortedArtists(
-                (MusicLibrary.artists + SettingsLibrary.followedArtists).distinct()
+                (MusicLibrary.artists + SettingsLibrary.FollowedArtists).distinct()
             )
         }
 

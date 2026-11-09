@@ -106,7 +106,7 @@ fun Library(navController: NavController) {
     // Resolve actual artist portraits from Apple Music (`fetchArtistAvatarUrl`) & editorial fallback items
     LaunchedEffect(localArtists) {
         val candidateArtists = buildList {
-            addAll(SettingsLibrary.followedArtists)
+            addAll(SettingsLibrary.FollowedArtists)
             addAll(localArtists.take(6))
         }.distinct().take(6)
 
@@ -190,7 +190,7 @@ fun Library(navController: NavController) {
         }
 
         // 3. Featured Artist in a Circle (like `MIKE` in Screenshot 1!) using real artist photo
-        val featuredArtistName = SettingsLibrary.followedArtists.firstOrNull()
+        val featuredArtistName = SettingsLibrary.FollowedArtists.firstOrNull()
             ?: localArtists.firstOrNull()
             ?: onlineTrending.firstOrNull()?.artist
         if (!featuredArtistName.isNullOrBlank()) {
@@ -309,12 +309,12 @@ fun Library(navController: NavController) {
             .distinctBy { it.album ?: it.title }
             .take(12)
             .forEach { song ->
-                val albName = song.album ?: defaultAlbum
+                val albName: String = (song.album ?: defaultAlbum).orEmpty()
                 list.add(
                     LibraryRecentlyAddedEntry(
                         id = "local_rec_${song.mediaId ?: albName}",
                         title = albName.ifBlank { song.title.orEmpty() },
-                        subtitle = song.artistsName,
+                        subtitle = song.artistsName.orEmpty(),
                         artworkModel = song.thumb,
                         onClick = {
                             Vibrator.click(context)
