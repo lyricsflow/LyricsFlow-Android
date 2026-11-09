@@ -18,9 +18,6 @@ object SettingsLibrary {
     val FollowedArtists: List<String>
         get() = followedArtistsSaver.map { it.value }
 
-    val followedArtists: List<String>
-        get() = FollowedArtists
-
     fun isArtistFollowed(artistName: String): Boolean
     {
         return FollowedArtists.contains(artistName)
