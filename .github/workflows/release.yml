@@ -39,7 +39,7 @@ jobs:
             echo "Gradle wrapper download failed on attempt $attempt, retrying in 5s..."
             rm -rf ~/.gradle/wrapper/dists/*/*.part ~/.gradle/wrapper/dists/*/*.lck || true
             if [ "$attempt" -ge 3 ]; then
-              sed -i 's|https\\://services.gradle.org/distributions/|https\\://downloads.gradle-dn.com/distributions/|g' gradle/wrapper/gradle-wrapper.properties
+              sed -i 's|https://services.gradle.org/distributions/|https\\://downloads.gradle-dn.com/distributions/|g' gradle/wrapper/gradle-wrapper.properties
             fi
             sleep 5
           done
