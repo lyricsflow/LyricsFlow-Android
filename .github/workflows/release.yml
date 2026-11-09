@@ -37,7 +37,14 @@ jobs:
         run: |
           APK_PATH=$(find app/build/outputs/apk/debug -maxdepth 2 -type f \( -name "*.apk" -o -name "*.ApK" \) | head -n 1)
           cp "$APK_PATH" app/build/outputs/apk/debug/LyricsFlow-Android.apk
-          echo "apk_path=app/build/outputs/apk/debug/LyricsFlow-Android.apk" >> $GITHUB_OUTPUT
+          echo "apk_path=app/build/outputs/apk/debug/LyricsFlow-Android.apk" >> "$GITHUB_OUTPUT"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "tag_name=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "release_name=LyricsFlow Android (${GITHUB_REF_NAME})" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag_name=v1.0.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+            echo "release_name=LyricsFlow Android (Build ${GITHUB_RUN_NUMBER})" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
@@ -48,8 +55,8 @@ jobs:
       - name: Create GitHub Release with APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('v1.0.{0}', github.run_number) }}
-          name: LyricsFlow Android (${{ github.ref_type == 'tag' && github.ref_name || format('Build #{0}', github.run_number) }})
+          tag_name: ${{ steps.prep_apk.outputs.tag_name }}
+          name: ${{ steps.prep_apk.outputs.release_name }}
           files: ${{ steps.prep_apk.outputs.apk_path }}
           generate_release_notes: true
           make_latest: true
