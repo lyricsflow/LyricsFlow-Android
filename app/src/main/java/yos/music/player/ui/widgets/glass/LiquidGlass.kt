@@ -30,6 +30,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -251,6 +253,11 @@ fun Modifier.iosPressScale(
 
 /**
  * iOS 27 Apple Music Circular Liquid Glass Button (`<` Back, `i` Bio, `☆` Star, Shuffle, Download).
+ *
+ * Note: Only applies `drawBackdrop` when a dedicated local [backdrop] (such as a hero artwork
+ * `LayerBackdrop`) is explicitly passed. When [backdrop] is `null` or equals [LocalAppBackdrop],
+ * renders a multi-layer frosted glass capsule directly to avoid drawing `AnimatedNavHost`'s
+ * `appBackdrop` `RenderNode` into itself during recording.
  */
 @Composable
 fun LiquidGlassCircleButton(
@@ -258,20 +265,52 @@ fun LiquidGlassCircleButton(
     modifier: Modifier = Modifier,
     size: Dp = 42.dp,
     enabled: Boolean = true,
-    backdrop: Backdrop = LocalAppBackdrop.current,
+    backdrop: Backdrop? = null,
     surfaceTint: Color? = Color(0xFF1A1A1E).copy(alpha = 0.34f),
     content: @Composable BoxScope.() -> Unit
 ) {
+    val appBackdrop = LocalAppBackdrop.current
+    val useRefractionBackdrop = backdrop != null && backdrop !== appBackdrop
+    val isDark = isFlamingoInDarkMode()
+    val resolvedTint = surfaceTint ?: if (isDark) {
+        Color(0xFF1E1E24).copy(alpha = 0.56f)
+    } else {
+        Color(0xFFF2F2F7).copy(alpha = 0.72f)
+    }
+    val borderBrush = Brush.verticalGradient(
+        colors = listOf(
+            Color.White.copy(alpha = if (isDark) 0.32f else 0.75f),
+            Color.White.copy(alpha = if (isDark) 0.08f else 0.25f)
+        )
+    )
+    val specularBrush = Brush.verticalGradient(
+        colors = listOf(
+            Color.White.copy(alpha = if (isDark) 0.14f else 0.35f),
+            Color.Transparent
+        )
+    )
+
     Box(
         modifier = modifier
             .size(size)
             .iosPressScale(enabled = enabled, pressedScale = 0.92f, onClick = onClick)
-            .liquidGlassCircle(
-                backdrop = backdrop,
-                blurRadius = 10.dp,
-                refractionHeight = 14.dp,
-                refractionAmount = 18.dp,
-                surfaceTint = surfaceTint
+            .then(
+                if (useRefractionBackdrop && backdrop != null) {
+                    Modifier.liquidGlassCircle(
+                        backdrop = backdrop,
+                        blurRadius = 10.dp,
+                        refractionHeight = 14.dp,
+                        refractionAmount = 18.dp,
+                        surfaceTint = surfaceTint
+                    )
+                } else {
+                    Modifier
+                        .shadow(elevation = 4.dp, shape = CircleShape, ambientColor = Color.Black.copy(alpha = 0.18f))
+                        .clip(CircleShape)
+                        .background(resolvedTint, CircleShape)
+                        .background(specularBrush, CircleShape)
+                        .border(BorderStroke(0.75.dp, borderBrush), CircleShape)
+                }
             ),
         contentAlignment = Alignment.Center,
         content = content
@@ -285,21 +324,54 @@ fun LiquidGlassCircleButton(
 fun LiquidGlassPillGroup(
     modifier: Modifier = Modifier,
     height: Dp = 42.dp,
-    backdrop: Backdrop = LocalAppBackdrop.current,
+    backdrop: Backdrop? = null,
     surfaceTint: Color? = Color(0xFF1A1A1E).copy(alpha = 0.34f),
     content: @Composable RowScope.() -> Unit
 ) {
+    val appBackdrop = LocalAppBackdrop.current
+    val useRefractionBackdrop = backdrop != null && backdrop !== appBackdrop
+    val isDark = isFlamingoInDarkMode()
+    val pillShape = RoundedCornerShape(100.dp)
+    val resolvedTint = surfaceTint ?: if (isDark) {
+        Color(0xFF1E1E24).copy(alpha = 0.56f)
+    } else {
+        Color(0xFFF2F2F7).copy(alpha = 0.72f)
+    }
+    val borderBrush = Brush.verticalGradient(
+        colors = listOf(
+            Color.White.copy(alpha = if (isDark) 0.32f else 0.75f),
+            Color.White.copy(alpha = if (isDark) 0.08f else 0.25f)
+        )
+    )
+    val specularBrush = Brush.verticalGradient(
+        colors = listOf(
+            Color.White.copy(alpha = if (isDark) 0.14f else 0.35f),
+            Color.Transparent
+        )
+    )
+
     Row(
         modifier = modifier
             .height(height)
-            .liquidGlass(
-                backdrop = backdrop,
-                shape = RoundedCornerShape(100.dp),
-                blurRadius = 10.dp,
-                refractionHeight = 16.dp,
-                refractionAmount = 20.dp,
-                depthEffect = false,
-                surfaceTint = surfaceTint
+            .then(
+                if (useRefractionBackdrop && backdrop != null) {
+                    Modifier.liquidGlass(
+                        backdrop = backdrop,
+                        shape = pillShape,
+                        blurRadius = 10.dp,
+                        refractionHeight = 16.dp,
+                        refractionAmount = 20.dp,
+                        depthEffect = false,
+                        surfaceTint = surfaceTint
+                    )
+                } else {
+                    Modifier
+                        .shadow(elevation = 4.dp, shape = pillShape, ambientColor = Color.Black.copy(alpha = 0.18f))
+                        .clip(pillShape)
+                        .background(resolvedTint, pillShape)
+                        .background(specularBrush, pillShape)
+                        .border(BorderStroke(0.75.dp, borderBrush), pillShape)
+                }
             )
             .padding(horizontal = 6.dp),
         verticalAlignment = Alignment.CenterVertically,

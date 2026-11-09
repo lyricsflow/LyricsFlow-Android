@@ -70,10 +70,14 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.PathFillType
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.addPathNodes
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -423,6 +427,55 @@ fun LyricsFlowFloatingTabBar(
     }
 }
 
+// Exact Apple Music Sidebar SVG icons from `main/index.html` (`am-sidebar-nav`)
+private val MainSidebarHomeVector: ImageVector by lazy {
+    ImageVector.Builder(
+        name = "MainSidebarHome",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f
+    ).addPath(
+        pathData = addPathNodes(
+            "M5.93 20.16a1.94 1.94 0 0 1-1.43-.502c-.334-.335-.502-.794-.502-1.393v-7.142c0-.362.062-.688.177-.953.123-.264.326-.529.6-.75l6.145-5.157c.176-.141.344-.247.52-.318q.263-.105.564-.105c.194 0 .388.035.565.105s.352.177.52.318l6.146 5.158c.273.23.467.476.59.75.124.264.177.59.177.96v7.134c0 .59-.159 1.058-.503 1.393q-.503.503-1.428.503zm12.14-1.172q.334 0 .547-.212a.69.69 0 0 0 .22-.511v-7.142c0-.177-.026-.344-.087-.459a1 1 0 0 0-.265-.353l-6.154-5.149a.8.8 0 0 0-.177-.115.4.4 0 0 0-.15-.035.4.4 0 0 0-.158.035l-.177.115-6.145 5.15a1 1 0 0 0-.274.352 1.1 1.1 0 0 0-.088.468v7.133c0 .203.08.379.23.511a.74.74 0 0 0 .546.212zm-8.323-4.7c0-.176.062-.326.177-.432a.6.6 0 0 1 .423-.159h3.315c.176 0 .326.053.432.16s.159.255.159.431v4.973H9.756v-4.973Z"
+        ),
+        pathFillType = PathFillType.EvenOdd,
+        fill = SolidColor(Color.White)
+    ).build()
+}
+
+private val MainSidebarNewGridVector: ImageVector by lazy {
+    ImageVector.Builder(
+        name = "MainSidebarNewGrid",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f
+    ).addPath(
+        pathData = addPathNodes(
+            "M9.92 11.354c.966 0 1.453-.487 1.453-1.49v-3.4c0-1.004-.487-1.483-1.453-1.483H6.452C5.487 4.981 5 5.46 5 6.464v3.4c0 1.003.487 1.49 1.452 1.49zm7.628 0c.965 0 1.452-.487 1.452-1.49v-3.4c0-1.004-.487-1.483-1.452-1.483h-3.46c-.974 0-1.46.479-1.46 1.483v3.4c0 1.003.486 1.49 1.46 1.49zm-7.65-1.073h-3.43q-.397.002-.396-.418v-3.4q-.002-.41.396-.41h3.43c.265 0 .402.137.402.41v3.4c0 .281-.137.418-.403.418m7.634 0h-3.43c-.273 0-.402-.137-.402-.418v-3.4c0-.273.129-.41.403-.41h3.43q.396 0 .395.41v3.4q.002.42-.396.418m-7.612 8.7c.966 0 1.453-.48 1.453-1.483v-3.407c0-.996-.487-1.483-1.453-1.483H6.452c-.965 0-1.452.487-1.452 1.483v3.407c0 1.004.487 1.483 1.452 1.483zm7.628 0c.965 0 1.452-.48 1.452-1.483v-3.407c0-.996-.487-1.483-1.452-1.483h-3.46c-.974 0-1.46.487-1.46 1.483v3.407c0 1.004.486 1.483 1.46 1.483zm-7.65-1.072h-3.43q-.397 0-.396-.41v-3.4c0-.282.13-.418.396-.418h3.43c.265 0 .402.136.402.418v3.4c0 .273-.137.41-.403.41m7.634 0h-3.43c-.273 0-.402-.137-.402-.41v-3.4c0-.282.129-.418.403-.418h3.43c.265 0 .395.136.395.418v3.4q.002.41-.396.41"
+        ),
+        pathFillType = PathFillType.EvenOdd,
+        fill = SolidColor(Color.White)
+    ).build()
+}
+
+private val MainSidebarSearchVector: ImageVector by lazy {
+    ImageVector.Builder(
+        name = "MainSidebarSearch",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f
+    ).addPath(
+        pathData = addPathNodes(
+            "M17.979 18.553c.476 0 .813-.366.813-.835a.8.8 0 0 0-.235-.586l-3.45-3.457a5.6 5.6 0 0 0 1.158-3.413c0-3.098-2.535-5.633-5.633-5.633C7.542 4.63 5 7.156 5 10.262c0 3.098 2.534 5.632 5.632 5.632a5.6 5.6 0 0 0 3.274-1.055l3.472 3.472a.84.84 0 0 0 .6.242m-7.347-3.875c-2.417 0-4.416-2-4.416-4.416s2-4.417 4.416-4.417 4.417 2 4.417 4.417-2 4.416-4.417 4.416"
+        ),
+        pathFillType = PathFillType.EvenOdd,
+        fill = SolidColor(Color.White)
+    ).build()
+}
+
 @Composable
 private fun AppleMusicTabIcon(
     type: AppleMusicTabIconType,
@@ -431,25 +484,12 @@ private fun AppleMusicTabIcon(
 ) {
     when (type) {
         AppleMusicTabIconType.HOME -> {
-            Canvas(modifier = modifier.padding(1.5.dp)) {
-                val w = size.width
-                val h = size.height
-                val path = androidx.compose.ui.graphics.Path().apply {
-                    moveTo(w * 0.5f, h * 0.10f)
-                    lineTo(w * 0.10f, h * 0.44f)
-                    lineTo(w * 0.18f, h * 0.44f)
-                    lineTo(w * 0.18f, h * 0.88f)
-                    lineTo(w * 0.41f, h * 0.88f)
-                    lineTo(w * 0.41f, h * 0.58f)
-                    lineTo(w * 0.59f, h * 0.58f)
-                    lineTo(w * 0.59f, h * 0.88f)
-                    lineTo(w * 0.82f, h * 0.88f)
-                    lineTo(w * 0.82f, h * 0.44f)
-                    lineTo(w * 0.90f, h * 0.44f)
-                    close()
-                }
-                drawPath(path = path, color = tint)
-            }
+            Icon(
+                imageVector = MainSidebarHomeVector,
+                contentDescription = "Home",
+                tint = tint,
+                modifier = modifier
+            )
         }
         AppleMusicTabIconType.LIBRARY -> {
             Icon(
@@ -461,22 +501,19 @@ private fun AppleMusicTabIcon(
         }
         AppleMusicTabIconType.SEARCH -> {
             Icon(
-                painter = painterResource(id = R.drawable.ic_uitabbar_search),
+                imageVector = MainSidebarSearchVector,
                 contentDescription = "Search",
                 tint = tint,
-                modifier = modifier.padding(1.dp)
+                modifier = modifier
             )
         }
         AppleMusicTabIconType.NEW_GRID -> {
-            Canvas(modifier = modifier.padding(2.dp)) {
-                val gap = size.width * 0.14f
-                val cell = (size.width - gap) / 2f
-                val radius = CornerRadius(cell * 0.24f, cell * 0.24f)
-                drawRoundRect(color = tint, topLeft = Offset(0f, 0f), size = Size(cell, cell), cornerRadius = radius)
-                drawRoundRect(color = tint, topLeft = Offset(cell + gap, 0f), size = Size(cell, cell), cornerRadius = radius)
-                drawRoundRect(color = tint, topLeft = Offset(0f, cell + gap), size = Size(cell, cell), cornerRadius = radius)
-                drawRoundRect(color = tint, topLeft = Offset(cell + gap, cell + gap), size = Size(cell, cell), cornerRadius = radius)
-            }
+            Icon(
+                imageVector = MainSidebarNewGridVector,
+                contentDescription = "New",
+                tint = tint,
+                modifier = modifier
+            )
         }
         AppleMusicTabIconType.RADIO -> {
             Canvas(modifier = modifier.padding(1.dp)) {

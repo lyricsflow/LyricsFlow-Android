@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -699,14 +700,18 @@ private fun TitleItem(
 
         if (rightIcon != null || rightIconContent != null) {
             Column(
-                Modifier
-                    .fillMaxHeight()
-                    .align(Alignment.CenterVertically),
+                Modifier.align(Alignment.CenterVertically),
                 verticalArrangement = Arrangement.Center
             ) {
                 Box(
                     modifier = Modifier
-                        .size(if (rightIconContent != null) 32.dp else 24.dp)
+                        .then(
+                            if (rightIconContent != null) {
+                                Modifier.heightIn(min = 32.dp)
+                            } else {
+                                Modifier.size(24.dp)
+                            }
+                        )
                         .clickable(
                             enabled = onRightIcon != null,
                             interactionSource = remember { MutableInteractionSource() },

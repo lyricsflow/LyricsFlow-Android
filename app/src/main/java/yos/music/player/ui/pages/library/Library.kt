@@ -68,6 +68,7 @@ import com.lyricsflow.player.ui.widgets.glass.LiquidGlassCircleButton
 import com.lyricsflow.player.ui.widgets.glass.iosPressScale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private data class LibraryPinGridEntry(
     val id: String,
@@ -104,6 +105,7 @@ fun Library(navController: NavController) {
     var onlineTrending by remember { mutableStateOf<List<LyricsFlowApi.CatalogTrackResult>>(emptyList()) }
 
     // Resolve actual artist portraits from Apple Music (`fetchArtistAvatarUrl`) & editorial fallback items
+    // All state mutations (`artistAvatars`, `onlineShelves`, `onlineTrending`) happen on Main thread.
     LaunchedEffect(localArtists) {
         val candidateArtists = buildList {
             addAll(SettingsLibrary.FollowedArtists)
@@ -112,8 +114,10 @@ fun Library(navController: NavController) {
 
         candidateArtists.forEach { artistName ->
             if (artistName.isNotBlank() && artistAvatars[artistName].isNullOrBlank()) {
-                launch(Dispatchers.IO) {
-                    val avatar = LyricsFlowApi.fetchArtistAvatarUrl(artistName)
+                launch {
+                    val avatar = withContext(Dispatchers.IO) {
+                        runCatching { LyricsFlowApi.fetchArtistAvatarUrl(artistName) }.getOrDefault("")
+                    }
                     if (avatar.isNotBlank()) {
                         artistAvatars[artistName] = avatar
                     }
@@ -122,18 +126,26 @@ fun Library(navController: NavController) {
         }
 
         if (localAlbums.size < 6) {
-            launch(Dispatchers.IO) {
-                val editorial = LyricsFlowApi.fetchEditorialNewShelves().flatMap { it.items }
+            launch {
+                val editorial = withContext(Dispatchers.IO) {
+                    runCatching { LyricsFlowApi.fetchEditorialNewShelves().flatMap { it.items } }.getOrDefault(emptyList())
+                }
                 if (editorial.isNotEmpty()) {
                     onlineShelves = editorial
                 }
-                val trending = LyricsFlowApi.fetchTrendingTracks(limit = 16)
+                val trending = withContext(Dispatchers.IO) {
+                    runCatching { LyricsFlowApi.fetchTrendingTracks(limit = 16) }.getOrDefault(emptyList())
+                }
                 if (trending.isNotEmpty()) {
                     onlineTrending = trending
                     trending.take(3).forEach { tr ->
                         if (tr.artist.isNotBlank() && artistAvatars[tr.artist].isNullOrBlank()) {
-                            val av = LyricsFlowApi.fetchArtistAvatarUrl(tr.artist, tr.artistId)
-                            if (av.isNotBlank()) artistAvatars[tr.artist] = av
+                            val av = withContext(Dispatchers.IO) {
+                                runCatching { LyricsFlowApi.fetchArtistAvatarUrl(tr.artist, tr.artistId) }.getOrDefault("")
+                            }
+                            if (av.isNotBlank()) {
+                                artistAvatars[tr.artist] = av
+                            }
                         }
                     }
                 }
@@ -150,78 +162,39 @@ fun Library(navController: NavController) {
         onlineShelves,
         onlineTrending
     ) {
-        val list = mutableListOf<LibraryPinGridEntry>()
+        runCatching {
+            val list = mutableListOf<LibraryPinGridEntry>()
 
-        // 1. Pinned or top local playlists
-        localPlaylists.sortedByDescending { it.isPinned }.take(2).forEach { pl ->
-            val firstSongThumb = allSongs.firstOrNull { it.uri in pl.songDataList }?.thumb
-            list.add(
-                LibraryPinGridEntry(
-                    id = "pl_${pl.listID}",
-                    title = pl.name,
-                    artworkModel = pl.coverUri ?: firstSongThumb,
-                    isArtistCircle = false,
-                    onClick = {
-                        Vibrator.click(context)
-                        val plSongs = pl.songDataList.mapNotNull { uri -> allSongs.firstOrNull { it.uri == uri } }
-                        LibraryObject.setTargetListWithTitle(pl.name, plSongs, pl.listID)
-                        navController.toUI(UI.NormalMusic)
-                    }
-                )
-            )
-        }
-
-        // 2. Top local albums
-        localAlbums.take(2).forEach { albName ->
-            val thumb = MusicLibrary.Album[albName].firstOrNull()?.thumb
-            list.add(
-                LibraryPinGridEntry(
-                    id = "alb_$albName",
-                    title = albName,
-                    artworkModel = thumb,
-                    isArtistCircle = false,
-                    onClick = {
-                        Vibrator.click(context)
-                        LibraryObject.setTargetAlbumName(albName)
-                        navController.toUI(UI.AlbumInfo)
-                    }
-                )
-            )
-        }
-
-        // 3. Featured Artist in a Circle (like `MIKE` in Screenshot 1!) using real artist photo
-        val featuredArtistName = SettingsLibrary.FollowedArtists.firstOrNull()
-            ?: localArtists.firstOrNull()
-            ?: onlineTrending.firstOrNull()?.artist
-        if (!featuredArtistName.isNullOrBlank()) {
-            val realPhoto = artistAvatars[featuredArtistName]
-                ?: MusicLibrary.Artist[featuredArtistName].firstOrNull()?.thumb
-            list.add(
-                LibraryPinGridEntry(
-                    id = "art_$featuredArtistName",
-                    title = featuredArtistName,
-                    artworkModel = realPhoto,
-                    isArtistCircle = true,
-                    onClick = {
-                        Vibrator.click(context)
-                        LibraryObject.openOnlineArtist(
-                            artistId = "",
-                            name = featuredArtistName,
-                            artworkUrl = artistAvatars[featuredArtistName].orEmpty()
+            // 1. Pinned or top local playlists (guard against null fields from legacy MMKV JSON)
+            localPlaylists
+                .filter { (it.name as String?) != null }
+                .sortedByDescending { it.isPinned }
+                .take(2)
+                .forEach { pl ->
+                    val safeUris = (pl.songDataList as List<*>?)?.filterNotNull().orEmpty()
+                    val firstSongThumb = allSongs.firstOrNull { it.uri != null && it.uri in safeUris }?.thumb
+                    list.add(
+                        LibraryPinGridEntry(
+                            id = "pl_${pl.listID}",
+                            title = pl.name,
+                            artworkModel = pl.coverUri ?: firstSongThumb,
+                            isArtistCircle = false,
+                            onClick = {
+                                Vibrator.click(context)
+                                val plSongs = safeUris.mapNotNull { uri -> allSongs.firstOrNull { it.uri == uri } }
+                                LibraryObject.setTargetListWithTitle(pl.name, plSongs, pl.listID)
+                                navController.toUI(UI.NormalMusic)
+                            }
                         )
-                        navController.toUI(UI.OnlineArtistInfo)
-                    }
-                )
-            )
-        }
+                    )
+                }
 
-        // 4. Fill remaining slots up to 6 from remaining local albums or online editorial/trending items
-        localAlbums.drop(2).forEach { albName ->
-            if (list.size < 6) {
+            // 2. Top local albums
+            localAlbums.take(2).forEach { albName ->
                 val thumb = MusicLibrary.Album[albName].firstOrNull()?.thumb
                 list.add(
                     LibraryPinGridEntry(
-                        id = "alb_more_$albName",
+                        id = "alb_$albName",
                         title = albName,
                         artworkModel = thumb,
                         isArtistCircle = false,
@@ -233,133 +206,75 @@ fun Library(navController: NavController) {
                     )
                 )
             }
-        }
 
-        onlineShelves.forEach { item ->
-            if (list.size < 6 && list.none { it.title == item.title }) {
+            // 3. Featured Artist in a Circle (like `MIKE` in Screenshot 1!) using real artist photo
+            val featuredArtistName = SettingsLibrary.FollowedArtists.firstOrNull()
+                ?: localArtists.firstOrNull()
+                ?: onlineTrending.firstOrNull()?.artist
+            if (!featuredArtistName.isNullOrBlank()) {
+                val realPhoto = artistAvatars[featuredArtistName]
+                    ?: MusicLibrary.Artist[featuredArtistName].firstOrNull()?.thumb
                 list.add(
                     LibraryPinGridEntry(
-                        id = "online_${item.id}",
-                        title = item.title,
-                        artworkModel = item.artworkUrl,
-                        isArtistCircle = item.type == "artists",
+                        id = "art_$featuredArtistName",
+                        title = featuredArtistName,
+                        artworkModel = realPhoto,
+                        isArtistCircle = true,
                         onClick = {
                             Vibrator.click(context)
-                            when (item.type) {
-                                "playlists" -> {
-                                    LibraryObject.openOnlinePlaylist(item.id, item.title, item.artworkUrl)
-                                    navController.toUI(UI.OnlinePlaylistInfo)
-                                }
-                                "artists" -> {
-                                    LibraryObject.openOnlineArtist(item.id, item.title, item.artworkUrl)
-                                    navController.toUI(UI.OnlineArtistInfo)
-                                }
-                                else -> {
-                                    LibraryObject.openOnlineAlbum(item.id, item.title, item.subtitle, item.artworkUrl)
-                                    navController.toUI(UI.OnlineAlbumInfo)
-                                }
-                            }
-                        }
-                    )
-                )
-            }
-        }
-
-        onlineTrending.forEach { track ->
-            if (list.size < 6 && list.none { it.title == track.album.ifBlank { track.title } }) {
-                list.add(
-                    LibraryPinGridEntry(
-                        id = "trend_pin_${track.id}",
-                        title = track.album.ifBlank { track.title },
-                        artworkModel = track.artworkUrl,
-                        isArtistCircle = false,
-                        onClick = {
-                            Vibrator.click(context)
-                            if (track.albumId.isNotBlank()) {
-                                LibraryObject.openOnlineAlbum(track.albumId, track.album.ifBlank { track.title }, track.artist, track.artworkUrl)
-                                navController.toUI(UI.OnlineAlbumInfo)
-                            } else {
-                                scope.launch(Dispatchers.IO) {
-                                    MediaController.playOnlineTrack(track, onlineTrending)
-                                }
-                            }
-                        }
-                    )
-                )
-            }
-        }
-
-        // Ensure index 2 (top-right slot of row 1) is an Artist Circle if one exists, matching Screenshot 1
-        val circleIdx = list.indexOfFirst { it.isArtistCircle }
-        if (circleIdx >= 0 && circleIdx != 2 && list.size >= 3) {
-            val circleItem = list.removeAt(circleIdx)
-            list.add(2, circleItem)
-        }
-
-        list.take(6)
-    }
-
-    // Build Recently Added 2-Column Grid (Screenshot 1 bottom section)
-    val recentlyAddedEntries = remember(allSongs, onlineShelves, onlineTrending) {
-        val list = mutableListOf<LibraryRecentlyAddedEntry>()
-
-        // Local songs/albums sorted by most recent addDate
-        allSongs
-            .sortedByDescending { it.addDate ?: 0L }
-            .distinctBy { it.album ?: it.title }
-            .take(12)
-            .forEach { song ->
-                val albName: String = (song.album ?: defaultAlbum).orEmpty()
-                list.add(
-                    LibraryRecentlyAddedEntry(
-                        id = "local_rec_${song.mediaId ?: albName}",
-                        title = albName.ifBlank { song.title.orEmpty() },
-                        subtitle = song.artistsName.orEmpty(),
-                        artworkModel = song.thumb,
-                        onClick = {
-                            Vibrator.click(context)
-                            LibraryObject.setTargetAlbumName(albName)
-                            navController.toUI(UI.AlbumInfo)
+                            LibraryObject.openOnlineArtist(
+                                artistId = "",
+                                name = featuredArtistName,
+                                artworkUrl = artistAvatars[featuredArtistName].orEmpty()
+                            )
+                            navController.toUI(UI.OnlineArtistInfo)
                         }
                     )
                 )
             }
 
-        // Supplement with online albums/tracks so Recently Added is always populated
-        if (list.size < 8) {
-            onlineShelves.filter { it.type == "albums" }.take(8).forEach { item ->
-                if (list.none { it.title == item.title }) {
+            // 4. Fill remaining slots up to 6 from remaining local albums or online editorial/trending items
+            localAlbums.drop(2).forEach { albName ->
+                if (list.size < 6) {
+                    val thumb = MusicLibrary.Album[albName].firstOrNull()?.thumb
                     list.add(
-                        LibraryRecentlyAddedEntry(
-                            id = "on_rec_${item.id}",
-                            title = item.title,
-                            subtitle = item.subtitle,
-                            artworkModel = item.artworkUrl,
+                        LibraryPinGridEntry(
+                            id = "alb_more_$albName",
+                            title = albName,
+                            artworkModel = thumb,
+                            isArtistCircle = false,
                             onClick = {
                                 Vibrator.click(context)
-                                LibraryObject.openOnlineAlbum(item.id, item.title, item.subtitle, item.artworkUrl)
-                                navController.toUI(UI.OnlineAlbumInfo)
+                                LibraryObject.setTargetAlbumName(albName)
+                                navController.toUI(UI.AlbumInfo)
                             }
                         )
                     )
                 }
             }
-            onlineTrending.take(8).forEach { tr ->
-                if (list.size < 10 && list.none { it.title == tr.title }) {
+
+            onlineShelves.forEach { item ->
+                if (list.size < 6 && list.none { it.title == item.title }) {
                     list.add(
-                        LibraryRecentlyAddedEntry(
-                            id = "tr_rec_${tr.id}",
-                            title = tr.album.ifBlank { tr.title },
-                            subtitle = tr.artist,
-                            artworkModel = tr.artworkUrl,
+                        LibraryPinGridEntry(
+                            id = "online_${item.id}",
+                            title = item.title,
+                            artworkModel = item.artworkUrl,
+                            isArtistCircle = item.type == "artists",
                             onClick = {
                                 Vibrator.click(context)
-                                if (tr.albumId.isNotBlank()) {
-                                    LibraryObject.openOnlineAlbum(tr.albumId, tr.album.ifBlank { tr.title }, tr.artist, tr.artworkUrl)
-                                    navController.toUI(UI.OnlineAlbumInfo)
-                                } else {
-                                    scope.launch(Dispatchers.IO) {
-                                        MediaController.playOnlineTrack(tr, onlineTrending)
+                                when (item.type) {
+                                    "playlists" -> {
+                                        LibraryObject.openOnlinePlaylist(item.id, item.title, item.artworkUrl)
+                                        navController.toUI(UI.OnlinePlaylistInfo)
+                                    }
+                                    "artists" -> {
+                                        LibraryObject.openOnlineArtist(item.id, item.title, item.artworkUrl)
+                                        navController.toUI(UI.OnlineArtistInfo)
+                                    }
+                                    else -> {
+                                        LibraryObject.openOnlineAlbum(item.id, item.title, item.subtitle, item.artworkUrl)
+                                        navController.toUI(UI.OnlineAlbumInfo)
                                     }
                                 }
                             }
@@ -367,8 +282,114 @@ fun Library(navController: NavController) {
                     )
                 }
             }
-        }
-        list
+
+            onlineTrending.forEach { track ->
+                if (list.size < 6 && list.none { it.title == track.album.ifBlank { track.title } }) {
+                    list.add(
+                        LibraryPinGridEntry(
+                            id = "trend_pin_${track.id}",
+                            title = track.album.ifBlank { track.title },
+                            artworkModel = track.artworkUrl,
+                            isArtistCircle = false,
+                            onClick = {
+                                Vibrator.click(context)
+                                if (track.albumId.isNotBlank()) {
+                                    LibraryObject.openOnlineAlbum(track.albumId, track.album.ifBlank { track.title }, track.artist, track.artworkUrl)
+                                    navController.toUI(UI.OnlineAlbumInfo)
+                                } else {
+                                    scope.launch(Dispatchers.IO) {
+                                        MediaController.playOnlineTrack(track, onlineTrending)
+                                    }
+                                }
+                            }
+                        )
+                    )
+                }
+            }
+
+            // Ensure index 2 (top-right slot of row 1) is an Artist Circle if one exists, matching Screenshot 1
+            val circleIdx = list.indexOfFirst { it.isArtistCircle }
+            if (circleIdx >= 0 && circleIdx != 2 && list.size >= 3) {
+                val circleItem = list.removeAt(circleIdx)
+                list.add(2, circleItem)
+            }
+
+            list.take(6)
+        }.getOrDefault(emptyList())
+    }
+
+    // Build Recently Added 2-Column Grid (Screenshot 1 bottom section)
+    val recentlyAddedEntries = remember(allSongs, onlineShelves, onlineTrending) {
+        runCatching {
+            val list = mutableListOf<LibraryRecentlyAddedEntry>()
+
+            // Local songs/albums sorted by most recent addDate
+            allSongs
+                .sortedByDescending { it.addDate ?: 0L }
+                .distinctBy { it.album ?: it.title }
+                .take(12)
+                .forEach { song ->
+                    val albName: String = (song.album ?: defaultAlbum).orEmpty()
+                    list.add(
+                        LibraryRecentlyAddedEntry(
+                            id = "local_rec_${song.mediaId ?: albName}",
+                            title = albName.ifBlank { song.title.orEmpty() },
+                            subtitle = song.artistsName.orEmpty(),
+                            artworkModel = song.thumb,
+                            onClick = {
+                                Vibrator.click(context)
+                                LibraryObject.setTargetAlbumName(albName)
+                                navController.toUI(UI.AlbumInfo)
+                            }
+                        )
+                    )
+                }
+
+            // Supplement with online albums/tracks so Recently Added is always populated
+            if (list.size < 8) {
+                onlineShelves.filter { it.type == "albums" }.take(8).forEach { item ->
+                    if (list.none { it.title == item.title }) {
+                        list.add(
+                            LibraryRecentlyAddedEntry(
+                                id = "on_rec_${item.id}",
+                                title = item.title,
+                                subtitle = item.subtitle,
+                                artworkModel = item.artworkUrl,
+                                onClick = {
+                                    Vibrator.click(context)
+                                    LibraryObject.openOnlineAlbum(item.id, item.title, item.subtitle, item.artworkUrl)
+                                    navController.toUI(UI.OnlineAlbumInfo)
+                                }
+                            )
+                        )
+                    }
+                }
+                onlineTrending.take(8).forEach { tr ->
+                    if (list.size < 10 && list.none { it.title == tr.title }) {
+                        list.add(
+                            LibraryRecentlyAddedEntry(
+                                id = "tr_rec_${tr.id}",
+                                title = tr.album.ifBlank { tr.title },
+                                subtitle = tr.artist,
+                                artworkModel = tr.artworkUrl,
+                                onClick = {
+                                    Vibrator.click(context)
+                                    if (tr.albumId.isNotBlank()) {
+                                        LibraryObject.openOnlineAlbum(tr.albumId, tr.album.ifBlank { tr.title }, tr.artist, tr.artworkUrl)
+                                        navController.toUI(UI.OnlineAlbumInfo)
+                                    } else {
+                                        scope.launch(Dispatchers.IO) {
+                                            MediaController.playOnlineTrack(tr, onlineTrending)
+                                        }
+                                    }
+                                }
+                            )
+                        )
+                    }
+                }
+            }
+            list.toList()
+        }.getOrDefault(emptyList())
     }
 
     Column(
