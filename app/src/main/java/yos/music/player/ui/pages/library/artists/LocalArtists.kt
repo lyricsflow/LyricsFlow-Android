@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages.library.artists
+package com.lyricsflow.player.ui.pages.library.artists
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -52,17 +52,17 @@ import coil.request.ImageRequest
 import coil.size.Precision
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import yos.music.player.R
-import yos.music.player.data.libraries.ArtistLibrary
-import yos.music.player.data.libraries.MusicLibrary
-import yos.music.player.data.libraries.SettingsLibrary
-import yos.music.player.data.objects.LibraryObject
-import yos.music.player.ui.UI
-import yos.music.player.ui.theme.withNight
-import yos.music.player.ui.toUI
-import yos.music.player.ui.widgets.basic.SearchTextField
-import yos.music.player.ui.widgets.basic.Title
-import yos.music.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.R
+import com.lyricsflow.player.data.libraries.ArtistLibrary
+import com.lyricsflow.player.data.libraries.MusicLibrary
+import com.lyricsflow.player.data.libraries.SettingsLibrary
+import com.lyricsflow.player.data.objects.LibraryObject
+import com.lyricsflow.player.ui.UI
+import com.lyricsflow.player.ui.theme.withNight
+import com.lyricsflow.player.ui.toUI
+import com.lyricsflow.player.ui.widgets.basic.SearchTextField
+import com.lyricsflow.player.ui.widgets.basic.Title
+import com.lyricsflow.player.ui.widgets.basic.YosWrapper
 
 @Composable
 fun LocalArtists(navController: NavController) {

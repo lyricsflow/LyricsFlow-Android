@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages.library.playlists
+package com.lyricsflow.player.ui.pages.library.playlists
 
 import android.net.Uri
 import android.widget.Toast
@@ -92,26 +92,26 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
-import yos.music.player.R
-import yos.music.player.code.MediaController
-import yos.music.player.code.utils.others.Vibrator
-import yos.music.player.data.libraries.FavPlayListLibrary
-import yos.music.player.data.libraries.MusicLibrary.songs
-import yos.music.player.data.libraries.PlayList
-import yos.music.player.data.libraries.PlayListLibrary
-import yos.music.player.data.libraries.PlayListLibrary.addMusic
-import yos.music.player.data.libraries.PlayListLibrary.playList
-import yos.music.player.data.libraries.YosMediaItem
-import yos.music.player.data.objects.LibraryObject
-import yos.music.player.ui.UI
-import yos.music.player.ui.theme.YosRoundedCornerShape
-import yos.music.player.ui.theme.withNight
-import yos.music.player.ui.toUI
-import yos.music.player.ui.widgets.basic.Title
-import yos.music.player.ui.widgets.basic.TitleBarIcon
-import yos.music.player.ui.widgets.basic.BlurredMenuContainer
-import yos.music.player.ui.widgets.basic.SearchTextField
-import yos.music.player.ui.widgets.playlist.PlayListPickerSheet
+import com.lyricsflow.player.R
+import com.lyricsflow.player.code.MediaController
+import com.lyricsflow.player.code.utils.others.Vibrator
+import com.lyricsflow.player.data.libraries.FavPlayListLibrary
+import com.lyricsflow.player.data.libraries.MusicLibrary.songs
+import com.lyricsflow.player.data.libraries.PlayList
+import com.lyricsflow.player.data.libraries.PlayListLibrary
+import com.lyricsflow.player.data.libraries.PlayListLibrary.addMusic
+import com.lyricsflow.player.data.libraries.PlayListLibrary.playList
+import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.objects.LibraryObject
+import com.lyricsflow.player.ui.UI
+import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.theme.withNight
+import com.lyricsflow.player.ui.toUI
+import com.lyricsflow.player.ui.widgets.basic.Title
+import com.lyricsflow.player.ui.widgets.basic.TitleBarIcon
+import com.lyricsflow.player.ui.widgets.basic.BlurredMenuContainer
+import com.lyricsflow.player.ui.widgets.basic.SearchTextField
+import com.lyricsflow.player.ui.widgets.playlist.PlayListPickerSheet
 
 private const val FirstPlayListLazyListIndex = 4
 private val PlayListContextMenuEstimatedHeight = 342.dp
@@ -1418,7 +1418,7 @@ private fun LazyItemScope.PinnedAwarePlayListItem(
         // library this is sub-millisecond.
         val songsInPlaylist = androidx.compose.runtime.remember(playList.songDataList) {
             playList.songDataList.mapNotNull { uri ->
-                yos.music.player.data.libraries.MusicLibrary.songs.firstOrNull { it.uri == uri }
+                com.lyricsflow.player.data.libraries.MusicLibrary.songs.firstOrNull { it.uri == uri }
             }
         }
         val coverContext = LocalContext.current

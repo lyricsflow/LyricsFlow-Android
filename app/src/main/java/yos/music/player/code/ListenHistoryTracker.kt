@@ -1,9 +1,9 @@
-package yos.music.player.code
+package com.lyricsflow.player.code
 
 import android.os.Handler
 import android.os.Looper
 import androidx.media3.common.Player
-import yos.music.player.data.libraries.MusicLibrary.toYosMediaItem
+import com.lyricsflow.player.data.libraries.MusicLibrary.toYosMediaItem
 
 class ListenHistoryTracker(private val player: Player)
 {

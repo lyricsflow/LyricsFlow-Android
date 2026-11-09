@@ -1,4 +1,4 @@
-package yos.music.player.ui.widgets.effects
+package com.lyricsflow.player.ui.widgets.effects
 
 import android.graphics.BlurMaskFilter
 import androidx.compose.runtime.Composable

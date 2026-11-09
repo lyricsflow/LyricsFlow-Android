@@ -1,8 +1,8 @@
-package yos.music.player.ui.pages.library.playlists
+package com.lyricsflow.player.ui.pages.library.playlists
 
 import androidx.compose.runtime.Stable
-import yos.music.player.data.libraries.YosMediaItem
-import yos.music.player.data.libraries.artistsName
+import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.artistsName
 import kotlin.math.max
 import kotlin.math.min
 

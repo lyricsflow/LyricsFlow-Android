@@ -1,11 +1,11 @@
-package yos.music.player.data.libraries
+package com.lyricsflow.player.data.libraries
 
 import android.net.Uri
 import android.os.Parcelable
 import androidx.compose.runtime.Stable
 import com.funny.data_saver.core.mutableDataSaverListStateOf
 import kotlinx.parcelize.Parcelize
-import yos.music.player.data.PlayListSaver
+import com.lyricsflow.player.data.PlayListSaver
 import java.util.UUID
 
 /**

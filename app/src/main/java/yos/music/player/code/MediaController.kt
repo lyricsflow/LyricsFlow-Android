@@ -1,4 +1,4 @@
-package yos.music.player.code
+package com.lyricsflow.player.code
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -55,29 +55,30 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.collections.buildList
-import yos.music.player.MainActivity
-import yos.music.player.R
-import yos.music.player.code.MediaController.mediaControl
-import yos.music.player.code.MediaController.mediaSession
-import yos.music.player.code.MediaController.musicPlaying
-import yos.music.player.code.MediaController.onServiceRunning
-import yos.music.player.code.utils.lrc.YosLrcFactory
-import yos.music.player.code.utils.lrc.YosParsedLyricData
-import yos.music.player.code.utils.lrc.YosTtmlFactory
-import yos.music.player.code.utils.player.FadeExo
-import yos.music.player.code.utils.player.FadeExo.fadePause
-import yos.music.player.code.utils.player.FadeExo.fadePlay
-import yos.music.player.data.libraries.MusicLibrary
-import yos.music.player.data.libraries.MusicLibrary.toMediaItem
-import yos.music.player.data.libraries.MusicLibrary.toYosMediaItem
-import yos.music.player.data.libraries.PlayListV1
-import yos.music.player.data.libraries.PlayStatus
-import yos.music.player.data.libraries.SettingsLibrary
-import yos.music.player.data.libraries.YosMediaItem
-import yos.music.player.data.libraries.thumb
-import yos.music.player.data.libraries.uri
-import yos.music.player.data.objects.MainViewModelObject
-import yos.music.player.data.objects.MediaViewModelObject
+import com.lyricsflow.player.MainActivity
+import com.lyricsflow.player.R
+import com.lyricsflow.player.code.MediaController.mediaControl
+import com.lyricsflow.player.code.MediaController.mediaSession
+import com.lyricsflow.player.code.MediaController.musicPlaying
+import com.lyricsflow.player.code.MediaController.onServiceRunning
+import com.lyricsflow.player.code.utils.lrc.LyricsFlowApi
+import com.lyricsflow.player.code.utils.lrc.YosLrcFactory
+import com.lyricsflow.player.code.utils.lrc.YosParsedLyricData
+import com.lyricsflow.player.code.utils.lrc.YosTtmlFactory
+import com.lyricsflow.player.code.utils.player.FadeExo
+import com.lyricsflow.player.code.utils.player.FadeExo.fadePause
+import com.lyricsflow.player.code.utils.player.FadeExo.fadePlay
+import com.lyricsflow.player.data.libraries.MusicLibrary
+import com.lyricsflow.player.data.libraries.MusicLibrary.toMediaItem
+import com.lyricsflow.player.data.libraries.MusicLibrary.toYosMediaItem
+import com.lyricsflow.player.data.libraries.PlayListV1
+import com.lyricsflow.player.data.libraries.PlayStatus
+import com.lyricsflow.player.data.libraries.SettingsLibrary
+import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.thumb
+import com.lyricsflow.player.data.libraries.uri
+import com.lyricsflow.player.data.objects.MainViewModelObject
+import com.lyricsflow.player.data.objects.MediaViewModelObject
 
 @Stable
 object MediaController {
@@ -323,6 +324,90 @@ object MediaController {
     }
 
 
+
+    @Volatile
+    var customUploadedLyricsForMediaId: Pair<String, String>? = null
+
+    /**
+     * Streams an online LyricsFlow / Apple Music catalog track (`loadRemoteTrack` & `queueContextualWithSimilar` in `upload.js`).
+     */
+    suspend fun playOnlineTrack(
+        track: LyricsFlowApi.CatalogTrackResult,
+        contextTracks: List<LyricsFlowApi.CatalogTrackResult> = emptyList(),
+        shuffleModeEnabled: Boolean = false,
+        appendSimilar: Boolean = true
+    ) {
+        val targetItem = with(LyricsFlowApi) { track.toYosMediaItem() }
+        val baseList = if (contextTracks.isNotEmpty()) {
+            contextTracks.map { with(LyricsFlowApi) { it.toYosMediaItem() } }
+        } else {
+            listOf(targetItem)
+        }
+
+        prepare(
+            music = targetItem,
+            thisMusicList = baseList,
+            shuffleModeEnabled = shuffleModeEnabled,
+            play = true
+        )
+
+        if (appendSimilar && baseList.size <= 3) {
+            CoroutineScope(Dispatchers.IO).launch {
+                val similar = LyricsFlowApi.fetchSimilarSongs(track.id, track.artist)
+                    .filter { it.id != track.id }
+                    .take(12)
+                if (similar.isNotEmpty()) {
+                    val similarItems = similar.map { with(LyricsFlowApi) { it.toYosMediaItem() } }
+                    addToQueue(similarItems)
+                }
+            }
+        }
+    }
+
+    /**
+     * Plays a locally picked audio file with an optional paired `.ttml` / `.lrc` file (`upload.js` Local Upload).
+     */
+    suspend fun playUploadedLocalTrack(
+        audioUri: android.net.Uri,
+        title: String,
+        artist: String,
+        album: String = "Local Upload",
+        pairedLyricContent: String? = null
+    ) {
+        val mediaId = "upload_${System.currentTimeMillis()}"
+        if (!pairedLyricContent.isNullOrBlank()) {
+            customUploadedLyricsForMediaId = mediaId to pairedLyricContent
+        }
+        val item = YosMediaItem(
+            uri = audioUri,
+            mediaId = mediaId,
+            mimeType = "audio/*",
+            title = title.ifBlank { "Uploaded Track" },
+            writer = artist.ifBlank { "Unknown Artist" },
+            compilation = null,
+            composer = null,
+            artists = artist.ifBlank { "Unknown Artist" },
+            album = album,
+            albumArtists = artist.ifBlank { "Unknown Artist" },
+            thumb = null,
+            trackNumber = 1,
+            discNumber = 1,
+            genre = null,
+            recordingDay = null,
+            recordingMonth = null,
+            recordingYear = null,
+            releaseYear = null,
+            artistId = null,
+            albumId = null,
+            genreId = null,
+            author = artist,
+            addDate = System.currentTimeMillis(),
+            duration = 0L,
+            modifiedDate = System.currentTimeMillis(),
+            cdTrackNumber = 1
+        )
+        prepare(item, listOf(item), play = true)
+    }
 
     suspend fun prepare(
         music: YosMediaItem,
@@ -974,7 +1059,7 @@ class YosPlaybackService : MediaSessionService() {
             val useSmallerIcon = SettingsLibrary.NotificationSmallerIcon
 
             val shuffleButtonIcon =
-                if (yos.music.player.code.MediaController.queueShuffleEnabled.value) {
+                if (com.lyricsflow.player.code.MediaController.queueShuffleEnabled.value) {
                     if (useSmallerIcon) R.drawable.ic_mini_shuffle else R.drawable.ic_shuffle
                 } else {
                     if (useSmallerIcon) R.drawable.ic_mini_shuffle_off else R.drawable.ic_shuffle_off
@@ -1008,7 +1093,7 @@ class YosPlaybackService : MediaSessionService() {
             val useSmallerIcon = SettingsLibrary.NotificationSmallerIcon
 
             val shuffleButtonIcon =
-                if (yos.music.player.code.MediaController.queueShuffleEnabled.value) {
+                if (com.lyricsflow.player.code.MediaController.queueShuffleEnabled.value) {
                     if (useSmallerIcon) R.drawable.ic_mini_shuffle else R.drawable.ic_shuffle
                 } else {
                     if (useSmallerIcon) R.drawable.ic_mini_shuffle_off else R.drawable.ic_shuffle_off
@@ -1076,12 +1161,12 @@ class YosPlaybackService : MediaSessionService() {
                 PlayStatus(
                     musicPlaying.value,
                     mediaControl?.currentPosition ?: 0,
-                    yos.music.player.code.MediaController.queueShuffleEnabled.value,
+                    com.lyricsflow.player.code.MediaController.queueShuffleEnabled.value,
                     mediaControl?.repeatMode ?: REPEAT_MODE_ALL
                 )
             )
         }
-        yos.music.player.code.MediaController.saveQueueState()
+        com.lyricsflow.player.code.MediaController.saveQueueState()
     }
 
     private fun prefetchArtwork(artwork: Any?) {
@@ -1179,23 +1264,7 @@ class YosPlaybackService : MediaSessionService() {
     }
 
     private fun parseLrcLyrics(lrcContent: String): YosParsedLyricData {
-        val entries = YosLrcFactory().formatLrcEntries(lrcContent)
-        val endTimes = entries.mapIndexed { index, line ->
-            entries.getOrNull(index + 1)?.firstOrNull()?.first
-                ?: line.lastOrNull()?.first
-                ?: line.firstOrNull()?.first
-                ?: 0f
-        }
-        val emptySecondaryText = List(entries.size) { null as String? }
-
-        return YosParsedLyricData(
-            entries = entries,
-            endTimes = endTimes,
-            otherSideForLines = MediaViewModelObject.otherSideForLines.toList(),
-            transliterations = emptySecondaryText,
-            subtitles = emptySecondaryText,
-            isTtml = false
-        )
+        return LyricsFlowApi.parseRawLyricText(lrcContent) ?: emptyParsedLyrics()
     }
 
     private fun emptyParsedLyrics(): YosParsedLyricData {
@@ -1217,7 +1286,11 @@ class YosPlaybackService : MediaSessionService() {
             endTimes = parsedLyrics.endTimes,
             transliterations = parsedLyrics.transliterations,
             subtitles = parsedLyrics.subtitles,
-            ttmlLyrics = parsedLyrics.isTtml
+            ttmlLyrics = parsedLyrics.isTtml,
+            syllables = parsedLyrics.syllablesForLines,
+            backgrounds = parsedLyrics.backgroundLines,
+            songwriters = parsedLyrics.songwriters,
+            sections = parsedLyrics.sections
         )
     }
 
@@ -1326,6 +1399,46 @@ class YosPlaybackService : MediaSessionService() {
                             "Loaded lyrics parsedEntries=${parsedLyrics.entries.size} isTtml=${parsedLyrics.isTtml} otherSideCount=${MediaViewModelObject.otherSideForLines.size}"
                         )
 
+                        val currentMediaItemSnapshot = player.currentMediaItem
+                        val currentMediaIdSnapshot = currentMediaItemSnapshot?.mediaId
+                        val currentYosItem = currentMediaItemSnapshot?.toYosMediaItem()
+                        val currentDurationMs = player.duration.coerceAtLeast(0L)
+
+                        val customPaired = com.lyricsflow.player.code.MediaController.customUploadedLyricsForMediaId
+                        if (customPaired != null && customPaired.first == currentMediaIdSnapshot) {
+                            LyricsFlowApi.parseRawLyricText(customPaired.second)?.let { customParsed ->
+                                applyParsedLyrics(customParsed)
+                                return@runCatching
+                            }
+                        }
+
+                        val needsOnlineFetch = parsedLyrics.entries.isEmpty() ||
+                            (!parsedLyrics.isTtml && parsedLyrics.entries.all { it.size <= 1 })
+
+                        if (needsOnlineFetch && currentYosItem != null) {
+                            CoroutineScope(Dispatchers.IO).launch {
+                                val onlineLyrics = LyricsFlowApi.fetchAndParseLyrics(
+                                    context = this@YosPlaybackService,
+                                    music = currentYosItem,
+                                    durationMs = currentDurationMs
+                                )
+                                if (onlineLyrics != null && onlineLyrics.entries.isNotEmpty()) {
+                                    val shouldUpgrade = parsedLyrics.entries.isEmpty() || onlineLyrics.isTtml
+                                    if (shouldUpgrade) {
+                                        withContext(Dispatchers.Main) {
+                                            if (player.currentMediaItem?.mediaId == currentMediaIdSnapshot) {
+                                                applyParsedLyrics(onlineLyrics)
+                                                Log.d(
+                                                    "FlamingoLyrics",
+                                                    "Applied online LyricsFlow lyrics entries=${onlineLyrics.entries.size} isTtml=${onlineLyrics.isTtml}"
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         if (thisPath != null) {
                             // MediaViewModelObject.isDolby.value = thisPath.endsWith(".m4a")
                             // 改为 JOC 判断
@@ -1355,11 +1468,11 @@ class YosPlaybackService : MediaSessionService() {
                     listenStatsTracker?.onTrackChanged()
 
                     mediaItem?.let {
-                        yos.music.player.code.MediaController.syncQueueStateFromController(
+                        com.lyricsflow.player.code.MediaController.syncQueueStateFromController(
                             player,
                             it.toYosMediaItem()
                         )
-                        yos.music.player.code.MediaController.onCase(
+                        com.lyricsflow.player.code.MediaController.onCase(
                             it.toYosMediaItem()
                         )
                     }
@@ -1453,7 +1566,7 @@ class YosPlaybackService : MediaSessionService() {
             ): ListenableFuture<SessionResult> {
                 if (customCommand.customAction == shuffleMode) {
                     CoroutineScope(Dispatchers.IO).launch {
-                        yos.music.player.code.MediaController.toggleShuffleMode()
+                        com.lyricsflow.player.code.MediaController.toggleShuffleMode()
                     }
                 } else if (customCommand.customAction == repeatMode) {
                     when (player.repeatMode) {
@@ -1569,7 +1682,7 @@ class YosPlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
-        yos.music.player.code.MediaController.stopStatusBarLyricUpdater()
+        com.lyricsflow.player.code.MediaController.stopStatusBarLyricUpdater()
         listenHistoryTracker?.stop()
         listenHistoryTracker = null
         listenStatsTracker?.stop()

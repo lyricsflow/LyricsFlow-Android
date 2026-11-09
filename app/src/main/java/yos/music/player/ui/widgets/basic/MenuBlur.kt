@@ -1,4 +1,4 @@
-package yos.music.player.ui.widgets.basic
+package com.lyricsflow.player.ui.widgets.basic
 
 import android.app.Activity
 import android.content.Context
@@ -23,7 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
-import yos.music.player.code.utils.others.BitmapResolver
+import com.lyricsflow.player.code.utils.others.BitmapResolver
 
 @Composable
 internal fun MenuBlurBackground(

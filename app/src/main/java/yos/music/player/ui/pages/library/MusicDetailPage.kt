@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages.library
+package com.lyricsflow.player.ui.pages.library
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -58,11 +58,11 @@ import androidx.compose.ui.unit.sp
 import com.cormor.overscroll.core.overScrollVertical
 import com.cormor.overscroll.core.rememberOverscrollFlingBehavior
 import com.google.accompanist.insets.navigationBarsHeight
-import yos.music.player.R
-import yos.music.player.code.utils.others.Vibrator
-import yos.music.player.ui.theme.YosRoundedCornerShape
-import yos.music.player.ui.theme.withNight
-import yos.music.player.ui.widgets.basic.SearchTextField
+import com.lyricsflow.player.R
+import com.lyricsflow.player.code.utils.others.Vibrator
+import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.theme.withNight
+import com.lyricsflow.player.ui.widgets.basic.SearchTextField
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

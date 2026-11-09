@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages.library
+package com.lyricsflow.player.ui.pages.library
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Spacer
@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import yos.music.player.ui.theme.withNight
+import com.lyricsflow.player.ui.theme.withNight
 
 /**
  * 资料库的横向分割线

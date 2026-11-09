@@ -1,3 +1,3 @@
-package yos.music.player.data
+package com.lyricsflow.player.data
 
 data class SettingOption(val value: String)

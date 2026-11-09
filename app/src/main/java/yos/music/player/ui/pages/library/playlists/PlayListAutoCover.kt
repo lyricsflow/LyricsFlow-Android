@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages.library.playlists
+package com.lyricsflow.player.ui.pages.library.playlists
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
@@ -12,8 +12,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import yos.music.player.R
-import yos.music.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.R
+import com.lyricsflow.player.data.libraries.YosMediaItem
 
 /**
  * Auto-generated 2×2 collage of the playlist's first 4 unique album
@@ -23,7 +23,7 @@ import yos.music.player.data.libraries.YosMediaItem
  *   1 unique → single image filling the square
  *   0 unique → default star placeholder
  *
- * Shared between [yos.music.player.ui.pages.library.NormalMusic]'s
+ * Shared between [com.lyricsflow.player.ui.pages.library.NormalMusic]'s
  * playlist detail header and the Edit Playlist cover carousel.
  */
 @Composable

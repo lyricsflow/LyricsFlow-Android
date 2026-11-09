@@ -1,4 +1,4 @@
-package yos.music.player
+package com.lyricsflow.player
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -19,6 +19,6 @@ class ExampleInstrumentedTest {
     fun useAppContext() {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("yos.music.player", appContext.packageName)
+        assertEquals("com.lyricsflow.player", appContext.packageName)
     }
 }

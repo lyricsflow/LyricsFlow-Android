@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages.settings.extend.statusBarLyric
+package com.lyricsflow.player.ui.pages.settings.extend.statusBarLyric
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -11,18 +11,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
 import cn.lyric.getter.api.API
-import yos.music.player.R
-import yos.music.player.data.libraries.SettingsLibrary
-import yos.music.player.ui.pages.settings.DefaultItem
-import yos.music.player.ui.pages.settings.Divider
-import yos.music.player.ui.pages.settings.GroupSpacer
-import yos.music.player.ui.pages.settings.GroupSpacerMedium
-import yos.music.player.ui.pages.settings.LabelItem
-import yos.music.player.ui.pages.settings.ListHeader
-import yos.music.player.ui.pages.settings.SwitchItem
-import yos.music.player.ui.widgets.basic.RoundColumn
-import yos.music.player.ui.widgets.basic.Title
-import yos.music.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.R
+import com.lyricsflow.player.data.libraries.SettingsLibrary
+import com.lyricsflow.player.ui.pages.settings.DefaultItem
+import com.lyricsflow.player.ui.pages.settings.Divider
+import com.lyricsflow.player.ui.pages.settings.GroupSpacer
+import com.lyricsflow.player.ui.pages.settings.GroupSpacerMedium
+import com.lyricsflow.player.ui.pages.settings.LabelItem
+import com.lyricsflow.player.ui.pages.settings.ListHeader
+import com.lyricsflow.player.ui.pages.settings.SwitchItem
+import com.lyricsflow.player.ui.widgets.basic.RoundColumn
+import com.lyricsflow.player.ui.widgets.basic.Title
+import com.lyricsflow.player.ui.widgets.basic.YosWrapper
 
 @Composable
 fun LyricGetter(navController: NavController) =

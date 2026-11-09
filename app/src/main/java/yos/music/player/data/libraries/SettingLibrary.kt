@@ -1,9 +1,9 @@
-package yos.music.player.data.libraries
+package com.lyricsflow.player.data.libraries
 
 import androidx.compose.runtime.Stable
 import com.funny.data_saver.core.mutableDataSaverListStateOf
 import com.funny.data_saver.core.mutableDataSaverStateOf
-import yos.music.player.data.SettingsSaver
+import com.lyricsflow.player.data.SettingsSaver
 
 @Stable
 object SettingsLibrary {
@@ -133,7 +133,7 @@ object SettingsLibrary {
     var AnimatedAlbumCovers by mutableDataSaverStateOf(
         dataSaverInterface = SettingsSaver,
         key = "settings_library_animated_album_covers",
-        initialValue = false
+        initialValue = true
     )
 
     @Stable
@@ -147,7 +147,7 @@ object SettingsLibrary {
     var AnimatedAlbumCoversUseApi by mutableDataSaverStateOf(
         dataSaverInterface = SettingsSaver,
         key = "settings_library_animated_album_covers_use_api",
-        initialValue = false
+        initialValue = true
     )
 
     fun isAnimatedAlbumCoverBlacklisted(albumName: String): Boolean

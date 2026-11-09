@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages.library.playlists
+package com.lyricsflow.player.ui.pages.library.playlists
 
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableStateOf
@@ -8,7 +8,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import yos.music.player.data.libraries.PlayList
+import com.lyricsflow.player.data.libraries.PlayList
 
 /**
  * Cross-screen handoff for the optimistic "delete with undo"

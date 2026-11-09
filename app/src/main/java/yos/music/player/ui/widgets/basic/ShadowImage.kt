@@ -1,4 +1,4 @@
-package yos.music.player.ui.widgets.basic
+package com.lyricsflow.player.ui.widgets.basic
 
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
@@ -19,10 +19,10 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.size.Precision
-import yos.music.player.R
-import yos.music.player.ui.theme.YosRoundedCornerShape
-import yos.music.player.ui.widgets.effects.ShadowType
-import yos.music.player.ui.widgets.effects.dropShadow
+import com.lyricsflow.player.R
+import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.widgets.effects.ShadowType
+import com.lyricsflow.player.ui.widgets.effects.dropShadow
 
 @Stable
 enum class ImageQuality {

@@ -1,4 +1,4 @@
-package yos.music.player.ui.widgets.effects
+package com.lyricsflow.player.ui.widgets.effects
 
 import android.graphics.Bitmap
 import android.graphics.ColorMatrix
@@ -41,10 +41,10 @@ import com.flaviofaria.kenburnsview.KenBurnsView
 import com.flaviofaria.kenburnsview.RandomTransitionGenerator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import yos.music.player.code.utils.others.BitmapResolver
-import yos.music.player.data.libraries.SettingsLibrary.NowplayingBackgroundEffect
-import yos.music.player.ui.pages.NowPlayingPage
-import yos.music.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.code.utils.others.BitmapResolver
+import com.lyricsflow.player.data.libraries.SettingsLibrary.NowplayingBackgroundEffect
+import com.lyricsflow.player.ui.pages.NowPlayingPage
+import com.lyricsflow.player.ui.widgets.basic.YosWrapper
 
 @Stable
 private enum class Option {

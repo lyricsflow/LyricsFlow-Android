@@ -1,18 +1,18 @@
-package yos.music.player.code
+package com.lyricsflow.player.code
 
 import android.os.Handler
 import android.os.Looper
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
-import yos.music.player.data.libraries.ListenStatsEvent
-import yos.music.player.data.libraries.ListenStatsLibrary
-import yos.music.player.data.libraries.SettingsLibrary
-import yos.music.player.data.libraries.album
-import yos.music.player.data.libraries.albumArtists
-import yos.music.player.data.libraries.artists
-import yos.music.player.data.libraries.thumb
-import yos.music.player.data.libraries.title
-import yos.music.player.data.libraries.uri
+import com.lyricsflow.player.data.libraries.ListenStatsEvent
+import com.lyricsflow.player.data.libraries.ListenStatsLibrary
+import com.lyricsflow.player.data.libraries.SettingsLibrary
+import com.lyricsflow.player.data.libraries.album
+import com.lyricsflow.player.data.libraries.albumArtists
+import com.lyricsflow.player.data.libraries.artists
+import com.lyricsflow.player.data.libraries.thumb
+import com.lyricsflow.player.data.libraries.title
+import com.lyricsflow.player.data.libraries.uri
 
 class ListenStatsTracker(private val player: Player)
 {

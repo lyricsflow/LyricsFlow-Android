@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages.library.playlists
+package com.lyricsflow.player.ui.pages.library.playlists
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -72,18 +72,18 @@ import coil.request.ImageRequest
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
-import yos.music.player.R
-import yos.music.player.code.utils.others.Vibrator
-import yos.music.player.data.libraries.MusicLibrary.songs
-import yos.music.player.data.libraries.PlayList
-import yos.music.player.data.libraries.PlayListLibrary
-import yos.music.player.data.libraries.PlayListLibrary.applyEdits
-import yos.music.player.data.libraries.PlayListLibrary.playList
-import yos.music.player.data.libraries.YosMediaItem
-import yos.music.player.data.libraries.defaultTitle
-import yos.music.player.data.objects.LibraryObject
-import yos.music.player.ui.theme.YosRoundedCornerShape
-import yos.music.player.ui.theme.withNight
+import com.lyricsflow.player.R
+import com.lyricsflow.player.code.utils.others.Vibrator
+import com.lyricsflow.player.data.libraries.MusicLibrary.songs
+import com.lyricsflow.player.data.libraries.PlayList
+import com.lyricsflow.player.data.libraries.PlayListLibrary
+import com.lyricsflow.player.data.libraries.PlayListLibrary.applyEdits
+import com.lyricsflow.player.data.libraries.PlayListLibrary.playList
+import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.defaultTitle
+import com.lyricsflow.player.data.objects.LibraryObject
+import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.theme.withNight
 
 private const val DescriptionMaxChars = 200
 private const val NameMaxChars = 100

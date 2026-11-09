@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages.library.playlists
+package com.lyricsflow.player.ui.pages.library.playlists
 
 import android.widget.Toast
 import androidx.compose.foundation.Image
@@ -45,18 +45,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import yos.music.player.R
-import yos.music.player.code.utils.others.Vibrator
-import yos.music.player.data.libraries.PlayList
-import yos.music.player.data.libraries.PlayListLibrary
-import yos.music.player.data.libraries.PlayListLibrary.playList
-import yos.music.player.data.libraries.YosMediaItem
-import yos.music.player.ui.theme.YosRoundedCornerShape
-import yos.music.player.ui.theme.withNight
-import yos.music.player.ui.widgets.basic.ActionItem
-import yos.music.player.ui.widgets.basic.ActionSheetBody
-import yos.music.player.ui.widgets.basic.YosBottomSheetDialog
-import yos.music.player.ui.widgets.playlist.PlayListPickerContent
+import com.lyricsflow.player.R
+import com.lyricsflow.player.code.utils.others.Vibrator
+import com.lyricsflow.player.data.libraries.PlayList
+import com.lyricsflow.player.data.libraries.PlayListLibrary
+import com.lyricsflow.player.data.libraries.PlayListLibrary.playList
+import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.theme.withNight
+import com.lyricsflow.player.ui.widgets.basic.ActionItem
+import com.lyricsflow.player.ui.widgets.basic.ActionSheetBody
+import com.lyricsflow.player.ui.widgets.basic.YosBottomSheetDialog
+import com.lyricsflow.player.ui.widgets.playlist.PlayListPickerContent
 
 /**
  * Internal screens hosted by [PlayListOverflowSheet]. Pattern mirrors
@@ -233,7 +233,7 @@ private fun PlayListOverflowHeader(playList: PlayList) {
     val shape = YosRoundedCornerShape(8.dp)
     val songsInPlaylist = androidx.compose.runtime.remember(playList.songDataList) {
         playList.songDataList.mapNotNull { uri ->
-            yos.music.player.data.libraries.MusicLibrary.songs.firstOrNull { it.uri == uri }
+            com.lyricsflow.player.data.libraries.MusicLibrary.songs.firstOrNull { it.uri == uri }
         }
     }
     Row(

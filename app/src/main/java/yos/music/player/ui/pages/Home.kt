@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages
+package com.lyricsflow.player.ui.pages
 
 import android.graphics.drawable.Drawable
 import androidx.compose.foundation.clickable
@@ -52,24 +52,37 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import yos.music.player.R
-import yos.music.player.code.MediaController
-import yos.music.player.code.utils.others.BitmapResolver
-import yos.music.player.data.libraries.MusicLibrary
-import yos.music.player.data.libraries.SettingsLibrary
-import yos.music.player.data.libraries.YosMediaItem
-import yos.music.player.data.libraries.artistsName
-import yos.music.player.data.libraries.defaultAlbum
-import yos.music.player.data.libraries.defaultArtistsName
-import yos.music.player.data.libraries.defaultTitle
-import yos.music.player.data.models.ImageViewModel
-import yos.music.player.ui.UI
-import yos.music.player.ui.theme.YosRoundedCornerShape
-import yos.music.player.ui.toUI
-import yos.music.player.ui.widgets.basic.ProfileButton
-import yos.music.player.ui.widgets.effects.imageResolve
-import yos.music.player.ui.widgets.basic.Title
-import yos.music.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.R
+import com.lyricsflow.player.code.MediaController
+import com.lyricsflow.player.code.utils.lrc.LyricsFlowApi
+import com.lyricsflow.player.code.utils.others.BitmapResolver
+import com.lyricsflow.player.code.utils.others.Vibrator
+import com.lyricsflow.player.data.libraries.MusicLibrary
+import com.lyricsflow.player.data.libraries.SettingsLibrary
+import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.artistsName
+import com.lyricsflow.player.data.libraries.defaultAlbum
+import com.lyricsflow.player.data.libraries.defaultArtistsName
+import com.lyricsflow.player.data.libraries.defaultTitle
+import com.lyricsflow.player.data.models.ImageViewModel
+import com.lyricsflow.player.ui.UI
+import com.lyricsflow.player.ui.theme.SFProDisplay
+import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.theme.withNight
+import com.lyricsflow.player.ui.toUI
+import com.lyricsflow.player.ui.widgets.basic.ProfileButton
+import com.lyricsflow.player.ui.widgets.effects.imageResolve
+import com.lyricsflow.player.ui.widgets.basic.Title
+import com.lyricsflow.player.ui.widgets.basic.YosWrapper
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 
 @Composable
 fun Home(
@@ -87,7 +100,146 @@ fun Home(
             item("RecentlyPlayedCard") {
                 RecentlyPlayedCard()
             }
+            item("OnlineTrendingHomeShelf") {
+                OnlineTrendingHomeShelf(navController)
+            }
         })
+
+@Composable
+private fun OnlineTrendingHomeShelf(navController: NavController) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val trending = remember { mutableStateOf<List<LyricsFlowApi.CatalogTrackResult>>(emptyList()) }
+
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            trending.value = LyricsFlowApi.fetchTrendingTracks(limit = 20)
+        }
+    }
+
+    val textColor = Color.Black withNight Color.White
+    val secondaryColor = (Color.Black withNight Color.White).copy(alpha = 0.58f)
+    val appleCrimson = Color(0xFFFA2D48)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp)
+    ) {
+        // LyricsFlow Studio & TTML Quick Card
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = (Color(0x12000000) withNight Color(0x1EFFFFFF)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 6.dp)
+                .clickable {
+                    Vibrator.click(context)
+                    navController.toUI(UI.LocalUploadTools)
+                }
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "LYRICSFLOW STUDIO",
+                        fontFamily = SFProDisplay,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        letterSpacing = 0.8.sp,
+                        color = appleCrimson
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Upload Audio + .TTML & TTML Downloader",
+                        fontFamily = SFProDisplay,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = textColor
+                    )
+                    Text(
+                        text = "Pair local tracks with Apple Music word-synced lyrics",
+                        fontFamily = SFProDisplay,
+                        fontSize = 12.5.sp,
+                        color = secondaryColor
+                    )
+                }
+            }
+        }
+
+        if (trending.value.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(14.dp))
+            Text(
+                text = "Trending on LyricsFlow",
+                fontFamily = SFProDisplay,
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                color = textColor,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                trending.value.forEach { track ->
+                    Column(
+                        modifier = Modifier
+                            .width(156.dp)
+                            .clickable {
+                                Vibrator.click(context)
+                                scope.launch(Dispatchers.IO) {
+                                    MediaController.playOnlineTrack(
+                                        track = track,
+                                        contextTracks = trending.value,
+                                        shuffleModeEnabled = false,
+                                        appendSimilar = true
+                                    )
+                                }
+                            }
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(156.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White.copy(alpha = 0.08f))
+                        ) {
+                            AsyncImage(
+                                model = track.artworkUrl,
+                                contentDescription = track.title,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = track.title,
+                            fontFamily = SFProDisplay,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.5.sp,
+                            color = textColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = track.artist,
+                            fontFamily = SFProDisplay,
+                            fontSize = 12.5.sp,
+                            color = secondaryColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun RecommendCard(imageViewModel: ImageViewModel) {
@@ -213,7 +365,7 @@ fun buildRecentlyPlayedDisplayItems(
 @Composable
 fun RecentlyPlayedCard()
 {
-    val recentlyPlayedHistory = yos.music.player.code.ListenHistoryManager.recentlyPlayedSongs.value
+    val recentlyPlayedHistory = com.lyricsflow.player.code.ListenHistoryManager.recentlyPlayedSongs.value
     val listenHistoryEnabled = SettingsLibrary.ListenHistory
 
     if (!listenHistoryEnabled || recentlyPlayedHistory.isEmpty()) {return}

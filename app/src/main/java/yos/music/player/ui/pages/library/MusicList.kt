@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages.library
+package com.lyricsflow.player.ui.pages.library
 
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
@@ -82,27 +82,27 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import yos.music.player.ui.UI
-import yos.music.player.R
-import yos.music.player.code.MediaController
-import yos.music.player.code.utils.others.Vibrator
-import yos.music.player.data.libraries.FavPlayListLibrary
-import yos.music.player.data.libraries.PlayList
-import yos.music.player.data.libraries.PlayListLibrary
-import yos.music.player.data.libraries.PlayListLibrary.addMusic
-import yos.music.player.data.libraries.PlayListLibrary.playList
-import yos.music.player.data.libraries.YosMediaItem
-import yos.music.player.data.libraries.artistsList
-import yos.music.player.data.libraries.artistsName
-import yos.music.player.data.libraries.defaultAlbum
-import yos.music.player.data.libraries.defaultArtists
-import yos.music.player.data.libraries.defaultArtistsName
-import yos.music.player.data.libraries.defaultTitle
-import yos.music.player.data.objects.LibraryObject
-import yos.music.player.ui.theme.withNight
-import yos.music.player.ui.toUI
-import yos.music.player.ui.widgets.basic.ImageQuality
-import yos.music.player.ui.widgets.basic.ShadowImageWithCache
+import com.lyricsflow.player.ui.UI
+import com.lyricsflow.player.R
+import com.lyricsflow.player.code.MediaController
+import com.lyricsflow.player.code.utils.others.Vibrator
+import com.lyricsflow.player.data.libraries.FavPlayListLibrary
+import com.lyricsflow.player.data.libraries.PlayList
+import com.lyricsflow.player.data.libraries.PlayListLibrary
+import com.lyricsflow.player.data.libraries.PlayListLibrary.addMusic
+import com.lyricsflow.player.data.libraries.PlayListLibrary.playList
+import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.artistsList
+import com.lyricsflow.player.data.libraries.artistsName
+import com.lyricsflow.player.data.libraries.defaultAlbum
+import com.lyricsflow.player.data.libraries.defaultArtists
+import com.lyricsflow.player.data.libraries.defaultArtistsName
+import com.lyricsflow.player.data.libraries.defaultTitle
+import com.lyricsflow.player.data.objects.LibraryObject
+import com.lyricsflow.player.ui.theme.withNight
+import com.lyricsflow.player.ui.toUI
+import com.lyricsflow.player.ui.widgets.basic.ImageQuality
+import com.lyricsflow.player.ui.widgets.basic.ShadowImageWithCache
 
 private val SongContextMenuEstimatedHeight = 278.dp
 

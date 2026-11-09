@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages.library.playlists
+package com.lyricsflow.player.ui.pages.library.playlists
 
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -26,7 +26,7 @@ enum class PlayListSort { Manual, Title, Artist, RecentlyAdded }
  * Singleton state: lifting to a ViewModel would require threading
  * an instance through the existing Compose nav graph, which is
  * inconsistent with how the rest of the app stores screen-scoped
- * state (see [yos.music.player.data.libraries.SettingsLibrary]).
+ * state (see [com.lyricsflow.player.data.libraries.SettingsLibrary]).
  */
 @Stable
 object PlayListSortPreference {

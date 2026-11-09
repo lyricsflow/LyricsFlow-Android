@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages
+package com.lyricsflow.player.ui.pages
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -20,13 +20,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import yos.music.player.R
-import yos.music.player.data.libraries.StatsAlbumEntry
-import yos.music.player.data.libraries.StatsArtistEntry
-import yos.music.player.data.libraries.StatsTrackEntry
-import yos.music.player.ui.widgets.basic.ImageQuality
-import yos.music.player.ui.widgets.basic.ShadowImageWithCache
-import yos.music.player.ui.widgets.basic.Title
+import com.lyricsflow.player.R
+import com.lyricsflow.player.data.libraries.StatsAlbumEntry
+import com.lyricsflow.player.data.libraries.StatsArtistEntry
+import com.lyricsflow.player.data.libraries.StatsTrackEntry
+import com.lyricsflow.player.ui.widgets.basic.ImageQuality
+import com.lyricsflow.player.ui.widgets.basic.ShadowImageWithCache
+import com.lyricsflow.player.ui.widgets.basic.Title
 
 @Composable
 fun StatsArtists(navController: NavController)

@@ -1,4 +1,4 @@
-package yos.music.player.code
+package com.lyricsflow.player.code
 
 import android.content.Context
 import android.media.MediaExtractor

@@ -1,4 +1,4 @@
-package yos.music.player.ui.widgets.basic
+package com.lyricsflow.player.ui.widgets.basic
 
 import android.animation.ValueAnimator
 import android.os.Build
@@ -65,11 +65,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import yos.music.player.R
-import yos.music.player.code.utils.others.Vibrator
-import yos.music.player.data.libraries.SettingsLibrary
-import yos.music.player.ui.theme.YosRoundedCornerShape
-import yos.music.player.ui.theme.withNight
+import com.lyricsflow.player.R
+import com.lyricsflow.player.code.utils.others.Vibrator
+import com.lyricsflow.player.data.libraries.SettingsLibrary
+import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.theme.withNight
 
 internal const val SheetNavigationForward = 1
 internal const val SheetNavigationBackward = -1

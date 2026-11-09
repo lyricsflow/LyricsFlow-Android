@@ -15,7 +15,7 @@ if (localPropertiesFile.exists()) {
 }
 
 android {
-    namespace 'yos.music.player'
+    namespace 'com.lyricsflow.player'
     compileSdk 34
 
     signingConfigs {
@@ -38,7 +38,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "yos.music.player"
+        applicationId "com.lyricsflow.player"
         minSdk 23
         targetSdk 34
         versionCode 3

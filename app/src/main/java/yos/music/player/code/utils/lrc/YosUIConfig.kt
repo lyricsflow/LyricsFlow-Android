@@ -1,4 +1,4 @@
-package yos.music.player.code.utils.lrc
+package com.lyricsflow.player.code.utils.lrc
 
 import androidx.compose.runtime.Stable
 

@@ -1,4 +1,4 @@
-package yos.music.player.data
+package com.lyricsflow.player.data
 
 import androidx.compose.runtime.Stable
 import com.funny.data_saver.core.DataSaverInterface

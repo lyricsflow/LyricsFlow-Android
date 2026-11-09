@@ -1,4 +1,4 @@
-package yos.music.player.ui.widgets.playlist
+package com.lyricsflow.player.ui.widgets.playlist
 
 import android.widget.Toast
 import androidx.compose.foundation.Image
@@ -57,18 +57,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import yos.music.player.R
-import yos.music.player.code.utils.others.Vibrator
-import yos.music.player.data.libraries.PlayList
-import yos.music.player.data.libraries.PlayListLibrary
-import yos.music.player.data.libraries.PlayListLibrary.addMusic
-import yos.music.player.data.libraries.PlayListLibrary.playList
-import yos.music.player.data.libraries.YosMediaItem
-import yos.music.player.ui.theme.withNight
-import yos.music.player.ui.widgets.basic.SheetAnimatedContent
-import yos.music.player.ui.widgets.basic.SheetNavigationBackward
-import yos.music.player.ui.widgets.basic.SheetNavigationForward
-import yos.music.player.ui.widgets.basic.YosBottomSheetDialog
+import com.lyricsflow.player.R
+import com.lyricsflow.player.code.utils.others.Vibrator
+import com.lyricsflow.player.data.libraries.PlayList
+import com.lyricsflow.player.data.libraries.PlayListLibrary
+import com.lyricsflow.player.data.libraries.PlayListLibrary.addMusic
+import com.lyricsflow.player.data.libraries.PlayListLibrary.playList
+import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.ui.theme.withNight
+import com.lyricsflow.player.ui.widgets.basic.SheetAnimatedContent
+import com.lyricsflow.player.ui.widgets.basic.SheetNavigationBackward
+import com.lyricsflow.player.ui.widgets.basic.SheetNavigationForward
+import com.lyricsflow.player.ui.widgets.basic.YosBottomSheetDialog
 
 /**
  * Reusable bottom sheet for picking an existing playlist to add a song to,

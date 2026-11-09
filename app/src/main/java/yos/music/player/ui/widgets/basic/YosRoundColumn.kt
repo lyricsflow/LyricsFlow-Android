@@ -1,4 +1,4 @@
-package yos.music.player.ui.widgets.basic
+package com.lyricsflow.player.ui.widgets.basic
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -16,7 +16,7 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
-import yos.music.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
 
 private val defaultCorner = 9.dp
 private val defaultPadding = 16.5.dp

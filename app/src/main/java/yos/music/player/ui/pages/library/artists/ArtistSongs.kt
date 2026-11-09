@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages.library.artists
+package com.lyricsflow.player.ui.pages.library.artists
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -31,17 +31,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import yos.music.player.R
-import yos.music.player.code.MediaController
-import yos.music.player.data.libraries.ArtistLibrary
-import yos.music.player.data.libraries.YosMediaItem
-import yos.music.player.data.libraries.lazyListKey
-import yos.music.player.data.objects.LibraryObject
-import yos.music.player.ui.pages.library.MusicList
-import yos.music.player.ui.pages.library.playlists.PlayListSearch
-import yos.music.player.ui.theme.withNight
-import yos.music.player.ui.widgets.basic.SearchTextField
-import yos.music.player.ui.widgets.basic.Title
+import com.lyricsflow.player.R
+import com.lyricsflow.player.code.MediaController
+import com.lyricsflow.player.data.libraries.ArtistLibrary
+import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.lazyListKey
+import com.lyricsflow.player.data.objects.LibraryObject
+import com.lyricsflow.player.ui.pages.library.MusicList
+import com.lyricsflow.player.ui.pages.library.playlists.PlayListSearch
+import com.lyricsflow.player.ui.theme.withNight
+import com.lyricsflow.player.ui.widgets.basic.SearchTextField
+import com.lyricsflow.player.ui.widgets.basic.Title
 
 @Composable
 fun ArtistSongs(navController: NavController)

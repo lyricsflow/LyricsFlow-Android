@@ -1,4 +1,4 @@
-package yos.music.player.ui.widgets.effects
+package com.lyricsflow.player.ui.widgets.effects
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier

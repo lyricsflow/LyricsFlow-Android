@@ -18,3 +18,9 @@ local.properties
 /app/signing/
 AGENTS.md
 /.idea/misc.xml
+/.idea/
+/BitChord/
+/main/
+/.agents/
+main
+BitChord

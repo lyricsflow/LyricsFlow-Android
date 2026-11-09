@@ -1,4 +1,4 @@
-package yos.music.player.code
+package com.lyricsflow.player.code
 
 import android.content.Context
 import android.media.MediaCodec
@@ -13,9 +13,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import yos.music.player.data.libraries.SettingsLibrary
-import yos.music.player.data.libraries.YosMediaItem
-import yos.music.player.data.libraries.artistsName
+import com.lyricsflow.player.data.libraries.SettingsLibrary
+import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.artistsName
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
@@ -32,6 +32,8 @@ object AnimatedArtworkLibrary
 {
     private const val AnimatedArtworkDirectoryName = "anim"
     private const val AnimatedArtworkCacheDirectoryName = "animated_artwork"
+    private const val LyricsFlowApiBase = "https://api.trylyricsflow.com"
+    private const val ItunesSearchEndpoint = "https://itunes.apple.com/search"
     private const val ArtworkSearchEndpoint = "https://artwork.m8tec.top/api/v1/artwork/search"
     private const val NetworkTimeoutMilliseconds = 15000
     private const val DefaultSampleBufferBytes = 1024 * 1024
@@ -74,11 +76,165 @@ object AnimatedArtworkLibrary
             if (!SettingsLibrary.AnimatedAlbumCoversUseApi) {return@withLock null}
             if (SettingsLibrary.isAnimatedAlbumCoverBlacklisted(albumName)) {return@withLock null}
 
+            // 1. Try LyricsFlow Animated Cover Art API (Community MP4 + Apple Music Tall/Square HLS)
+            val lyricsFlowMp4Url = resolveLyricsFlowArtworkMp4Url(music, albumName)
+            if (lyricsFlowMp4Url != null && downloadFile(lyricsFlowMp4Url, cachedArtworkFile)) {
+                return@withLock cachedArtworkFile
+            }
+
+            // 2. Fallback to m8tec artwork endpoint
             val searchUrl = buildSearchUrl(music, albumName) ?: return@withLock null
             val hlsUrl = fetchArtworkHlsUrl(searchUrl) ?: return@withLock null
             val mp4Url = resolveMp4Url(hlsUrl) ?: return@withLock null
 
             if (downloadFile(mp4Url, cachedArtworkFile)) {cachedArtworkFile} else null
+        }
+    }
+
+    private suspend fun resolveLyricsFlowArtworkMp4Url(music: YosMediaItem, albumName: String): String? {
+        val artistName = music.albumArtists?.trim()?.takeIf { it.isNotEmpty() }
+            ?: music.artistsName?.trim()?.takeIf { it.isNotEmpty() }
+            ?: return null
+
+        val explicitAlbumId = music.albumId?.takeIf { it > 0L }?.toString()
+        val albumId = explicitAlbumId ?: resolveAlbumId(artistName, albumName, music.title) ?: return null
+
+        return resolveLyricsFlowMp4ByAlbumId(albumId)
+    }
+
+    suspend fun resolveOnlineAnimatedArtFile(
+        context: Context,
+        cacheKey: String,
+        artistName: String = "",
+        albumName: String = "",
+        albumId: String? = null,
+        directOrHlsUrl: String? = null
+    ): File? = withContext(Dispatchers.IO) {
+        if (!SettingsLibrary.AnimatedAlbumCovers) return@withContext null
+        val cachedFile = animatedArtworkCacheFile(
+            cacheDirectory(context),
+            artistName.ifBlank { "online" },
+            cacheKey.ifBlank { albumName.ifBlank { albumId.orEmpty() } }
+        )
+        val mutex = artworkMutexes.getOrPut(cachedFile.absolutePath) { Mutex() }
+        mutex.withLock {
+            if (cachedFile.exists()) {
+                if (cachedFile.isFile && cachedFile.length() > 0L && normalizeCachedMp4File(cachedFile)) {
+                    return@withLock cachedFile
+                }
+                cachedFile.delete()
+            }
+
+            // 1. If a direct or HLS URL was already provided by the API (e.g. editorialVideo or /animatedart)
+            if (!directOrHlsUrl.isNullOrBlank()) {
+                val mp4Candidate = if (directOrHlsUrl.endsWith(".mp4", ignoreCase = true)) {
+                    directOrHlsUrl
+                } else {
+                    resolveMp4Url(directOrHlsUrl)
+                }
+                if (mp4Candidate != null && downloadFile(mp4Candidate, cachedFile)) {
+                    return@withLock cachedFile
+                }
+            }
+
+            // 2. If an albumId is available, query LyricsFlow community + animatedart
+            val resolvedId = albumId?.takeIf { it.isNotBlank() }
+                ?: if (artistName.isNotBlank() && albumName.isNotBlank()) resolveAlbumId(artistName, albumName, null) else null
+            if (!resolvedId.isNullOrBlank()) {
+                val mp4Url = resolveLyricsFlowMp4ByAlbumId(resolvedId)
+                if (mp4Url != null && downloadFile(mp4Url, cachedFile)) {
+                    return@withLock cachedFile
+                }
+            }
+
+            null
+        }
+    }
+
+    private suspend fun resolveLyricsFlowMp4ByAlbumId(albumId: String): String? {
+        // Priority 1: LyricsFlow Community direct MP4 cover
+        val communityUrl = "$LyricsFlowApiBase/v1/covers/animated/$albumId"
+        if (probeDirectVideoUrl(communityUrl)) {
+            return communityUrl
+        }
+
+        // Priority 2: LyricsFlow Apple Music Animated Art (prefer tall aspect for full-bleed mobile fade, fallback square)
+        for (aspect in listOf("tall", "square")) {
+            val animArtEndpoint = "$LyricsFlowApiBase/animatedart?album=${encodeUrlParameter(albumId)}&aspect=$aspect&v=2"
+            val streamUrl = fetchLyricsFlowAnimatedStreamUrl(animArtEndpoint) ?: continue
+            if (streamUrl.endsWith(".mp4", ignoreCase = true)) {
+                return streamUrl
+            }
+            val resolvedMp4 = resolveMp4Url(streamUrl)
+            if (resolvedMp4 != null) {
+                return resolvedMp4
+            }
+        }
+
+        return null
+    }
+
+    private suspend fun resolveAlbumId(artistName: String, albumName: String, trackTitle: String?): String? {
+        // 1. Try LyricsFlow /search?term=...&types=albums
+        runCatching {
+            val query = encodeUrlParameter("$artistName $albumName")
+            val text = readUrlText("$LyricsFlowApiBase/search?term=$query&types=albums&limit=5")
+            val root = JSONObject(text)
+            val albumsArray = root.optJSONObject("results")?.optJSONObject("albums")?.optJSONArray("data")
+                ?: root.optJSONObject("albums")?.optJSONArray("data")
+                ?: root.optJSONArray("data")
+            if (albumsArray != null && albumsArray.length() > 0) {
+                val id = albumsArray.optJSONObject(0)?.optString("id")?.takeIf { it.isNotBlank() }
+                if (id != null) return id
+            }
+        }
+
+        // 2. Fallback to iTunes Search API for collectionId
+        runCatching {
+            val term = encodeUrlParameter("$artistName ${albumName.ifBlank { trackTitle.orEmpty() }}")
+            val text = readUrlText("$ItunesSearchEndpoint?term=$term&entity=album&limit=5")
+            val results = JSONObject(text).optJSONArray("results")
+            if (results != null && results.length() > 0) {
+                val collectionId = results.optJSONObject(0)?.optLong("collectionId", 0L) ?: 0L
+                if (collectionId > 0L) return collectionId.toString()
+            }
+        }
+
+        return null
+    }
+
+    private fun probeDirectVideoUrl(url: String): Boolean {
+        var connection: HttpURLConnection? = null
+        return try {
+            connection = URL(url).openConnection() as HttpURLConnection
+            connection.connectTimeout = 4000
+            connection.readTimeout = 4000
+            connection.requestMethod = "GET"
+            connection.setRequestProperty("Range", "bytes=0-0")
+            val code = connection.responseCode
+            val contentType = connection.contentType.orEmpty().lowercase(Locale.ROOT)
+            (code == 200 || code == 206) && (contentType.contains("video") || contentType.contains("octet-stream"))
+        } catch (_: Exception) {
+            false
+        } finally {
+            connection?.disconnect()
+        }
+    }
+
+    private suspend fun fetchLyricsFlowAnimatedStreamUrl(endpoint: String): String? {
+        return try {
+            val responseText = readUrlText(endpoint).trim()
+            if (responseText.startsWith("#EXTM3U")) {
+                return endpoint
+            }
+            val json = JSONObject(responseText)
+            json.optString("video").takeIf { it.isNotBlank() }
+                ?: json.optString("url").takeIf { it.isNotBlank() }
+                ?: json.optString("hlsUrl").takeIf { it.isNotBlank() }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
         }
     }
 

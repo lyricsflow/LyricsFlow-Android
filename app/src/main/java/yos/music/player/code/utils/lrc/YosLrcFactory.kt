@@ -1,9 +1,9 @@
-package yos.music.player.code.utils.lrc
+package com.lyricsflow.player.code.utils.lrc
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.util.fastForEachIndexed
 import androidx.compose.ui.util.fastJoinToString
-import yos.music.player.data.objects.MediaViewModelObject
+import com.lyricsflow.player.data.objects.MediaViewModelObject
 
 /**
  * Lrc 歌词文本处理

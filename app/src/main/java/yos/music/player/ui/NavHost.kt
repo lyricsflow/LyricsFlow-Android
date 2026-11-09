@@ -1,4 +1,4 @@
-package yos.music.player.ui
+package com.lyricsflow.player.ui
 
 import androidx.compose.runtime.Stable
 import androidx.navigation.NavController
@@ -28,6 +28,11 @@ interface UI {
         const val AlbumInfo = "AlbumInfo"
         const val ArtistInfo = "ArtistInfo"
         const val ArtistSongs = "ArtistSongs"
+
+        const val OnlineAlbumInfo = "OnlineAlbumInfo"
+        const val OnlineArtistInfo = "OnlineArtistInfo"
+        const val OnlinePlaylistInfo = "OnlinePlaylistInfo"
+        const val LocalUploadTools = "LocalUploadTools"
 
         const val StatsArtists = "StatsArtists"
         const val StatsAlbums = "StatsAlbums"

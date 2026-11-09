@@ -1,6 +1,6 @@
 @file:Suppress("SameParameterValue")
 
-package yos.music.player.data.libraries
+package com.lyricsflow.player.data.libraries
 
 import android.Manifest
 import android.content.Context
@@ -25,10 +25,10 @@ import uk.akane.libphonograph.constructor.ItemConstructor
 import uk.akane.libphonograph.reader.Reader
 import uk.akane.libphonograph.reader.ReaderConfiguration
 import uk.akane.libphonograph.reader.ReaderResult
-import yos.music.player.UriTypeAdapter
-import yos.music.player.code.MediaController
-import yos.music.player.data.NormalSaver
-import yos.music.player.data.SongListSaver
+import com.lyricsflow.player.UriTypeAdapter
+import com.lyricsflow.player.code.MediaController
+import com.lyricsflow.player.data.NormalSaver
+import com.lyricsflow.player.data.SongListSaver
 
 /*@Parcelize
 @Stable

@@ -1,4 +1,4 @@
-package yos.music.player.ui.widgets.basic
+package com.lyricsflow.player.ui.widgets.basic
 
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -21,9 +21,9 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
-import yos.music.player.R
-import yos.music.player.code.utils.others.Vibrator
-import yos.music.player.data.NormalSaver
+import com.lyricsflow.player.R
+import com.lyricsflow.player.code.utils.others.Vibrator
+import com.lyricsflow.player.data.NormalSaver
 
 private val profilePictureUri = mutableStateOf(NormalSaver.readData("profile_picture_uri", ""))
 

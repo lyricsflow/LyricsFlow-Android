@@ -1,4 +1,4 @@
-package yos.music.player.code.utils.lrc
+package com.lyricsflow.player.code.utils.lrc
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

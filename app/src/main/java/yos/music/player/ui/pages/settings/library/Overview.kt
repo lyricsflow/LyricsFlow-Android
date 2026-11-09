@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages.settings.library
+package com.lyricsflow.player.ui.pages.settings.library
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -37,24 +37,24 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import yos.music.player.ui.pages.settings.Switch
+import com.lyricsflow.player.ui.pages.settings.Switch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import yos.music.player.R
-import yos.music.player.code.utils.others.Vibrator
-import yos.music.player.data.libraries.Folder
-import yos.music.player.data.libraries.MusicLibrary
-import yos.music.player.data.libraries.MusicLibrary.folders
-import yos.music.player.data.libraries.MusicLibrary.hideFolders
-import yos.music.player.data.objects.LibraryObject
-import yos.music.player.ui.UI
-import yos.music.player.ui.pages.settings.SettingBackground
-import yos.music.player.ui.theme.YosRoundedCornerShape
-import yos.music.player.ui.theme.withNight
-import yos.music.player.ui.toUI
-import yos.music.player.ui.widgets.basic.Title
-import yos.music.player.ui.widgets.basic.YosWrapper
-import yos.music.player.ui.widgets.basic.yosRoundColumn
+import com.lyricsflow.player.R
+import com.lyricsflow.player.code.utils.others.Vibrator
+import com.lyricsflow.player.data.libraries.Folder
+import com.lyricsflow.player.data.libraries.MusicLibrary
+import com.lyricsflow.player.data.libraries.MusicLibrary.folders
+import com.lyricsflow.player.data.libraries.MusicLibrary.hideFolders
+import com.lyricsflow.player.data.objects.LibraryObject
+import com.lyricsflow.player.ui.UI
+import com.lyricsflow.player.ui.pages.settings.SettingBackground
+import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.theme.withNight
+import com.lyricsflow.player.ui.toUI
+import com.lyricsflow.player.ui.widgets.basic.Title
+import com.lyricsflow.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.ui.widgets.basic.yosRoundColumn
 
 @Composable
 fun LibraryOverview(navController: NavController) =

@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages.library
+package com.lyricsflow.player.ui.pages.library
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
@@ -93,39 +93,39 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import yos.music.player.R
-import yos.music.player.code.MediaController
-import yos.music.player.data.libraries.MusicLibrary.songs
-import yos.music.player.data.libraries.MusicLibrary.toMediaItem
-import yos.music.player.data.libraries.PlayList
-import yos.music.player.data.libraries.PlayListLibrary
-import yos.music.player.data.libraries.PlayListLibrary.addMusic
-import yos.music.player.data.libraries.PlayListLibrary.pin
-import yos.music.player.data.libraries.PlayListLibrary.playList
-import yos.music.player.data.libraries.PlayListLibrary.unpin
-import yos.music.player.data.libraries.SettingsLibrary
-import yos.music.player.data.libraries.SettingsLibrary.EnableDescending
-import yos.music.player.data.libraries.SettingsLibrary.SongSort
-import yos.music.player.data.libraries.YosMediaItem
-import yos.music.player.data.libraries.artistsList
-import yos.music.player.data.libraries.defaultArtists
-import yos.music.player.data.libraries.defaultTitle
-import yos.music.player.data.libraries.lazyListKey
-import yos.music.player.data.objects.LibraryObject
-import yos.music.player.ui.theme.YosRoundedCornerShape
-import yos.music.player.ui.pages.library.playlists.PendingPlayListDeletion
-import yos.music.player.ui.pages.library.playlists.PlayListAutoCover
-import yos.music.player.ui.pages.library.playlists.PlayListEditModal
-import yos.music.player.ui.pages.library.playlists.PlayListSearch
-import yos.music.player.ui.pages.library.playlists.PlayListSortSheet
-import yos.music.player.ui.pages.library.playlists.PlayListSort
-import yos.music.player.ui.pages.library.playlists.PlayListSortPreference
-import yos.music.player.ui.theme.withNight
-import yos.music.player.ui.widgets.basic.SearchTextField
-import yos.music.player.ui.widgets.basic.Title
-import yos.music.player.ui.widgets.basic.TitleBarIcon
-import yos.music.player.ui.widgets.basic.YosWrapper
-import yos.music.player.ui.widgets.basic.BlurredMenuContainer
+import com.lyricsflow.player.R
+import com.lyricsflow.player.code.MediaController
+import com.lyricsflow.player.data.libraries.MusicLibrary.songs
+import com.lyricsflow.player.data.libraries.MusicLibrary.toMediaItem
+import com.lyricsflow.player.data.libraries.PlayList
+import com.lyricsflow.player.data.libraries.PlayListLibrary
+import com.lyricsflow.player.data.libraries.PlayListLibrary.addMusic
+import com.lyricsflow.player.data.libraries.PlayListLibrary.pin
+import com.lyricsflow.player.data.libraries.PlayListLibrary.playList
+import com.lyricsflow.player.data.libraries.PlayListLibrary.unpin
+import com.lyricsflow.player.data.libraries.SettingsLibrary
+import com.lyricsflow.player.data.libraries.SettingsLibrary.EnableDescending
+import com.lyricsflow.player.data.libraries.SettingsLibrary.SongSort
+import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.artistsList
+import com.lyricsflow.player.data.libraries.defaultArtists
+import com.lyricsflow.player.data.libraries.defaultTitle
+import com.lyricsflow.player.data.libraries.lazyListKey
+import com.lyricsflow.player.data.objects.LibraryObject
+import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.pages.library.playlists.PendingPlayListDeletion
+import com.lyricsflow.player.ui.pages.library.playlists.PlayListAutoCover
+import com.lyricsflow.player.ui.pages.library.playlists.PlayListEditModal
+import com.lyricsflow.player.ui.pages.library.playlists.PlayListSearch
+import com.lyricsflow.player.ui.pages.library.playlists.PlayListSortSheet
+import com.lyricsflow.player.ui.pages.library.playlists.PlayListSort
+import com.lyricsflow.player.ui.pages.library.playlists.PlayListSortPreference
+import com.lyricsflow.player.ui.theme.withNight
+import com.lyricsflow.player.ui.widgets.basic.SearchTextField
+import com.lyricsflow.player.ui.widgets.basic.Title
+import com.lyricsflow.player.ui.widgets.basic.TitleBarIcon
+import com.lyricsflow.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.ui.widgets.basic.BlurredMenuContainer
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -404,7 +404,7 @@ fun NormalMusic(navController: NavController) {
                             overflowSheetOpen.value = false
                             scope.launch(Dispatchers.IO) {
                                 val songsInOrder = activePlayList.songDataList.mapNotNull { uri ->
-                                    yos.music.player.data.libraries.MusicLibrary.songs
+                                    com.lyricsflow.player.data.libraries.MusicLibrary.songs
                                         .firstOrNull { it.uri == uri }
                                 }
                                 if (songsInOrder.isEmpty()) return@launch
@@ -1470,7 +1470,7 @@ private fun PlayListHeroArtwork(playList: PlayList) {
     val shape = YosRoundedCornerShape(18.dp)
     val songsInPlaylist = remember(playList.songDataList) {
         playList.songDataList.mapNotNull { uri ->
-            yos.music.player.data.libraries.MusicLibrary.songs.firstOrNull { it.uri == uri }
+            com.lyricsflow.player.data.libraries.MusicLibrary.songs.firstOrNull { it.uri == uri }
         }
     }
 
@@ -1506,7 +1506,7 @@ private fun PlayListHeroArtwork(playList: PlayList) {
             }
 
             else -> {
-                yos.music.player.ui.pages.library.playlists.PlayListAutoCover(
+                com.lyricsflow.player.ui.pages.library.playlists.PlayListAutoCover(
                     songs = songsInPlaylist,
                 )
             }

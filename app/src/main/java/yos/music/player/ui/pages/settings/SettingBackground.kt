@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages.settings
+package com.lyricsflow.player.ui.pages.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box

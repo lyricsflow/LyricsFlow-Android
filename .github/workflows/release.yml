@@ -1,0 +1,55 @@
+name: Build & Auto-Release APK
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Prepare APK for Release
+        id: prep_apk
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/debug -maxdepth 2 -type f \( -name "*.apk" -o -name "*.ApK" \) | head -n 1)
+          cp "$APK_PATH" app/build/outputs/apk/debug/LyricsFlow-Android.apk
+          echo "apk_path=app/build/outputs/apk/debug/LyricsFlow-Android.apk" >> $GITHUB_OUTPUT
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LyricsFlow-Android-APK
+          path: ${{ steps.prep_apk.outputs.apk_path }}
+
+      - name: Create GitHub Release with APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('v1.0.{0}', github.run_number) }}
+          name: LyricsFlow Android (${{ github.ref_type == 'tag' && github.ref_name || format('Build #{0}', github.run_number) }})
+          files: ${{ steps.prep_apk.outputs.apk_path }}
+          generate_release_notes: true
+          make_latest: true

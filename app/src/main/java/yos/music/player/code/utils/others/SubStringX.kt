@@ -1,4 +1,4 @@
-package yos.music.player.code.utils.others
+package com.lyricsflow.player.code.utils.others
 
 fun String.subStringX(beforeString: String?, afterString: String?): String? {
     val startIndex =

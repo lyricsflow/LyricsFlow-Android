@@ -1,4 +1,4 @@
-package yos.music.player.code.utils.player
+package com.lyricsflow.player.code.utils.player
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
@@ -6,7 +6,7 @@ import android.animation.ValueAnimator
 import androidx.compose.runtime.Stable
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaController
-import yos.music.player.data.objects.MediaViewModelObject.isPlaying
+import com.lyricsflow.player.data.objects.MediaViewModelObject.isPlaying
 
 @Stable
 object FadeExo {

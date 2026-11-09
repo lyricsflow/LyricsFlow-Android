@@ -1,4 +1,4 @@
-package yos.music.player.code
+package com.lyricsflow.player.code
 
 import android.os.SystemClock
 import androidx.compose.runtime.Stable
@@ -12,8 +12,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import yos.music.player.code.utils.player.FadeExo.fadePause
-import yos.music.player.data.libraries.SettingsLibrary
+import com.lyricsflow.player.code.utils.player.FadeExo.fadePause
+import com.lyricsflow.player.data.libraries.SettingsLibrary
 
 /**
  * Sleep timer for the Now Playing overflow menu. Singleton; in-memory only

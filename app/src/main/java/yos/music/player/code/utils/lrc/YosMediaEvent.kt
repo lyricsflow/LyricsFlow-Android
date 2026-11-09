@@ -1,4 +1,4 @@
-package yos.music.player.code.utils.lrc
+package com.lyricsflow.player.code.utils.lrc
 
 /**
  * YosLyricView 媒体事件接口

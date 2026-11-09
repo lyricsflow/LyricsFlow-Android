@@ -1,12 +1,14 @@
-package yos.music.player.data.objects
+package com.lyricsflow.player.data.objects
 
 import android.net.Uri
-import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import com.lyricsflow.player.code.utils.lrc.AmlBackgroundLine
+import com.lyricsflow.player.code.utils.lrc.AmlSyllable
 
 @Stable
 object MediaViewModelObject {
@@ -17,7 +19,11 @@ object MediaViewModelObject {
     val lyricLineSubtitles = mutableStateListOf<String?>()
     val isTtmlLyrics = mutableStateOf(false)
 
-    // var mainLyricLines = mutableStateListOf<AnnotatedString>()
+    // Rich AML Lyric Metadata ported from main/js/ttml-parser.js
+    val lyricLineSyllables = mutableStateListOf<List<AmlSyllable>>()
+    val lyricBackgroundLines = mutableStateListOf<AmlBackgroundLine?>()
+    val lyricSongwriters = mutableStateListOf<String>()
+    val lyricSections = mutableStateMapOf<Int, String>()
 
     val bitmap: MutableState<Uri?> = mutableStateOf(null)
 
@@ -31,7 +37,11 @@ object MediaViewModelObject {
         endTimes: List<Float>,
         transliterations: List<String?>,
         subtitles: List<String?>,
-        ttmlLyrics: Boolean
+        ttmlLyrics: Boolean,
+        syllables: List<List<AmlSyllable>> = emptyList(),
+        backgrounds: List<AmlBackgroundLine?> = emptyList(),
+        songwriters: List<String> = emptyList(),
+        sections: Map<Int, String> = emptyMap()
     ) {
         lyricLineEndTimes.clear()
         lyricLineEndTimes.addAll(endTimes)
@@ -40,8 +50,14 @@ object MediaViewModelObject {
         lyricLineSubtitles.clear()
         lyricLineSubtitles.addAll(subtitles)
         isTtmlLyrics.value = ttmlLyrics
-    }
 
-    // val songSort = mutableStateOf(SettingData.getString("yos_player_song_sort", "MUSIC_TITLE"))
-    // val enableDescending = mutableStateOf(SettingData.get("yos_player_enable_descending", false))
+        lyricLineSyllables.clear()
+        lyricLineSyllables.addAll(syllables)
+        lyricBackgroundLines.clear()
+        lyricBackgroundLines.addAll(backgrounds)
+        lyricSongwriters.clear()
+        lyricSongwriters.addAll(songwriters)
+        lyricSections.clear()
+        lyricSections.putAll(sections)
+    }
 }

@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages.settings
+package com.lyricsflow.player.ui.pages.settings
 
 import android.content.Context
 import android.content.Intent
@@ -17,14 +17,14 @@ import androidx.navigation.NavController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import yos.music.player.R
-import yos.music.player.code.MediaController
-import yos.music.player.data.libraries.MusicLibrary
-import yos.music.player.data.libraries.SettingsLibrary
-import yos.music.player.ui.UI
-import yos.music.player.ui.toUI
-import yos.music.player.ui.widgets.basic.RoundColumn
-import yos.music.player.ui.widgets.basic.Title
+import com.lyricsflow.player.R
+import com.lyricsflow.player.code.MediaController
+import com.lyricsflow.player.data.libraries.MusicLibrary
+import com.lyricsflow.player.data.libraries.SettingsLibrary
+import com.lyricsflow.player.ui.UI
+import com.lyricsflow.player.ui.toUI
+import com.lyricsflow.player.ui.widgets.basic.RoundColumn
+import com.lyricsflow.player.ui.widgets.basic.Title
 
 @Composable
 fun Settings(navController: NavController) =

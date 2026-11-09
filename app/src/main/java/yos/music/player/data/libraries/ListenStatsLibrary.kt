@@ -1,4 +1,4 @@
-package yos.music.player.data.libraries
+package com.lyricsflow.player.data.libraries
 
 import androidx.compose.runtime.Stable
 import java.util.Calendar

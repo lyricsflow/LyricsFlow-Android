@@ -1,4 +1,4 @@
-package yos.music.player.ui.theme
+package com.lyricsflow.player.ui.theme
 
 import android.app.Activity
 import android.os.Build
@@ -14,7 +14,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
-import yos.music.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.ui.widgets.basic.YosWrapper
 
 private val DarkColorScheme = darkColorScheme(
     primary = primaryDark,

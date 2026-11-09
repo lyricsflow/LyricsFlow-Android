@@ -1,4 +1,4 @@
-package yos.music.player
+package com.lyricsflow.player
 
 import android.app.Activity
 import android.content.Context
@@ -40,12 +40,12 @@ import com.blankj.utilcode.util.ClipboardUtils
 import com.blankj.utilcode.util.DeviceUtils
 import com.google.accompanist.insets.ProvideWindowInsets
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
-import yos.music.player.code.utils.others.subStringX
-import yos.music.player.ui.theme.YosMusicTheme
-import yos.music.player.ui.theme.YosRoundedCornerShape
-import yos.music.player.ui.theme.isFlamingoInDarkMode
-import yos.music.player.ui.theme.withNight
-import yos.music.player.ui.widgets.basic.Title
+import com.lyricsflow.player.code.utils.others.subStringX
+import com.lyricsflow.player.ui.theme.YosMusicTheme
+import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.theme.isFlamingoInDarkMode
+import com.lyricsflow.player.ui.theme.withNight
+import com.lyricsflow.player.ui.widgets.basic.Title
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date

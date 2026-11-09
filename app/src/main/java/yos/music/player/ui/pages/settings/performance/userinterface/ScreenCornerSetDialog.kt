@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages.settings.performance.userinterface
+package com.lyricsflow.player.ui.pages.settings.performance.userinterface
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -32,13 +32,13 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.SecureFlagPolicy
 import kotlinx.coroutines.launch
-import yos.music.player.R
-import yos.music.player.code.utils.others.Vibrator
-import yos.music.player.data.libraries.SettingsLibrary
-import yos.music.player.ui.theme.YosRoundedCornerShape
-import yos.music.player.ui.theme.withNight
-import yos.music.player.ui.widgets.basic.DialogContent
-import yos.music.player.ui.widgets.basic.OptionDialog
+import com.lyricsflow.player.R
+import com.lyricsflow.player.code.utils.others.Vibrator
+import com.lyricsflow.player.data.libraries.SettingsLibrary
+import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.theme.withNight
+import com.lyricsflow.player.ui.widgets.basic.DialogContent
+import com.lyricsflow.player.ui.widgets.basic.OptionDialog
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)

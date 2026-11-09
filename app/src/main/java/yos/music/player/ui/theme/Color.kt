@@ -1,9 +1,9 @@
-package yos.music.player.ui.theme
+package com.lyricsflow.player.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import yos.music.player.data.libraries.SettingsLibrary
+import com.lyricsflow.player.data.libraries.SettingsLibrary
 
 val primary = Color(0xFFF54047)
 val primaryDark = Color(0xFFE64366)

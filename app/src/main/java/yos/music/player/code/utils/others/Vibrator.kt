@@ -1,6 +1,6 @@
 @file:Suppress("DEPRECATION")
 
-package yos.music.player.code.utils.others
+package com.lyricsflow.player.code.utils.others
 
 import android.content.Context
 import android.os.Build

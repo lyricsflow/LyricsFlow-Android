@@ -1,4 +1,4 @@
-package yos.music.player.code
+package com.lyricsflow.player.code
 
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals

@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages.library
+package com.lyricsflow.player.ui.pages.library
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -7,14 +7,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
-import yos.music.player.R
-import yos.music.player.data.libraries.MusicLibrary.songs
-import yos.music.player.data.objects.LibraryObject
-import yos.music.player.ui.UI
-import yos.music.player.ui.toUI
-import yos.music.player.ui.widgets.basic.ProfileButton
-import yos.music.player.ui.widgets.basic.Title
-import yos.music.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.R
+import com.lyricsflow.player.data.libraries.MusicLibrary.songs
+import com.lyricsflow.player.data.objects.LibraryObject
+import com.lyricsflow.player.ui.UI
+import com.lyricsflow.player.ui.toUI
+import com.lyricsflow.player.ui.widgets.basic.ProfileButton
+import com.lyricsflow.player.ui.widgets.basic.Title
+import com.lyricsflow.player.ui.widgets.basic.YosWrapper
 
 @Composable
 fun Library(navController: NavController) {

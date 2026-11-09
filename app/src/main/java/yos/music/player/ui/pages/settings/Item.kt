@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages.settings
+package com.lyricsflow.player.ui.pages.settings
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
@@ -42,10 +42,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
-import yos.music.player.ui.theme.withNight
-import yos.music.player.R
-import yos.music.player.code.utils.others.Vibrator
-import yos.music.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.ui.theme.withNight
+import com.lyricsflow.player.R
+import com.lyricsflow.player.code.utils.others.Vibrator
+import com.lyricsflow.player.ui.widgets.basic.YosWrapper
 
 
 @Composable

@@ -1,4 +1,4 @@
-package yos.music.player.data.models
+package com.lyricsflow.player.data.models
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable

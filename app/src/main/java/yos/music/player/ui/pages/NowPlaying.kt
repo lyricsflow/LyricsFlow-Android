@@ -1,6 +1,6 @@
 @file:Suppress("DEPRECATION")
 
-package yos.music.player.ui.pages
+package com.lyricsflow.player.ui.pages
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -146,61 +146,61 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import yos.music.player.R
-import yos.music.player.code.MediaController
-import yos.music.player.code.MediaController.mediaControl
-import yos.music.player.code.MediaController.musicPlaying
-import yos.music.player.code.MediaController.playingMusicList
-import yos.music.player.code.MediaController.queueShuffleEnabled
-import yos.music.player.code.SystemMediaControlResolver
-import yos.music.player.code.VolumeChangeReceiver
-import yos.music.player.code.YosPlaybackService
-import yos.music.player.code.utils.lrc.YosMediaEvent
-import yos.music.player.code.utils.lrc.YosUIConfig
-import yos.music.player.code.utils.others.Vibrator
-import yos.music.player.code.utils.player.FadeExo.fadePause
-import yos.music.player.code.utils.player.FadeExo.fadePlay
-import yos.music.player.data.libraries.FavPlayListLibrary
-import yos.music.player.data.libraries.SettingsLibrary
-import yos.music.player.data.libraries.YosMediaItem
-import yos.music.player.data.libraries.artistsList
-import yos.music.player.data.libraries.artistsName
-import yos.music.player.data.libraries.defaultArtistsName
-import yos.music.player.data.libraries.defaultTitle
-import yos.music.player.data.models.MainViewModel
-import yos.music.player.data.models.MediaViewModel
-import yos.music.player.data.objects.MediaViewModelObject
-import yos.music.player.data.objects.LibraryObject
-import yos.music.player.ui.pages.NowPlayingPage.Album
-import yos.music.player.ui.pages.NowPlayingPage.Lyric
-import yos.music.player.ui.pages.NowPlayingPage.PlayingList
-import yos.music.player.ui.theme.YosRoundedCornerShape
-import yos.music.player.ui.UI
-import yos.music.player.ui.markNextNavigationFromNowPlaying
-import yos.music.player.ui.toUI
-import yos.music.player.ui.widgets.YosLyricView
-import yos.music.player.ui.widgets.effects.YosFloatingLight
-import yos.music.player.ui.widgets.audio.MusicQualityIndicator
+import com.lyricsflow.player.R
+import com.lyricsflow.player.code.MediaController
+import com.lyricsflow.player.code.MediaController.mediaControl
+import com.lyricsflow.player.code.MediaController.musicPlaying
+import com.lyricsflow.player.code.MediaController.playingMusicList
+import com.lyricsflow.player.code.MediaController.queueShuffleEnabled
+import com.lyricsflow.player.code.SystemMediaControlResolver
+import com.lyricsflow.player.code.VolumeChangeReceiver
+import com.lyricsflow.player.code.YosPlaybackService
+import com.lyricsflow.player.code.utils.lrc.YosMediaEvent
+import com.lyricsflow.player.code.utils.lrc.YosUIConfig
+import com.lyricsflow.player.code.utils.others.Vibrator
+import com.lyricsflow.player.code.utils.player.FadeExo.fadePause
+import com.lyricsflow.player.code.utils.player.FadeExo.fadePlay
+import com.lyricsflow.player.data.libraries.FavPlayListLibrary
+import com.lyricsflow.player.data.libraries.SettingsLibrary
+import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.artistsList
+import com.lyricsflow.player.data.libraries.artistsName
+import com.lyricsflow.player.data.libraries.defaultArtistsName
+import com.lyricsflow.player.data.libraries.defaultTitle
+import com.lyricsflow.player.data.models.MainViewModel
+import com.lyricsflow.player.data.models.MediaViewModel
+import com.lyricsflow.player.data.objects.MediaViewModelObject
+import com.lyricsflow.player.data.objects.LibraryObject
+import com.lyricsflow.player.ui.pages.NowPlayingPage.Album
+import com.lyricsflow.player.ui.pages.NowPlayingPage.Lyric
+import com.lyricsflow.player.ui.pages.NowPlayingPage.PlayingList
+import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.UI
+import com.lyricsflow.player.ui.markNextNavigationFromNowPlaying
+import com.lyricsflow.player.ui.toUI
+import com.lyricsflow.player.ui.widgets.YosLyricView
+import com.lyricsflow.player.ui.widgets.effects.YosFloatingLight
+import com.lyricsflow.player.ui.widgets.audio.MusicQualityIndicator
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import yos.music.player.ui.widgets.basic.ActionItem
-import yos.music.player.ui.widgets.basic.SheetAnimatedContent
-import yos.music.player.ui.widgets.basic.SheetNavigationBackward
-import yos.music.player.ui.widgets.basic.SheetNavigationForward
-import yos.music.player.ui.widgets.basic.ActionSheetBody
-import yos.music.player.ui.widgets.basic.AnimatedAlbumCoverState
-import yos.music.player.ui.widgets.basic.AnimatedAlbumCoverOverlay
-import yos.music.player.ui.widgets.basic.ImageQuality
-import yos.music.player.ui.widgets.basic.YosBottomSheetDialog
-import yos.music.player.ui.widgets.basic.rememberAnimatedAlbumCoverState
-import yos.music.player.ui.widgets.playlist.PlayListPickerContent
-import yos.music.player.ui.widgets.sleeptimer.SleepTimerContent
-import yos.music.player.code.SleepTimer
-import yos.music.player.code.SleepTimerState
-import yos.music.player.ui.widgets.basic.ShadowImageWithCache
-import yos.music.player.ui.widgets.basic.YosWrapper
-import yos.music.player.ui.widgets.effects.ShadowType
-import yos.music.player.ui.widgets.effects.overlayEffect
+import com.lyricsflow.player.ui.widgets.basic.ActionItem
+import com.lyricsflow.player.ui.widgets.basic.SheetAnimatedContent
+import com.lyricsflow.player.ui.widgets.basic.SheetNavigationBackward
+import com.lyricsflow.player.ui.widgets.basic.SheetNavigationForward
+import com.lyricsflow.player.ui.widgets.basic.ActionSheetBody
+import com.lyricsflow.player.ui.widgets.basic.AnimatedAlbumCoverState
+import com.lyricsflow.player.ui.widgets.basic.AnimatedAlbumCoverOverlay
+import com.lyricsflow.player.ui.widgets.basic.ImageQuality
+import com.lyricsflow.player.ui.widgets.basic.YosBottomSheetDialog
+import com.lyricsflow.player.ui.widgets.basic.rememberAnimatedAlbumCoverState
+import com.lyricsflow.player.ui.widgets.playlist.PlayListPickerContent
+import com.lyricsflow.player.ui.widgets.sleeptimer.SleepTimerContent
+import com.lyricsflow.player.code.SleepTimer
+import com.lyricsflow.player.code.SleepTimerState
+import com.lyricsflow.player.ui.widgets.basic.ShadowImageWithCache
+import com.lyricsflow.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.ui.widgets.effects.ShadowType
+import com.lyricsflow.player.ui.widgets.effects.overlayEffect
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -379,6 +379,17 @@ fun NowPlaying(
                 nowPage = { nowPageLambda() },
                 showMiniPlayer = showMiniPlayer
             )
+
+            // Apple Music Full-Bleed Animated Cover Art with smooth bottom fade
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                com.lyricsflow.player.ui.widgets.basic.FullBleedAnimatedAlbumCover(
+                    state = animatedAlbumCoverState,
+                    visible = nowPageLambda() == Album
+                )
+            }
         }
 
 
@@ -849,6 +860,12 @@ private fun ColumnScope.Album(
         visibilityThreshold = 0.001f
     )
 
+    val staticCoverAlpha = animateFloatAsState(
+        targetValue = if (animatedAlbumCoverState.videoPrepared) 0f else 1f,
+        animationSpec = tween(durationMillis = 360, easing = EaseOutQuart),
+        label = "StaticCoverFadeOut"
+    )
+
     YosWrapper {
         val dp = (7 + (27 * scale.value)).dp
         ShadowImageWithCache(
@@ -856,16 +873,14 @@ private fun ColumnScope.Album(
                 .fillMaxWidth()
                 .graphicsLayer {
                     compositingStrategy = CompositingStrategy.ModulateAlpha
+                    alpha = staticCoverAlpha.value
                     // scaleX = scale.value
                     // scaleY = scale.value
                 }
                 .padding(start = dp, end = dp, bottom = dp)
                 .then(modifier),
             imageQuality = ImageQuality.RAW,
-            shadowOverlay = true,
-            overlayContent = {
-                AnimatedAlbumCoverOverlay(animatedAlbumCoverState)
-            }
+            shadowOverlay = true
         )
     }
 }
@@ -1979,6 +1994,8 @@ private enum class OverflowLibraryTarget(val route: String)
 {
     Artist(UI.ArtistInfo),
     Album(UI.AlbumInfo),
+    OnlineArtist(UI.OnlineArtistInfo),
+    OnlineAlbum(UI.OnlineAlbumInfo),
 }
 
 @Composable
@@ -2114,11 +2131,21 @@ private fun NowPlayingOverflowHeader(
                             ?.item
                             ?: return@ClickableText
 
-                        LibraryObject.setTargetArtistName(artistName)
-                        LibraryObject.setArtistSongsSearchOnOpen(false)
-                        navController.markNextNavigationFromNowPlaying()
+                        val isOnlineTrack = song.uri?.scheme == "http" || song.uri?.scheme == "https"
                         onDismiss()
-                        onOpenLibraryTarget(OverflowLibraryTarget.Artist)
+                        if (isOnlineTrack) {
+                            LibraryObject.openOnlineArtist(
+                                artistId = song.artistId?.toString() ?: artistName,
+                                name = artistName,
+                                artworkUrl = song.thumb?.toString().orEmpty()
+                            )
+                            onOpenLibraryTarget(OverflowLibraryTarget.OnlineArtist)
+                        } else {
+                            LibraryObject.setTargetArtistName(artistName)
+                            LibraryObject.setArtistSongsSearchOnOpen(false)
+                            navController.markNextNavigationFromNowPlaying()
+                            onOpenLibraryTarget(OverflowLibraryTarget.Artist)
+                        }
                     },
                 )
             } else if (!song.artists.isNullOrBlank()) {
@@ -2145,10 +2172,21 @@ private fun NowPlayingOverflowHeader(
                             interactionSource = remember { MutableInteractionSource() },
                         ) {
                             val albumName = targetAlbumName ?: return@clickable
-                            LibraryObject.setTargetAlbumName(albumName)
-                            navController.markNextNavigationFromNowPlaying()
+                            val isOnlineTrack = song.uri?.scheme == "http" || song.uri?.scheme == "https"
                             onDismiss()
-                            onOpenLibraryTarget(OverflowLibraryTarget.Album)
+                            if (isOnlineTrack && (song.albumId ?: 0L) > 0L) {
+                                LibraryObject.openOnlineAlbum(
+                                    albumId = song.albumId.toString(),
+                                    title = albumName,
+                                    artist = song.artists.orEmpty(),
+                                    artworkUrl = song.thumb?.toString().orEmpty()
+                                )
+                                onOpenLibraryTarget(OverflowLibraryTarget.OnlineAlbum)
+                            } else {
+                                LibraryObject.setTargetAlbumName(albumName)
+                                navController.markNextNavigationFromNowPlaying()
+                                onOpenLibraryTarget(OverflowLibraryTarget.Album)
+                            }
                         },
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -2233,12 +2271,12 @@ fun RowScope.AirPlay() {
         DisposableEffect(Unit) {
             val filter = IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED).apply {
                 addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
-                addAction("yos.music.player.BLUETOOTH_STATUS_REFRESH")
+                addAction("com.lyricsflow.player.BLUETOOTH_STATUS_REFRESH")
             }
             val receiver = object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
                     val action = intent?.action
-                    if (action == BluetoothDevice.ACTION_ACL_CONNECTED || action == BluetoothDevice.ACTION_ACL_DISCONNECTED || action == "yos.music.player.BLUETOOTH_STATUS_REFRESH") {
+                    if (action == BluetoothDevice.ACTION_ACL_CONNECTED || action == BluetoothDevice.ACTION_ACL_DISCONNECTED || action == "com.lyricsflow.player.BLUETOOTH_STATUS_REFRESH") {
                         if (ActivityCompat.checkSelfPermission(
                                 contextCompose,
                                 Manifest.permission.BLUETOOTH_CONNECT

@@ -1,8 +1,8 @@
-package yos.music.player.code.utils.others
+package com.lyricsflow.player.code.utils.others
 
 import android.graphics.Bitmap
 import androidx.compose.runtime.Stable
-import yos.music.player.data.libraries.SettingsLibrary.NowplayingBackgroundEffect
+import com.lyricsflow.player.data.libraries.SettingsLibrary.NowplayingBackgroundEffect
 
 @Stable
 object BitmapResolver {

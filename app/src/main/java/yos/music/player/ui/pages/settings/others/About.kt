@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages.settings.others
+package com.lyricsflow.player.ui.pages.settings.others
 
 import android.util.Base64
 import androidx.compose.foundation.layout.Column
@@ -11,15 +11,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
 import com.blankj.utilcode.util.AppUtils
-import yos.music.player.R
-import yos.music.player.ui.pages.settings.DefaultItem
-import yos.music.player.ui.pages.settings.GroupSpacer
-import yos.music.player.ui.pages.settings.LabelItem
-import yos.music.player.ui.pages.settings.ListHeader
-import yos.music.player.ui.pages.settings.SettingBackground
-import yos.music.player.ui.pages.settings.startWeb
-import yos.music.player.ui.widgets.basic.RoundColumn
-import yos.music.player.ui.widgets.basic.Title
+import com.lyricsflow.player.R
+import com.lyricsflow.player.ui.pages.settings.DefaultItem
+import com.lyricsflow.player.ui.pages.settings.GroupSpacer
+import com.lyricsflow.player.ui.pages.settings.LabelItem
+import com.lyricsflow.player.ui.pages.settings.ListHeader
+import com.lyricsflow.player.ui.pages.settings.SettingBackground
+import com.lyricsflow.player.ui.pages.settings.startWeb
+import com.lyricsflow.player.ui.widgets.basic.RoundColumn
+import com.lyricsflow.player.ui.widgets.basic.Title
 
 @Composable
 fun About(navController: NavController) =

@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages.settings.performance.userinterface
+package com.lyricsflow.player.ui.pages.settings.performance.userinterface
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,13 +20,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import yos.music.player.R
-import yos.music.player.data.libraries.SettingsLibrary
-import yos.music.player.ui.pages.settings.ListHeader
-import yos.music.player.ui.pages.settings.SettingBackground
-import yos.music.player.ui.theme.withNight
-import yos.music.player.ui.widgets.basic.RoundColumn
-import yos.music.player.ui.widgets.basic.Title
+import com.lyricsflow.player.R
+import com.lyricsflow.player.data.libraries.SettingsLibrary
+import com.lyricsflow.player.ui.pages.settings.ListHeader
+import com.lyricsflow.player.ui.pages.settings.SettingBackground
+import com.lyricsflow.player.ui.theme.withNight
+import com.lyricsflow.player.ui.widgets.basic.RoundColumn
+import com.lyricsflow.player.ui.widgets.basic.Title
 
 @Composable
 fun AnimatedAlbumCoverBlacklistSetting(navController: NavController)

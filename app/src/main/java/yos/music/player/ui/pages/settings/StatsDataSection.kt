@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages.settings
+package com.lyricsflow.player.ui.pages.settings
 
 import android.net.Uri
 import android.widget.Toast
@@ -27,10 +27,10 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import yos.music.player.R
-import yos.music.player.code.ListenStatsManager
-import yos.music.player.ui.widgets.basic.RoundColumn
-import yos.music.player.ui.widgets.basic.YosBottomSheetDialog
+import com.lyricsflow.player.R
+import com.lyricsflow.player.code.ListenStatsManager
+import com.lyricsflow.player.ui.widgets.basic.RoundColumn
+import com.lyricsflow.player.ui.widgets.basic.YosBottomSheetDialog
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

@@ -1,10 +1,10 @@
-package yos.music.player.data.objects
+package com.lyricsflow.player.data.objects
 
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableStateOf
-import yos.music.player.data.libraries.Folder
-import yos.music.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.Folder
+import com.lyricsflow.player.data.libraries.YosMediaItem
 
 @Stable
 object LibraryObject {
@@ -49,7 +49,7 @@ object LibraryObject {
 
     /**
      * Identifier of the playlist whose contents are being shown in
-     * [yos.music.player.ui.pages.library.NormalMusic], or null if the
+     * [com.lyricsflow.player.ui.pages.library.NormalMusic], or null if the
      * page is showing some other list (Songs, Album, Artist, Folder).
      *
      * Set this alongside [setTargetListWithTitle] when navigating from
@@ -67,5 +67,60 @@ object LibraryObject {
     }
     fun getTargetListWithTitle(): Pair<String, List<YosMediaItem>> {
         return Pair(targetListTitle.value, targetList.value)
+    }
+
+    @Stable
+    val targetOnlineAlbumId = mutableStateOf("")
+    @Stable
+    val targetOnlineAlbumTitle = mutableStateOf("")
+    @Stable
+    val targetOnlineAlbumArtist = mutableStateOf("")
+    @Stable
+    val targetOnlineAlbumArtwork = mutableStateOf("")
+
+    fun openOnlineAlbum(
+        albumId: String,
+        title: String = "",
+        artist: String = "",
+        artworkUrl: String = ""
+    ) {
+        targetOnlineAlbumId.value = albumId
+        targetOnlineAlbumTitle.value = title
+        targetOnlineAlbumArtist.value = artist
+        targetOnlineAlbumArtwork.value = artworkUrl
+    }
+
+    @Stable
+    val targetOnlineArtistId = mutableStateOf("")
+    @Stable
+    val targetOnlineArtistName = mutableStateOf("")
+    @Stable
+    val targetOnlineArtistArtwork = mutableStateOf("")
+
+    fun openOnlineArtist(
+        artistId: String,
+        name: String = "",
+        artworkUrl: String = ""
+    ) {
+        targetOnlineArtistId.value = artistId
+        targetOnlineArtistName.value = name
+        targetOnlineArtistArtwork.value = artworkUrl
+    }
+
+    @Stable
+    val targetOnlinePlaylistId = mutableStateOf("")
+    @Stable
+    val targetOnlinePlaylistName = mutableStateOf("")
+    @Stable
+    val targetOnlinePlaylistArtwork = mutableStateOf("")
+
+    fun openOnlinePlaylist(
+        playlistId: String,
+        name: String = "",
+        artworkUrl: String = ""
+    ) {
+        targetOnlinePlaylistId.value = playlistId
+        targetOnlinePlaylistName.value = name
+        targetOnlinePlaylistArtwork.value = artworkUrl
     }
 }

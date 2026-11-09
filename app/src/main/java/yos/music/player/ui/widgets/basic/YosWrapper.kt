@@ -1,4 +1,4 @@
-package yos.music.player.ui.widgets.basic
+package com.lyricsflow.player.ui.widgets.basic
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.NonRestartableComposable

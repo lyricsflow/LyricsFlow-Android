@@ -1,4 +1,4 @@
-package yos.music.player.ui.theme
+package com.lyricsflow.player.ui.theme
 
 import android.content.Context
 import androidx.compose.foundation.shape.RoundedCornerShape

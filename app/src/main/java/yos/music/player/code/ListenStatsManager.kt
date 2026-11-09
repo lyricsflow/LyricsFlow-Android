@@ -1,4 +1,4 @@
-package yos.music.player.code
+package com.lyricsflow.player.code
 
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableIntStateOf
@@ -11,11 +11,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.EnumMap
-import yos.music.player.data.libraries.ListenStatsEvent
-import yos.music.player.data.libraries.ListenStatsLibrary
-import yos.music.player.data.libraries.StatsLibraryIndex
-import yos.music.player.data.libraries.StatsPeriod
-import yos.music.player.data.libraries.StatsPeriodSnapshot
+import com.lyricsflow.player.data.libraries.ListenStatsEvent
+import com.lyricsflow.player.data.libraries.ListenStatsLibrary
+import com.lyricsflow.player.data.libraries.StatsLibraryIndex
+import com.lyricsflow.player.data.libraries.StatsPeriod
+import com.lyricsflow.player.data.libraries.StatsPeriodSnapshot
 
 @Stable
 object ListenStatsManager

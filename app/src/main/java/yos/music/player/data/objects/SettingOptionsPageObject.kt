@@ -1,7 +1,7 @@
-package yos.music.player.data.objects
+package com.lyricsflow.player.data.objects
 
-import yos.music.player.data.SettingOption
-import yos.music.player.data.libraries.SettingsLibrary
+import com.lyricsflow.player.data.SettingOption
+import com.lyricsflow.player.data.libraries.SettingsLibrary
 
 object SettingOptionsPageObject {
     var title:String = ""

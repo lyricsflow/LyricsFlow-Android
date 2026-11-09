@@ -1,4 +1,4 @@
-package yos.music.player.ui.pages
+package com.lyricsflow.player.ui.pages
 
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -47,26 +47,26 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.rememberCoroutineScope
-import yos.music.player.R
-import yos.music.player.code.ListenStatsManager
-import yos.music.player.code.MediaController
-import yos.music.player.data.libraries.SettingsLibrary
-import yos.music.player.data.libraries.StatsAlbumEntry
-import yos.music.player.data.libraries.StatsArtistEntry
-import yos.music.player.data.libraries.StatsPeriod
-import yos.music.player.data.libraries.StatsPeriodSnapshot
-import yos.music.player.data.libraries.StatsTrackEntry
-import yos.music.player.data.libraries.ListenStatsLibrary
-import yos.music.player.data.objects.LibraryObject
-import yos.music.player.ui.UI
-import yos.music.player.ui.toUI
-import yos.music.player.ui.widgets.basic.ImageQuality
-import yos.music.player.ui.widgets.basic.ProfileButton
-import yos.music.player.ui.widgets.basic.RollingNumberText
-import yos.music.player.ui.widgets.basic.ShadowImageWithCache
-import yos.music.player.ui.widgets.basic.Title
-import yos.music.player.ui.theme.YosRoundedCornerShape
-import yos.music.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.R
+import com.lyricsflow.player.code.ListenStatsManager
+import com.lyricsflow.player.code.MediaController
+import com.lyricsflow.player.data.libraries.SettingsLibrary
+import com.lyricsflow.player.data.libraries.StatsAlbumEntry
+import com.lyricsflow.player.data.libraries.StatsArtistEntry
+import com.lyricsflow.player.data.libraries.StatsPeriod
+import com.lyricsflow.player.data.libraries.StatsPeriodSnapshot
+import com.lyricsflow.player.data.libraries.StatsTrackEntry
+import com.lyricsflow.player.data.libraries.ListenStatsLibrary
+import com.lyricsflow.player.data.objects.LibraryObject
+import com.lyricsflow.player.ui.UI
+import com.lyricsflow.player.ui.toUI
+import com.lyricsflow.player.ui.widgets.basic.ImageQuality
+import com.lyricsflow.player.ui.widgets.basic.ProfileButton
+import com.lyricsflow.player.ui.widgets.basic.RollingNumberText
+import com.lyricsflow.player.ui.widgets.basic.ShadowImageWithCache
+import com.lyricsflow.player.ui.widgets.basic.Title
+import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.widgets.basic.YosWrapper
 
 private const val STATS_ROW_MAX_ITEMS = 10
 private const val STATS_LIVE_REFRESH_MS = 60_000L

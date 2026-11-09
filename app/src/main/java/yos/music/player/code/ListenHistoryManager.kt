@@ -1,4 +1,4 @@
-package yos.music.player.code
+package com.lyricsflow.player.code
 
 import android.net.Uri
 import androidx.compose.runtime.Stable
@@ -8,9 +8,9 @@ import com.google.gson.reflect.TypeToken
 import com.tencent.mmkv.MMKV
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import yos.music.player.UriTypeAdapter
-import yos.music.player.data.libraries.SettingsLibrary
-import yos.music.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.UriTypeAdapter
+import com.lyricsflow.player.data.libraries.SettingsLibrary
+import com.lyricsflow.player.data.libraries.YosMediaItem
 
 @Stable
 object ListenHistoryManager

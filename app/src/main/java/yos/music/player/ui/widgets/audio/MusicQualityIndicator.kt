@@ -1,4 +1,4 @@
-package yos.music.player.ui.widgets.audio
+package com.lyricsflow.player.ui.widgets.audio
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -29,12 +29,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import yos.music.player.R
-import yos.music.player.code.MediaController.musicPlaying
-import yos.music.player.data.objects.MediaViewModelObject
-import yos.music.player.ui.theme.YosRoundedCornerShape
-import yos.music.player.ui.widgets.basic.YosWrapper
-import yos.music.player.ui.widgets.effects.overlayEffect
+import com.lyricsflow.player.R
+import com.lyricsflow.player.code.MediaController.musicPlaying
+import com.lyricsflow.player.data.objects.MediaViewModelObject
+import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.ui.widgets.effects.overlayEffect
 
 @Composable
 fun MusicQualityIndicator() {

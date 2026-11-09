@@ -1,4 +1,4 @@
-package yos.music.player
+package com.lyricsflow.player
 
 import android.app.Application
 import android.net.Uri
@@ -8,10 +8,10 @@ import com.google.gson.TypeAdapter
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonWriter
 import com.tencent.mmkv.MMKV
-import yos.music.player.data.libraries.Folder
-import yos.music.player.data.libraries.PlayList
-import yos.music.player.data.libraries.YosMediaItem
-import yos.music.player.data.libraries.YosStringWrapper
+import com.lyricsflow.player.data.libraries.Folder
+import com.lyricsflow.player.data.libraries.PlayList
+import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.YosStringWrapper
 import kotlin.system.exitProcess
 
 class YosBasicApplication : Application() {

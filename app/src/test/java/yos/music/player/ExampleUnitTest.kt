@@ -1,4 +1,4 @@
-package yos.music.player
+package com.lyricsflow.player
 
 import org.junit.Test
 
