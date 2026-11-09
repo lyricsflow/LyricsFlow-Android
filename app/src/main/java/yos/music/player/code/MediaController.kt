@@ -452,6 +452,8 @@ object MediaController {
         }
 
         withContext(Dispatchers.Main) {
+            MediaViewModelObject.isBuffering.value = play
+            MediaViewModelObject.isLoadingLyrics.value = true
             mediaControl?.setMediaItems(
                 orderedQueue.map { it.toMediaItem() },
                 currentQueueIndex,
@@ -1305,6 +1307,86 @@ class YosPlaybackService : MediaSessionService() {
 
     private var listenHistoryTracker: ListenHistoryTracker? = null
     private var listenStatsTracker: ListenStatsTracker? = null
+    private var lyricFetchJob: Job? = null
+    private var lastFetchedLyricKey: String? = null
+
+    private fun triggerLyricsLoadForMediaItem(player: Player, mediaItem: MediaItem?, forceRefresh: Boolean = false) {
+        val targetItem = mediaItem ?: player.currentMediaItem ?: return
+        val itemKey = "${targetItem.mediaId}|${targetItem.uri}"
+        if (!forceRefresh && itemKey == lastFetchedLyricKey && MediaViewModelObject.lrcEntries.value.isNotEmpty()) {
+            return
+        }
+        lastFetchedLyricKey = itemKey
+
+        val path = targetItem.uri
+        val thisPath = AudioMetadataUtils.resolveLocalAudioFilePath(
+            this@YosPlaybackService,
+            path
+        ) ?: path?.path
+
+        val currentMediaIdSnapshot = targetItem.mediaId
+        val customPaired = com.lyricsflow.player.code.MediaController.customUploadedLyricsForMediaId
+        if (customPaired != null && customPaired.first == currentMediaIdSnapshot) {
+            LyricsFlowApi.parseRawLyricText(customPaired.second)?.let { customParsed ->
+                MediaViewModelObject.isLoadingLyrics.value = false
+                applyParsedLyrics(customParsed)
+                return
+            }
+        }
+
+        val parsedLyrics = if (path?.scheme == "http" || path?.scheme == "https") {
+            emptyParsedLyrics()
+        } else {
+            loadParsedLyrics(thisPath)
+        }
+        applyParsedLyrics(parsedLyrics)
+
+        val needsOnlineFetch = parsedLyrics.entries.isEmpty() ||
+            (!parsedLyrics.isTtml && parsedLyrics.entries.all { it.size <= 1 })
+
+        if (!needsOnlineFetch) {
+            MediaViewModelObject.isLoadingLyrics.value = false
+            return
+        }
+
+        val currentYosItem = targetItem.toYosMediaItem()
+        val currentDurationMs = player.duration.coerceAtLeast(currentYosItem.duration).coerceAtLeast(0L)
+        if (parsedLyrics.entries.isEmpty()) {
+            MediaViewModelObject.isLoadingLyrics.value = true
+        }
+
+        lyricFetchJob?.cancel()
+        lyricFetchJob = CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val onlineLyrics = LyricsFlowApi.fetchAndParseLyrics(
+                    context = this@YosPlaybackService,
+                    music = currentYosItem,
+                    durationMs = currentDurationMs
+                )
+                withContext(Dispatchers.Main) {
+                    if (player.currentMediaItem?.mediaId == currentMediaIdSnapshot) {
+                        if (onlineLyrics != null && onlineLyrics.entries.isNotEmpty()) {
+                            val shouldUpgrade = parsedLyrics.entries.isEmpty() || onlineLyrics.isTtml
+                            if (shouldUpgrade) {
+                                applyParsedLyrics(onlineLyrics)
+                                Log.d(
+                                    "FlamingoLyrics",
+                                    "Applied online LyricsFlow lyrics entries=${onlineLyrics.entries.size} isTtml=${onlineLyrics.isTtml}"
+                                )
+                            }
+                        }
+                        MediaViewModelObject.isLoadingLyrics.value = false
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    if (player.currentMediaItem?.mediaId == currentMediaIdSnapshot) {
+                        MediaViewModelObject.isLoadingLyrics.value = false
+                    }
+                }
+            }
+        }
+    }
 
     @OptIn(UnstableApi::class)
     override fun onCreate() {
@@ -1392,54 +1474,9 @@ class YosPlaybackService : MediaSessionService() {
                             "Track changed uri=$path resolvedPath=$thisPath mediaId=${player.currentMediaItem?.mediaId}"
                         )
 
-                        val parsedLyrics = loadParsedLyrics(thisPath)
-                        applyParsedLyrics(parsedLyrics)
-                        Log.d(
-                            "FlamingoLyrics",
-                            "Loaded lyrics parsedEntries=${parsedLyrics.entries.size} isTtml=${parsedLyrics.isTtml} otherSideCount=${MediaViewModelObject.otherSideForLines.size}"
-                        )
+                        triggerLyricsLoadForMediaItem(player, player.currentMediaItem, forceRefresh = false)
 
-                        val currentMediaItemSnapshot = player.currentMediaItem
-                        val currentMediaIdSnapshot = currentMediaItemSnapshot?.mediaId
-                        val currentYosItem = currentMediaItemSnapshot?.toYosMediaItem()
-                        val currentDurationMs = player.duration.coerceAtLeast(0L)
-
-                        val customPaired = com.lyricsflow.player.code.MediaController.customUploadedLyricsForMediaId
-                        if (customPaired != null && customPaired.first == currentMediaIdSnapshot) {
-                            LyricsFlowApi.parseRawLyricText(customPaired.second)?.let { customParsed ->
-                                applyParsedLyrics(customParsed)
-                                return@runCatching
-                            }
-                        }
-
-                        val needsOnlineFetch = parsedLyrics.entries.isEmpty() ||
-                            (!parsedLyrics.isTtml && parsedLyrics.entries.all { it.size <= 1 })
-
-                        if (needsOnlineFetch && currentYosItem != null) {
-                            CoroutineScope(Dispatchers.IO).launch {
-                                val onlineLyrics = LyricsFlowApi.fetchAndParseLyrics(
-                                    context = this@YosPlaybackService,
-                                    music = currentYosItem,
-                                    durationMs = currentDurationMs
-                                )
-                                if (onlineLyrics != null && onlineLyrics.entries.isNotEmpty()) {
-                                    val shouldUpgrade = parsedLyrics.entries.isEmpty() || onlineLyrics.isTtml
-                                    if (shouldUpgrade) {
-                                        withContext(Dispatchers.Main) {
-                                            if (player.currentMediaItem?.mediaId == currentMediaIdSnapshot) {
-                                                applyParsedLyrics(onlineLyrics)
-                                                Log.d(
-                                                    "FlamingoLyrics",
-                                                    "Applied online LyricsFlow lyrics entries=${onlineLyrics.entries.size} isTtml=${onlineLyrics.isTtml}"
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        if (thisPath != null) {
+                        if (thisPath != null && path?.scheme != "http" && path?.scheme != "https") {
                             // MediaViewModelObject.isDolby.value = thisPath.endsWith(".m4a")
                             // 改为 JOC 判断
 
@@ -1475,6 +1512,7 @@ class YosPlaybackService : MediaSessionService() {
                         com.lyricsflow.player.code.MediaController.onCase(
                             it.toYosMediaItem()
                         )
+                        triggerLyricsLoadForMediaItem(player, it, forceRefresh = true)
                     }
 
                     runCatching {
@@ -1490,6 +1528,40 @@ class YosPlaybackService : MediaSessionService() {
                     }
 
                     super.onMediaItemTransition(mediaItem, reason)
+                }
+
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    super.onPlaybackStateChanged(playbackState)
+                    MediaViewModelObject.isBuffering.value = (playbackState == Player.STATE_BUFFERING)
+                }
+
+                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                    super.onPlayerError(error)
+                    val currentItem = player.currentMediaItem ?: return
+                    val currentIndex = player.currentMediaItemIndex
+                    val currentUri = currentItem.uri?.toString().orEmpty()
+                    val songId = currentItem.mediaId
+                    if (currentUri.startsWith("http")) {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            val fallbackUrl = LyricsFlowApi.resolveFallbackStreamUrl(songId, currentUri)
+                            withContext(Dispatchers.Main) {
+                                if (fallbackUrl != null && player.currentMediaItem?.mediaId == songId) {
+                                    Log.w("FlamingoStream", "Stream failed ($currentUri), falling back to: $fallbackUrl")
+                                    val updatedYos = currentItem.toYosMediaItem().copy(
+                                        uri = android.net.Uri.parse(fallbackUrl),
+                                        mimeType = null
+                                    )
+                                    player.replaceMediaItem(currentIndex, updatedYos.toMediaItem())
+                                    player.prepare()
+                                    player.play()
+                                } else {
+                                    MediaViewModelObject.isBuffering.value = false
+                                }
+                            }
+                        }
+                    } else {
+                        MediaViewModelObject.isBuffering.value = false
+                    }
                 }
 
                 /*override fun onIsPlayingChanged(isPlaying: Boolean) {

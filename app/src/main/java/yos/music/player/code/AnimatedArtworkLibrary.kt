@@ -5,6 +5,8 @@ import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMuxer
+import android.net.Uri
+import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -52,6 +54,171 @@ object AnimatedArtworkLibrary
         val pixelCount: Int,
         val bandwidth: Long
     )
+
+    private val resolvedUriMemoryCache = ConcurrentHashMap<String, String>()
+
+    /**
+     * Resolves an animated cover art [Uri] (`file://` or `https://` HLS `.m3u8` / `.mp4`)
+     * ported from `main/js/animated-art.js`.
+     */
+    suspend fun resolveArtworkUri(context: Context, music: YosMediaItem): Uri? = withContext(Dispatchers.IO) {
+        if (!SettingsLibrary.AnimatedAlbumCovers) return@withContext null
+
+        val albumName = music.album?.trim().orEmpty()
+        if (albumName.isNotEmpty()) {
+            localArtworkFile(music)?.takeIf { it.isFile && it.length() > 1024L }?.let {
+                return@withContext Uri.fromFile(it)
+            }
+            val cachedFile = cachedArtworkFile(context, music, albumName)
+            if (cachedFile.isFile && cachedFile.length() > 1024L) {
+                return@withContext Uri.fromFile(cachedFile)
+            }
+        }
+
+        if (!SettingsLibrary.AnimatedAlbumCoversUseApi) return@withContext null
+        if (albumName.isNotEmpty() && SettingsLibrary.isAnimatedAlbumCoverBlacklisted(albumName)) {
+            return@withContext null
+        }
+
+        val artistName = music.albumArtists?.trim()?.takeIf { it.isNotEmpty() }
+            ?: music.artistsName?.trim().orEmpty()
+        val trackTitle = music.title?.trim().orEmpty()
+        val amTrackId = music.mediaId?.trim()?.takeIf { it.all { ch -> ch.isDigit() } && it.length >= 6 }
+        val explicitAlbumId = music.albumId?.takeIf { it > 0L }?.toString()
+
+        val cacheKey = "${amTrackId.orEmpty()}|${explicitAlbumId.orEmpty()}|${artistName.lowercase(Locale.ROOT)}|${albumName.lowercase(Locale.ROOT)}|${trackTitle.lowercase(Locale.ROOT)}"
+        resolvedUriMemoryCache[cacheKey]?.let { cachedUrl ->
+            return@withContext if (cachedUrl.isEmpty()) null else Uri.parse(cachedUrl)
+        }
+
+        // 1. Resolve Album ID from explicit albumId, amTrackId lookup on iTunes, or catalog search
+        val resolvedAlbumId = explicitAlbumId
+            ?: amTrackId?.let { lookupCollectionIdBySongId(it) }
+            ?: resolveAlbumId(artistName, albumName, trackTitle)
+
+        // 2. Check LyricsFlow Community direct MP4 covers (/v1/covers/animated/{id})
+        for (candidateId in listOfNotNull(resolvedAlbumId, amTrackId).distinct()) {
+            val communityUrl = "$LyricsFlowApiBase/v1/covers/animated/$candidateId"
+            if (probeDirectVideoUrl(communityUrl)) {
+                resolvedUriMemoryCache[cacheKey] = communityUrl
+                return@withContext Uri.parse(communityUrl)
+            }
+        }
+
+        // 3. Check LyricsFlow Apple Music Animated Art (/animatedart?album=... and /animatedart?song=...)
+        // Prefer tall aspect for full-bleed mobile fade, fallback to square
+        for (aspect in listOf("tall", "square")) {
+            if (!resolvedAlbumId.isNullOrBlank()) {
+                val endpoint = "$LyricsFlowApiBase/animatedart?album=${encodeUrlParameter(resolvedAlbumId)}&aspect=$aspect&v=2"
+                val streamUrl = fetchLyricsFlowAnimatedStreamUrl(endpoint)
+                if (!streamUrl.isNullOrBlank()) {
+                    resolvedUriMemoryCache[cacheKey] = streamUrl
+                    return@withContext Uri.parse(streamUrl)
+                }
+            }
+            if (!amTrackId.isNullOrBlank()) {
+                val endpoint = "$LyricsFlowApiBase/animatedart?song=${encodeUrlParameter(amTrackId)}&aspect=$aspect&v=2"
+                val streamUrl = fetchLyricsFlowAnimatedStreamUrl(endpoint)
+                if (!streamUrl.isNullOrBlank()) {
+                    resolvedUriMemoryCache[cacheKey] = streamUrl
+                    return@withContext Uri.parse(streamUrl)
+                }
+            }
+        }
+
+        // 4. Fallback to m8tec artwork HLS endpoint
+        if (albumName.isNotEmpty() || trackTitle.isNotEmpty()) {
+            val searchUrl = buildSearchUrl(music, albumName.ifEmpty { trackTitle })
+            if (searchUrl != null) {
+                val hlsUrl = fetchArtworkHlsUrl(searchUrl)
+                if (!hlsUrl.isNullOrBlank()) {
+                    val bestVariant = runCatching {
+                        val masterText = readUrlText(hlsUrl)
+                        pickBestStreamUrl(masterText, hlsUrl)
+                    }.getOrNull() ?: hlsUrl
+                    resolvedUriMemoryCache[cacheKey] = bestVariant
+                    return@withContext Uri.parse(bestVariant)
+                }
+            }
+        }
+
+        resolvedUriMemoryCache[cacheKey] = ""
+        null
+    }
+
+    suspend fun resolveOnlineAnimatedArtUri(
+        context: Context,
+        cacheKey: String,
+        artistName: String = "",
+        albumName: String = "",
+        albumId: String? = null,
+        directOrHlsUrl: String? = null
+    ): Uri? = withContext(Dispatchers.IO) {
+        if (!SettingsLibrary.AnimatedAlbumCovers) return@withContext null
+
+        val cachedFile = animatedArtworkCacheFile(
+            cacheDirectory(context),
+            artistName.ifBlank { "online" },
+            cacheKey.ifBlank { albumName.ifBlank { albumId.orEmpty() } }
+        )
+        if (cachedFile.isFile && cachedFile.length() > 1024L) {
+            return@withContext Uri.fromFile(cachedFile)
+        }
+
+        val memKey = "online|$cacheKey|${albumId.orEmpty()}|${directOrHlsUrl.orEmpty()}|$artistName|$albumName"
+        resolvedUriMemoryCache[memKey]?.let { cachedUrl ->
+            return@withContext if (cachedUrl.isEmpty()) null else Uri.parse(cachedUrl)
+        }
+
+        // 1. If a direct or HLS URL was already provided by the API (e.g. editorialVideo or /animatedart)
+        if (!directOrHlsUrl.isNullOrBlank()) {
+            if (directOrHlsUrl.contains("/animatedart?")) {
+                fetchLyricsFlowAnimatedStreamUrl(directOrHlsUrl)?.let { resolvedStream ->
+                    resolvedUriMemoryCache[memKey] = resolvedStream
+                    return@withContext Uri.parse(resolvedStream)
+                }
+            } else {
+                resolvedUriMemoryCache[memKey] = directOrHlsUrl
+                return@withContext Uri.parse(directOrHlsUrl)
+            }
+        }
+
+        // 2. Resolve Album ID and check Community MP4 + LyricsFlow /animatedart
+        val resolvedId = albumId?.takeIf { it.isNotBlank() }
+            ?: if (artistName.isNotBlank() || albumName.isNotBlank()) resolveAlbumId(artistName, albumName, null) else null
+
+        if (!resolvedId.isNullOrBlank()) {
+            val communityUrl = "$LyricsFlowApiBase/v1/covers/animated/$resolvedId"
+            if (probeDirectVideoUrl(communityUrl)) {
+                resolvedUriMemoryCache[memKey] = communityUrl
+                return@withContext Uri.parse(communityUrl)
+            }
+            for (aspect in listOf("tall", "square")) {
+                val endpoint = "$LyricsFlowApiBase/animatedart?album=${encodeUrlParameter(resolvedId)}&aspect=$aspect&v=2"
+                val streamUrl = fetchLyricsFlowAnimatedStreamUrl(endpoint)
+                if (!streamUrl.isNullOrBlank()) {
+                    resolvedUriMemoryCache[memKey] = streamUrl
+                    return@withContext Uri.parse(streamUrl)
+                }
+            }
+        }
+
+        resolvedUriMemoryCache[memKey] = ""
+        null
+    }
+
+    private suspend fun lookupCollectionIdBySongId(songId: String): String? {
+        return runCatching {
+            val text = readUrlText("https://itunes.apple.com/lookup?id=${encodeUrlParameter(songId)}&entity=song")
+            val results = JSONObject(text).optJSONArray("results") ?: return null
+            for (i in 0 until results.length()) {
+                val item = results.optJSONObject(i) ?: continue
+                val collectionId = item.optLong("collectionId", 0L)
+                if (collectionId > 0L) return collectionId.toString()
+            }
+            null
+        }.getOrNull()
+    }
 
     suspend fun resolveArtworkFile(context: Context, music: YosMediaItem): File? = withContext(Dispatchers.IO)
     {
@@ -175,10 +342,16 @@ object AnimatedArtworkLibrary
     }
 
     private suspend fun resolveAlbumId(artistName: String, albumName: String, trackTitle: String?): String? {
-        // 1. Try LyricsFlow /search?term=...&types=albums
+        val searchTerm = buildString {
+            if (artistName.isNotBlank()) append(artistName).append(" ")
+            if (albumName.isNotBlank()) append(albumName) else if (!trackTitle.isNullOrBlank()) append(trackTitle)
+        }.trim()
+        if (searchTerm.isEmpty()) return null
+
+        // 1. Try LyricsFlow /search?term=...&types=albums,songs
         runCatching {
-            val query = encodeUrlParameter("$artistName $albumName")
-            val text = readUrlText("$LyricsFlowApiBase/search?term=$query&types=albums&limit=5")
+            val query = encodeUrlParameter(searchTerm)
+            val text = readUrlText("$LyricsFlowApiBase/search?term=$query&types=albums,songs&limit=5")
             val root = JSONObject(text)
             val albumsArray = root.optJSONObject("results")?.optJSONObject("albums")?.optJSONArray("data")
                 ?: root.optJSONObject("albums")?.optJSONArray("data")
@@ -189,10 +362,10 @@ object AnimatedArtworkLibrary
             }
         }
 
-        // 2. Fallback to iTunes Search API for collectionId
+        // 2. Fallback to iTunes Search API for collectionId (album or song entity)
         runCatching {
-            val term = encodeUrlParameter("$artistName ${albumName.ifBlank { trackTitle.orEmpty() }}")
-            val text = readUrlText("$ItunesSearchEndpoint?term=$term&entity=album&limit=5")
+            val term = encodeUrlParameter(searchTerm)
+            val text = readUrlText("$ItunesSearchEndpoint?term=$term&entity=song&limit=5")
             val results = JSONObject(text).optJSONArray("results")
             if (results != null && results.length() > 0) {
                 val collectionId = results.optJSONObject(0)?.optLong("collectionId", 0L) ?: 0L
@@ -225,12 +398,23 @@ object AnimatedArtworkLibrary
         return try {
             val responseText = readUrlText(endpoint).trim()
             if (responseText.startsWith("#EXTM3U")) {
-                return endpoint
+                return pickBestStreamUrl(responseText, endpoint) ?: endpoint
             }
             val json = JSONObject(responseText)
-            json.optString("video").takeIf { it.isNotBlank() }
+            val rawUrl = json.optString("video").takeIf { it.isNotBlank() }
                 ?: json.optString("url").takeIf { it.isNotBlank() }
                 ?: json.optString("hlsUrl").takeIf { it.isNotBlank() }
+                ?: return null
+            if (rawUrl.endsWith(".m3u8", ignoreCase = true)) {
+                runCatching {
+                    val playlistText = readUrlText(rawUrl).trim()
+                    if (playlistText.startsWith("#EXTM3U")) {
+                        pickBestStreamUrl(playlistText, rawUrl)
+                    } else null
+                }.getOrNull() ?: rawUrl
+            } else {
+                rawUrl
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {

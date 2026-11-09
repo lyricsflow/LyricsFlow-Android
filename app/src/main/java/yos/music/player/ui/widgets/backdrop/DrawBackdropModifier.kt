@@ -16,6 +16,7 @@ import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.isUnspecified
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
@@ -370,8 +371,12 @@ private class DrawBackdropNode(
     }
 
     override fun ContentDrawScope.draw() {
+        if (size.isUnspecified || size.isEmpty()) {
+            drawContent()
+            return
+        }
         if (effectScope.update(this, backdropScale)) {
-            updateEffects()
+            observeEffects()
         }
 
         onDrawBehind?.invoke(this)

@@ -379,7 +379,7 @@ private fun EditPlaylistContent(
         ) { index, song ->
             val itemKey = playlistEditItemKey(workingSongs[index], index, workingSongs)
 
-            ReorderableItem(reorderableState, key = itemKey) { isDragging ->
+            ReorderableItem(reorderableState, key = itemKey, animateItemModifier = Modifier) { isDragging ->
                 EditSongRow(
                     song = song,
                     reorderEnabled = workingSongs.size > 1,

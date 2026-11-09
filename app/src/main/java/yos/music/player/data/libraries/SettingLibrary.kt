@@ -196,7 +196,7 @@ object SettingsLibrary {
     var LyricBlurEffect by mutableDataSaverStateOf(
         dataSaverInterface = SettingsSaver,
         key = "settings_performance_lyric_blur_effect",
-        initialValue = false
+        initialValue = true
     )
 
     /**
@@ -206,7 +206,7 @@ object SettingsLibrary {
     var NowplayingBackgroundEffect by mutableDataSaverStateOf(
         dataSaverInterface = SettingsSaver,
         key = "settings_performance_ui_nowplaying_background_effect",
-        initialValue = false
+        initialValue = true
     )
 
     /**
@@ -216,7 +216,7 @@ object SettingsLibrary {
     var BarBlurEffect by mutableDataSaverStateOf(
         dataSaverInterface = SettingsSaver,
         key = "settings_performance_ui_blur_effect",
-        initialValue = false
+        initialValue = true
     )
 
     /**

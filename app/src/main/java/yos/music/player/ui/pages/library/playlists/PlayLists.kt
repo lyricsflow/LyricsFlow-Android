@@ -382,7 +382,7 @@ fun PlayLists(navController: NavController) {
                     }
 
                     if (isPinned && reorderActive.value) {
-                        ReorderableItem(reorderableState, key = playList.listID) { isDragging ->
+                        ReorderableItem(reorderableState, key = playList.listID, animateItemModifier = Modifier) { isDragging ->
                             PinnedAwarePlayListItem(
                                 playList = playList,
                                 isPinned = true,

@@ -10,6 +10,7 @@
 package com.lyricsflow.player.ui.widgets.backdrop.shadow
 
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.isUnspecified
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawOutline
@@ -80,7 +81,8 @@ internal class ShadowNode(
     private val paint = Paint()
 
     override fun ContentDrawScope.draw() {
-        val shadow = shadow() ?: return drawContent()
+        val shadow = shadow()
+        if (shadow == null || size.isUnspecified || size.isEmpty()) return drawContent()
 
         val shadowLayer = shadowLayer
         if (shadowLayer != null) {

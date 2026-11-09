@@ -10,6 +10,7 @@
 package com.lyricsflow.player.ui.widgets.backdrop.shadow
 
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.isUnspecified
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Outline
@@ -87,7 +88,7 @@ internal class InnerShadowNode(
     override fun ContentDrawScope.draw() {
         drawContent()
 
-        if (!isRenderEffectSupported()) return
+        if (!isRenderEffectSupported() || size.isUnspecified || size.isEmpty()) return
 
         val shadow = shadow() ?: return
 

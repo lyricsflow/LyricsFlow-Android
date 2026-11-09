@@ -155,6 +155,7 @@ fun YosLyricView(
     val songwritersList = MediaViewModelObject.lyricSongwriters
 
     if (lrcEntries.isEmpty() || otherSideForLines.isEmpty()) {
+        val isLoadingLyrics = MediaViewModelObject.isLoadingLyrics.value || MediaViewModelObject.isBuffering.value
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
@@ -167,13 +168,33 @@ fun YosLyricView(
                     onBackClick()
                 }
         ) {
-            Text(
-                text = uiConfig.noLrcText,
-                fontFamily = SFProDisplay,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 18.sp,
-                color = Color(uiConfig.mainTextBasicColor).copy(alpha = 0.65f)
-            )
+            if (isLoadingLyrics) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    com.lyricsflow.player.ui.widgets.glass.LyricsFlowAeroSpinner(
+                        modifier = Modifier.size(34.dp),
+                        color = Color(uiConfig.mainTextBasicColor).copy(alpha = 0.85f)
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "Loading synchronized lyrics…",
+                        fontFamily = SFProDisplay,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 15.sp,
+                        color = Color(uiConfig.mainTextBasicColor).copy(alpha = 0.65f)
+                    )
+                }
+            } else {
+                Text(
+                    text = uiConfig.noLrcText,
+                    fontFamily = SFProDisplay,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 18.sp,
+                    color = Color(uiConfig.mainTextBasicColor).copy(alpha = 0.65f)
+                )
+            }
         }
     } else {
         val scrollState = rememberLazyListState()

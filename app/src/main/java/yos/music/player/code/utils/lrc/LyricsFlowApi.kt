@@ -187,8 +187,27 @@ object LyricsFlowApi {
         val source: String
     )
 
-    fun getStreamUrl(songId: String): String {
-        return "$API_BASE/stream?song=${encode(songId)}&l=en-US"
+    fun getStreamUrl(songId: String, codec: String = "aac"): String {
+        return "$API_BASE/stream?song=${encode(songId)}&codec=$codec&fallback=false&l=en-US"
+    }
+
+    suspend fun resolveFallbackStreamUrl(songId: String, currentUri: String): String? = withContext(Dispatchers.IO) {
+        val cleanId = songId.trim()
+        if (cleanId.isEmpty() || cleanId.startsWith("local_") || cleanId.startsWith("upload_")) return@withContext null
+        when {
+            currentUri.contains("codec=aac&") -> "$API_BASE/stream?song=${encode(cleanId)}&codec=aac-web&fallback=false&l=en-US"
+            currentUri.contains("codec=aac-web") -> "$API_BASE/download?song=${encode(cleanId)}&l=en-US"
+            currentUri.contains("/download?") -> {
+                runCatching {
+                    val lookupText = httpGet("https://itunes.apple.com/lookup?id=${encode(cleanId)}", 5000) ?: return@runCatching null
+                    val results = JSONObject(lookupText).optJSONArray("results") ?: return@runCatching null
+                    if (results.length() > 0) {
+                        results.optJSONObject(0)?.optString("previewUrl")?.takeIf { it.isNotBlank() }
+                    } else null
+                }.getOrNull()
+            }
+            else -> null
+        }
     }
 
     fun CatalogTrackResult.toYosMediaItem(): YosMediaItem {
@@ -201,7 +220,7 @@ object LyricsFlowApi {
         return YosMediaItem(
             uri = Uri.parse(streamUriStr),
             mediaId = id.ifBlank { "${title}_${artist}" },
-            mimeType = "audio/mp4",
+            mimeType = null,
             title = title,
             writer = composerName.ifBlank { artist },
             compilation = null,
@@ -313,12 +332,16 @@ object LyricsFlowApi {
         durationSec: Int = 0,
         amTrackId: String? = null
     ): FetchedLyricPayload? = coroutineScope {
+        // Resolve Apple Music track ID up front if missing (matching `main/js/ttml-retriever.js` line 795)
+        val resolvedTrackId = amTrackId?.takeIf { it.isNotBlank() }
+            ?: runCatching { resolveItunesTrackId(title, artist) }.getOrNull()
+
         val deferredMap = mapOf(
             LyricSource.LF_COMMUNITY to async(Dispatchers.IO) {
-                runCatching { fetchLfCommunity(title, artist, amTrackId) }.getOrNull()
+                runCatching { fetchLfCommunity(title, artist, resolvedTrackId) }.getOrNull()
             },
             LyricSource.LYRICSFLOW to async(Dispatchers.IO) {
-                runCatching { fetchLyricsFlowApple(title, artist, album, durationSec, amTrackId) }.getOrNull()
+                runCatching { fetchLyricsFlowApple(title, artist, album, durationSec, resolvedTrackId) }.getOrNull()
             },
             LyricSource.BETTER_LYRICS to async(Dispatchers.IO) {
                 runCatching { fetchBetterLyrics(title, artist) }.getOrNull()
@@ -358,8 +381,16 @@ object LyricsFlowApi {
         if (YosTtmlFactory.isTtmlText(trimmed)) {
             YosTtmlFactory().formatTtmlEntries(trimmed)?.let { return it }
         }
-        val entries = YosLrcFactory().formatLrcEntries(trimmed)
-        if (entries.isEmpty()) return null
+        var entries = YosLrcFactory().formatLrcEntries(trimmed)
+        if (entries.isEmpty()) {
+            // Fallback for plain unsynced lyrics so the user never sees "Lyrics not ready" when plain text lyrics exist
+            val plainLines = trimmed.lines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("[") }
+            if (plainLines.isEmpty()) return null
+            entries = plainLines.mapIndexed { idx, lineText ->
+                val t = idx * 3500f
+                listOf(t to lineText, t to "")
+            }
+        }
         val endTimes = entries.mapIndexed { index, line ->
             entries.getOrNull(index + 1)?.firstOrNull()?.first
                 ?: line.lastOrNull()?.first
@@ -409,7 +440,12 @@ object LyricsFlowApi {
         val songId = amTrackId?.takeIf { it.isNotBlank() } ?: resolveItunesTrackId(title, artist) ?: return null
         val jsonText = httpGet("$API_BASE/api/community/lyrics/${encode(songId)}", 6000) ?: return null
         val json = JSONObject(jsonText)
-        val entry = json.optJSONObject("entry") ?: return null
+        val available = json.optJSONArray("available")
+        val entry = if (available != null && available.length() > 0) {
+            available.optJSONObject(0)
+        } else {
+            json.optJSONObject("entry")
+        } ?: return null
         val streamUrl = entry.optString("stream_url").takeIf { it.isNotBlank() } ?: return null
         val fullUrl = if (streamUrl.startsWith("http")) streamUrl else "$API_BASE$streamUrl"
         val ttml = httpGet(fullUrl, 8000)?.takeIf { YosTtmlFactory.isTtmlText(it) } ?: return null
@@ -544,9 +580,17 @@ object LyricsFlowApi {
             if (album.isNotBlank()) append("&album_name=").append(encode(album))
             if (durationSec > 0) append("&duration=").append(durationSec)
         }
-        val responseText = httpGet("$LRCLIB_API?$params", 7000) ?: return null
+        val responseText = httpGet("$LRCLIB_API?$params", 7000)
+            ?: if (album.isNotBlank() || durationSec > 0) {
+                httpGet("$LRCLIB_API?track_name=${encode(title)}&artist_name=${encode(artist)}", 7000)
+            } else {
+                null
+            }
+            ?: return null
         val json = JSONObject(responseText)
-        val synced = json.optString("syncedLyrics").takeIf { it.isNotBlank() } ?: return null
+        val synced = json.optString("syncedLyrics").takeIf { it.isNotBlank() }
+            ?: json.optString("plainLyrics").takeIf { it.isNotBlank() }
+            ?: return null
         return FetchedLyricPayload(synced, false, "LRCLIB")
     }
 

@@ -1183,7 +1183,7 @@ private fun PlayingList(
                                 ) { indexOfMusic, music ->
                                     val itemKey = queueItemKey("next", music, indexOfMusic, nextInQueue)
 
-                                    ReorderableItem(reorderableState, key = itemKey) { isDragging ->
+                                    ReorderableItem(reorderableState, key = itemKey, animateItemModifier = Modifier) { isDragging ->
                                         QueueMusicListItem(
                                             music = music,
                                             reorderEnabled = nextInQueue.size > 1,
@@ -1225,7 +1225,7 @@ private fun PlayingList(
                                 ) { indexOfMusic, music ->
                                     val itemKey = queueItemKey("up", music, indexOfMusic, upNext)
 
-                                    ReorderableItem(reorderableState, key = itemKey) { isDragging ->
+                                    ReorderableItem(reorderableState, key = itemKey, animateItemModifier = Modifier) { isDragging ->
                                         QueueMusicListItem(
                                             music = music,
                                             reorderEnabled = upNext.size > 1,
@@ -2610,14 +2610,23 @@ private fun PlayerControl(
                                         }),
                                 contentAlignment = Alignment.Center
                             ) {
-                                AnimatedContent(targetState = isPlayingLambda(), transitionSpec = {
-                                    (scaleIn(initialScale = 0.3f) + fadeIn()).togetherWith(
-                                        scaleOut(
-                                            targetScale = 0.3f
-                                        ) + fadeOut()
-                                    )
-                                }) {
-                                    if (it) {
+                                val isBuffering = MediaViewModelObject.isBuffering.value
+                                AnimatedContent(
+                                    targetState = if (isBuffering) -1 else if (isPlayingLambda()) 1 else 0,
+                                    transitionSpec = {
+                                        (scaleIn(initialScale = 0.3f) + fadeIn()).togetherWith(
+                                            scaleOut(targetScale = 0.3f) + fadeOut()
+                                        )
+                                    }
+                                ) { state ->
+                                    if (state == -1) {
+                                        com.lyricsflow.player.ui.widgets.glass.LyricsFlowAeroSpinner(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(11.dp),
+                                            color = Color.White
+                                        )
+                                    } else if (state == 1) {
                                         Icon(
                                             painterResource(id = R.drawable.ic_nowplaying_pause),
                                             contentDescription = "Pause",

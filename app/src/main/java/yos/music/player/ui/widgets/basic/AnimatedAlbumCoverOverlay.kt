@@ -64,43 +64,45 @@ fun rememberAnimatedAlbumCoverState(
     val animatedAlbumCovers = SettingsLibrary.AnimatedAlbumCovers
     val animatedAlbumCoversUseApi = SettingsLibrary.AnimatedAlbumCoversUseApi
     val animatedAlbumCoverBlacklist = SettingsLibrary.AnimatedAlbumCoverBlacklist
-    var animatedArtworkFile by remember(
+    var animatedArtworkUri by remember(
+        music?.mediaId,
         music?.uri,
         music?.album,
+        music?.title,
         active,
         animatedAlbumCovers,
         animatedAlbumCoversUseApi,
         animatedAlbumCoverBlacklist
     ) {
-        mutableStateOf<File?>(null)
+        mutableStateOf<Uri?>(null)
     }
 
     LaunchedEffect(
+        music?.mediaId,
         music?.uri,
         music?.album,
+        music?.title,
         active,
         animatedAlbumCovers,
         animatedAlbumCoversUseApi,
         animatedAlbumCoverBlacklist
     ) {
-        animatedArtworkFile = if (!active || music == null) {
+        animatedArtworkUri = if (!active || music == null) {
             null
         } else {
-            AnimatedArtworkLibrary.resolveArtworkFile(context.applicationContext, music)
+            AnimatedArtworkLibrary.resolveArtworkUri(context.applicationContext, music)
         }
     }
 
-    val artworkFile = animatedArtworkFile
-    if (artworkFile == null) {
+    val artworkUri = animatedArtworkUri
+    if (artworkUri == null) {
         return AnimatedAlbumCoverState(null, isPlaying, false)
     }
 
-    val artworkUri = remember(artworkFile) { Uri.fromFile(artworkFile) }
-    val latestIsPlaying = rememberUpdatedState(isPlaying)
-    var videoPrepared by remember(artworkFile) { mutableStateOf(false) }
-    var videoWidth by remember(artworkFile) { mutableIntStateOf(0) }
-    var videoHeight by remember(artworkFile) { mutableIntStateOf(0) }
-    val player = remember(artworkFile) {
+    var videoPrepared by remember(artworkUri) { mutableStateOf(false) }
+    var videoWidth by remember(artworkUri) { mutableIntStateOf(0) }
+    var videoHeight by remember(artworkUri) { mutableIntStateOf(0) }
+    val player = remember(artworkUri) {
         ExoPlayer.Builder(context.applicationContext).build().apply {
             volume = 0f
             trackSelectionParameters = trackSelectionParameters
@@ -110,6 +112,8 @@ fun rememberAnimatedAlbumCoverState(
             repeatMode = Player.REPEAT_MODE_ONE
             setMediaItem(MediaItem.fromUri(artworkUri))
             prepare()
+            playWhenReady = true
+            play()
         }
     }
 
@@ -129,7 +133,7 @@ fun rememberAnimatedAlbumCoverState(
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_ENDED && latestIsPlaying.value) {
+                if (playbackState == Player.STATE_ENDED) {
                     player.seekTo(0L)
                     player.play()
                 }
@@ -143,16 +147,7 @@ fun rememberAnimatedAlbumCoverState(
         }
     }
 
-    LaunchedEffect(player, isPlaying) {
-        player.playWhenReady = isPlaying
-        if (isPlaying) {
-            player.play()
-        } else {
-            player.pause()
-        }
-    }
-
-    return AnimatedAlbumCoverState(player, isPlaying, videoPrepared, videoWidth, videoHeight)
+    return AnimatedAlbumCoverState(player, true, videoPrepared, videoWidth, videoHeight)
 }
 
 @Composable
@@ -166,15 +161,15 @@ fun rememberOnlineAnimatedVideoState(
 ): AnimatedAlbumCoverState {
     val context = LocalContext.current
     val animatedAlbumCovers = SettingsLibrary.AnimatedAlbumCovers
-    var animatedArtworkFile by remember(cacheKey, albumId, directOrHlsUrl, active, animatedAlbumCovers) {
-        mutableStateOf<File?>(null)
+    var animatedArtworkUri by remember(cacheKey, albumId, directOrHlsUrl, active, animatedAlbumCovers) {
+        mutableStateOf<Uri?>(null)
     }
 
     LaunchedEffect(cacheKey, albumId, directOrHlsUrl, active, animatedAlbumCovers) {
-        animatedArtworkFile = if (!active || !animatedAlbumCovers) {
+        animatedArtworkUri = if (!active || !animatedAlbumCovers) {
             null
         } else {
-            AnimatedArtworkLibrary.resolveOnlineAnimatedArtFile(
+            AnimatedArtworkLibrary.resolveOnlineAnimatedArtUri(
                 context = context.applicationContext,
                 cacheKey = cacheKey,
                 artistName = artistName,
@@ -185,13 +180,12 @@ fun rememberOnlineAnimatedVideoState(
         }
     }
 
-    val artworkFile = animatedArtworkFile ?: return AnimatedAlbumCoverState(null, true, false)
-    val artworkUri = remember(artworkFile) { Uri.fromFile(artworkFile) }
-    var videoPrepared by remember(artworkFile) { mutableStateOf(false) }
-    var videoWidth by remember(artworkFile) { mutableIntStateOf(0) }
-    var videoHeight by remember(artworkFile) { mutableIntStateOf(0) }
+    val artworkUri = animatedArtworkUri ?: return AnimatedAlbumCoverState(null, true, false)
+    var videoPrepared by remember(artworkUri) { mutableStateOf(false) }
+    var videoWidth by remember(artworkUri) { mutableIntStateOf(0) }
+    var videoHeight by remember(artworkUri) { mutableIntStateOf(0) }
 
-    val player = remember(artworkFile) {
+    val player = remember(artworkUri) {
         ExoPlayer.Builder(context.applicationContext).build().apply {
             volume = 0f
             trackSelectionParameters = trackSelectionParameters

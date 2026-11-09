@@ -3,8 +3,13 @@ package com.lyricsflow.player.ui.widgets.glass
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOutQuart
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -67,6 +72,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -360,10 +366,8 @@ fun LyricsFlowFloatingTabBar(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null
                                 ) {
-                                    if (selectedTabIndex != tab.index) {
-                                        Vibrator.click(context)
-                                        onTabSelected(tab.index)
-                                    }
+                                    Vibrator.click(context)
+                                    onTabSelected(tab.index)
                                 }
                                 .padding(vertical = TAB_VERTICAL_PADDING),
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -775,23 +779,32 @@ fun LyricsFlowFloatingMiniPlayer(
                 },
                 modifier = Modifier.size(40.dp)
             ) {
+                val isBuffering = MediaViewModelObject.isBuffering.value
                 AnimatedContent(
-                    targetState = isPlaying,
+                    targetState = if (isBuffering) -1 else if (isPlaying) 1 else 0,
                     transitionSpec = {
                         (scaleIn(initialScale = 0.3f) + fadeIn()).togetherWith(
                             scaleOut(targetScale = 0.3f) + fadeOut()
                         )
                     },
                     label = "miniPlayPause"
-                ) { playing ->
-                    Icon(
-                        painter = painterResource(
-                            id = if (playing) R.drawable.ic_nowplaying_mp_pause else R.drawable.ic_nowplaying_mp_play
-                        ),
-                        contentDescription = if (playing) "Pause" else "Play",
-                        modifier = Modifier.size(29.dp),
-                        tint = contentColor
-                    )
+                ) { state ->
+                    if (state == -1) {
+                        LyricsFlowAeroSpinner(
+                            modifier = Modifier.size(24.dp),
+                            color = contentColor
+                        )
+                    } else {
+                        val playing = state == 1
+                        Icon(
+                            painter = painterResource(
+                                id = if (playing) R.drawable.ic_nowplaying_mp_pause else R.drawable.ic_nowplaying_mp_play
+                            ),
+                            contentDescription = if (playing) "Pause" else "Play",
+                            modifier = Modifier.size(29.dp),
+                            tint = contentColor
+                        )
+                    }
                 }
             }
 
@@ -811,6 +824,53 @@ fun LyricsFlowFloatingMiniPlayer(
                         .size(25.dp)
                         .graphicsLayer { scaleY = 0.88f },
                     tint = contentColor
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Exact port of LyricsFlow's 8-spoke Apple/Aero loading spinner (`aero-spinner-svg` in `main/player.html` lines 1870-1881).
+ */
+@Composable
+fun LyricsFlowAeroSpinner(
+    modifier: Modifier = Modifier,
+    color: Color = Color.White
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "aeroSpinnerTransition")
+    val stepFloat by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 8f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "aeroSpinnerStep"
+    )
+    val activeStep = stepFloat.toInt() % 8
+    val opacities = remember {
+        floatArrayOf(1.0f, 0.875f, 0.75f, 0.625f, 0.5f, 0.375f, 0.25f, 0.15f)
+    }
+
+    Canvas(modifier = modifier) {
+        val scale = size.minDimension / 100f
+        val rectWidth = 10f * scale
+        val rectHeight = 28f * scale
+        val rectTop = 6f * scale
+        val rectLeft = (size.width - rectWidth) / 2f
+        val cornerRadius = CornerRadius(5f * scale, 5f * scale)
+
+        for (i in 0 until 8) {
+            val spokeAngle = i * 45f
+            val relativeIdx = (activeStep - i + 8) % 8
+            val alpha = opacities[relativeIdx]
+            rotate(degrees = spokeAngle, pivot = center) {
+                drawRoundRect(
+                    color = color.copy(alpha = alpha),
+                    topLeft = Offset(rectLeft, rectTop),
+                    size = Size(rectWidth, rectHeight),
+                    cornerRadius = cornerRadius
                 )
             }
         }

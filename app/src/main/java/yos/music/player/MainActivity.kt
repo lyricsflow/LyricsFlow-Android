@@ -568,7 +568,7 @@ class MainActivity : BaseActivity() {
                                     }
                                 }
 
-                                // 底部导航栏 (iOS 26 / BitChord Liquid Glass Floating Tab Bar on Android 13+, normal bar on Android < 13)
+                                // Bottom gradient behind floating tab bar
                                 YosWrapper {
                                     val color =
                                         Color(0xFFF5F5F5) withNight Color.Black
@@ -589,37 +589,6 @@ class MainActivity : BaseActivity() {
                                                         )
                                                     )
                                                 )
-                                        )
-
-                                        LyricsFlowFloatingTabBar(
-                                            selectedIndex = pagerState.currentPage,
-                                            onTabSelected = { selectedIdx ->
-                                                nowLabel.value = when (selectedIdx) {
-                                                    0 -> "Home"
-                                                    1 -> "New"
-                                                    2 -> "Radio"
-                                                    3 -> "Library"
-                                                    4 -> "Search"
-                                                    else -> "Home"
-                                                }
-                                                if (route.value == UI.HomePage) {
-                                                    scope.launch {
-                                                        pagerState.animateScrollToPage(selectedIdx)
-                                                    }
-                                                } else {
-                                                    scope.launch {
-                                                        pagerState.scrollToPage(selectedIdx)
-                                                    }
-                                                    navController.popBackStack(
-                                                        UI.HomePage,
-                                                        false
-                                                    )
-                                                }
-                                            },
-                                            hazeState = hazeState,
-                                            modifier = Modifier.onSizeChanged {
-                                                height.intValue = it.height
-                                            }
                                         )
                                     }
                                 }
@@ -683,8 +652,11 @@ class MainActivity : BaseActivity() {
                                     Surface(
                                         modifier = Modifier
                                             .graphicsLayer {
-                                                translationY =
+                                                translationY = if (yosBottomSheetConfig.progress <= 0.01f) {
+                                                    0f
+                                                } else {
                                                     ((parentHeight.intValue - miniPlayerHeightPx) * (1 - yosBottomSheetConfig.progress))
+                                                }
 
                                                 if (yosBottomSheetConfig.barShowCorner && yosBottomSheetConfig.progress > 0.04f) {
                                                     shape = YosRoundedCornerShape(
@@ -739,10 +711,15 @@ class MainActivity : BaseActivity() {
                                                 }
                                             )
                                             .layout { measurable, constraints ->
+                                                val targetH = if (yosBottomSheetConfig.progress <= 0.01f) {
+                                                    miniPlayerHeightPx.toInt().coerceAtLeast(1)
+                                                } else {
+                                                    parentHeight.intValue
+                                                }
                                                 val placeable = measurable.measure(
                                                     constraints.copy(
-                                                        minHeight = parentHeight.intValue,
-                                                        maxHeight = parentHeight.intValue
+                                                        minHeight = targetH,
+                                                        maxHeight = targetH
                                                     )
                                                 )
                                                 layout(
@@ -759,32 +736,34 @@ class MainActivity : BaseActivity() {
                                                 MediaViewModelObject.isPlaying
                                             }
 
-                                        // NowPlaying (fades in as sheet expands)
+                                        // NowPlaying (only composed when expanding/expanded so it never intercepts touches when minimized)
                                         YosWrapper {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .graphicsLayer {
-                                                        alpha = yosBottomSheetConfig.progress.coerceIn(0f, 1f)
-                                                    }
-                                            ) {
-                                                NowPlaying(
-                                                    mainViewModel = mainViewModel,
-                                                    mediaViewModel = mediaViewModel,
-                                                    navController = navController,
-                                                    onMinimizeNowPlaying = {
-                                                        nowPageNowPlaying.value = Album
-                                                        offsetY.animateTo(0f, animationSpec = navSpec)
-                                                    },
-                                                    isPlayingStatusLambda = { isPlaying.value },
-                                                    isPlayingOnChanged = {
-                                                        isPlaying.value = it
-                                                    },
-                                                    nowPageLambda = { nowPageNowPlaying.value },
-                                                    showNowPlaying = { showNowPlaying.value },
-                                                    showMiniPlayer = { yosBottomSheetConfig.showMenu }
+                                            if (yosBottomSheetConfig.progress > 0.01f) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .graphicsLayer {
+                                                            alpha = yosBottomSheetConfig.progress.coerceIn(0f, 1f)
+                                                        }
                                                 ) {
-                                                    nowPageNowPlaying.value = it
+                                                    NowPlaying(
+                                                        mainViewModel = mainViewModel,
+                                                        mediaViewModel = mediaViewModel,
+                                                        navController = navController,
+                                                        onMinimizeNowPlaying = {
+                                                            nowPageNowPlaying.value = Album
+                                                            offsetY.animateTo(0f, animationSpec = navSpec)
+                                                        },
+                                                        isPlayingStatusLambda = { isPlaying.value },
+                                                        isPlayingOnChanged = {
+                                                            isPlaying.value = it
+                                                        },
+                                                        nowPageLambda = { nowPageNowPlaying.value },
+                                                        showNowPlaying = { showNowPlaying.value },
+                                                        showMiniPlayer = { yosBottomSheetConfig.showMenu }
+                                                    ) {
+                                                        nowPageNowPlaying.value = it
+                                                    }
                                                 }
                                             }
                                         }
@@ -818,6 +797,46 @@ class MainActivity : BaseActivity() {
                                         }
                                     }
                                 }
+                            }
+                        }
+
+                        // 底部导航栏 (iOS 26 / BitChord Liquid Glass Floating Tab Bar on Android 13+, normal bar on Android < 13)
+                        if (yosBottomSheetConfig.menuAlpha > 0.01f) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer {
+                                        alpha = yosBottomSheetConfig.menuAlpha
+                                        translationY = height.intValue * yosBottomSheetConfig.progress
+                                    },
+                                contentAlignment = Alignment.BottomCenter
+                            ) {
+                                LyricsFlowFloatingTabBar(
+                                    selectedIndex = pagerState.currentPage,
+                                    onTabSelected = { selectedIdx ->
+                                        nowLabel.value = when (selectedIdx) {
+                                            0 -> "Home"
+                                            1 -> "New"
+                                            2 -> "Radio"
+                                            3 -> "Library"
+                                            4 -> "Search"
+                                            else -> "Home"
+                                        }
+                                        if (route.value != UI.HomePage) {
+                                            navController.popBackStack(
+                                                UI.HomePage,
+                                                false
+                                            )
+                                        }
+                                        scope.launch {
+                                            pagerState.scrollToPage(selectedIdx)
+                                        }
+                                    },
+                                    hazeState = hazeState,
+                                    modifier = Modifier.onSizeChanged {
+                                        height.intValue = it.height
+                                    }
+                                )
                             }
                         }
 

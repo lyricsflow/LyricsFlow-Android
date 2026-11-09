@@ -127,7 +127,7 @@ dependencies {
     implementation 'androidx.compose.animation:animation:1.7.1'
     implementation 'androidx.compose.foundation:foundation:1.7.1'
     implementation 'androidx.compose.foundation:foundation-layout:1.7.1'
-    implementation 'sh.calvin.reorderable:reorderable:2.5.1'
+    implementation 'sh.calvin.reorderable:reorderable:2.4.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'androidx.compose.runtime:runtime-livedata:1.7.1'
     testImplementation 'junit:junit:4.13.2'
@@ -156,6 +156,7 @@ dependencies {
     implementation "androidx.media3:media3-session:$media3_version"
     implementation "androidx.media3:media3-exoplayer:$media3_version"
     implementation "androidx.media3:media3-exoplayer-dash:$media3_version"
+    implementation "androidx.media3:media3-exoplayer-hls:$media3_version"
 
     implementation 'com.tencent:mmkv-static:2.4.0'
 
