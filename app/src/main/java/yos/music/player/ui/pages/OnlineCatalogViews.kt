@@ -143,6 +143,7 @@ fun OnlineAlbumView(navController: NavController) {
     val resolvedTitle = albumDetail?.name?.ifBlank { fallbackTitle } ?: fallbackTitle.ifBlank { "Album" }
     val resolvedArtist = albumDetail?.artistName?.ifBlank { fallbackArtist } ?: fallbackArtist
     val resolvedArtwork = albumDetail?.artworkUrl?.ifBlank { fallbackArtwork } ?: fallbackArtwork
+    val editorial = albumDetail?.editorialNotes.orEmpty()
 
     val animatedCoverState = rememberOnlineAnimatedVideoState(
         cacheKey = "album_$albumId",
@@ -395,7 +396,6 @@ fun OnlineAlbumView(navController: NavController) {
         }
 
         // Editorial Notes Preview Card
-        val editorial = albumDetail?.editorialNotes.orEmpty()
         if (editorial.isNotBlank()) {
             item(key = "online_album_editorial") {
                 Surface(

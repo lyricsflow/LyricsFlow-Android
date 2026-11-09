@@ -150,9 +150,9 @@ fun YosLyricView(
     val lineTransliterations = lineTransliterationsLambda()
     val lineSubtitles = lineSubtitlesLambda()
     val isTtmlLyrics = isTtmlLyricsLambda()
-    val lineSyllablesList = MediaViewModelObject.lyricLineSyllables.value
-    val lineBackgroundsList = MediaViewModelObject.lyricBackgroundLines.value
-    val songwritersList = MediaViewModelObject.lyricSongwriters.value
+    val lineSyllablesList = MediaViewModelObject.lyricLineSyllables
+    val lineBackgroundsList = MediaViewModelObject.lyricBackgroundLines
+    val songwritersList = MediaViewModelObject.lyricSongwriters
 
     if (lrcEntries.isEmpty() || otherSideForLines.isEmpty()) {
         Box(
@@ -517,7 +517,7 @@ fun YosLyricView(
                     }
 
                     val lineBackgrounds = remember(index, lineBackgroundsList) {
-                        lineBackgroundsList.getOrNull(index).orEmpty()
+                        listOfNotNull(lineBackgroundsList.getOrNull(index))
                     }
 
                     val lineStartMs = remember(index, lines) {

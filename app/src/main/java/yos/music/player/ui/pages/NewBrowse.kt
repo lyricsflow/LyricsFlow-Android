@@ -335,7 +335,7 @@ fun NewBrowse(navController: NavController) {
                                 modifier = Modifier.size(152.dp),
                                 cornerRadius = 12.dp,
                                 shadowAlpha = 0f,
-                                imageQuality = ImageQuality.MID
+                                imageQuality = ImageQuality.HIGH
                             )
                             Spacer(modifier = Modifier.height(7.dp))
                             Text(

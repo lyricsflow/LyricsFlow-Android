@@ -30,7 +30,7 @@ import com.lyricsflow.player.ui.widgets.backdrop.drawBackdrop
 import com.lyricsflow.player.ui.widgets.backdrop.effects.blur
 import com.lyricsflow.player.ui.widgets.backdrop.effects.colorControls
 import com.lyricsflow.player.ui.widgets.backdrop.effects.lens
-import com.lyricsflow.player.ui.widgets.backdrop.emptyBackdrop
+import com.lyricsflow.player.ui.widgets.backdrop.backdrops.emptyBackdrop
 import com.lyricsflow.player.ui.widgets.backdrop.highlight.Highlight
 import com.lyricsflow.player.ui.widgets.backdrop.shadow.InnerShadow
 import com.lyricsflow.player.ui.widgets.backdrop.shadow.Shadow

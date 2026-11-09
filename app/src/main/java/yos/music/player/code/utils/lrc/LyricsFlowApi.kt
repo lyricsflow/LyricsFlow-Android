@@ -38,17 +38,29 @@ data class LyricsFlowCatalogItem(
 
 data class LyricsFlowCatalogSearchResponse(
     val topResults: List<LyricsFlowCatalogItem> = emptyList(),
-    val songs: List<LyricsFlowCatalog.CatalogTrackResult> = emptyList(),
+    val songs: List<LyricsFlowApi.CatalogTrackResult> = emptyList(),
     val artists: List<LyricsFlowCatalogItem> = emptyList(),
     val albums: List<LyricsFlowCatalogItem> = emptyList(),
     val playlists: List<LyricsFlowCatalogItem> = emptyList(),
-    val musicVideos: List<LyricsFlowCatalog.CatalogTrackResult> = emptyList(),
+    val musicVideos: List<LyricsFlowApi.CatalogTrackResult> = emptyList(),
     val stations: List<LyricsFlowCatalogItem> = emptyList(),
     val recordLabels: List<LyricsFlowCatalogItem> = emptyList(),
     val curators: List<LyricsFlowCatalogItem> = emptyList()
 )
 
-object LyricsFlowCatalog {
+/**
+ * LyricsFlow Multi-Provider API & AMP Catalog Client
+ * Ported from `main/js/ttml-retriever.js`, `main/js/amp-parser.js`, and `main/js/upload.js`.
+ */
+object LyricsFlowApi {
+    const val API_BASE = "https://api.trylyricsflow.com"
+    private const val BETTER_LYRICS_API = "https://lyrics-api.boidu.dev/getLyrics"
+    private const val LYRICS_PLUS_API = "https://lyricsplus.prjktla.my.id/v2/lyrics/get"
+    private const val LRCLIB_API = "https://lrclib.net/api/get"
+    private const val ITUNES_SEARCH_API = "https://itunes.apple.com/search"
+    private const val ITUNES_LOOKUP_API = "https://itunes.apple.com/lookup"
+    private const val CACHE_DIR_NAME = "lyricsflow_ttml_cache"
+
     data class CatalogTrackResult(
         val id: String,
         val title: String,
@@ -158,27 +170,6 @@ object LyricsFlowCatalog {
         val isHeroShowcase: Boolean = false,
         val items: List<LyricsFlowCatalogItem> = emptyList()
     )
-}
-
-/**
- * LyricsFlow Multi-Provider API & AMP Catalog Client
- * Ported from `main/js/ttml-retriever.js`, `main/js/amp-parser.js`, and `main/js/upload.js`.
- */
-object LyricsFlowApi {
-    const val API_BASE = "https://api.trylyricsflow.com"
-    private const val BETTER_LYRICS_API = "https://lyrics-api.boidu.dev/getLyrics"
-    private const val LYRICS_PLUS_API = "https://lyricsplus.prjktla.my.id/v2/lyrics/get"
-    private const val LRCLIB_API = "https://lrclib.net/api/get"
-    private const val ITUNES_SEARCH_API = "https://itunes.apple.com/search"
-    private const val ITUNES_LOOKUP_API = "https://itunes.apple.com/lookup"
-    private const val CACHE_DIR_NAME = "lyricsflow_ttml_cache"
-
-    typealias CatalogTrackResult = LyricsFlowCatalog.CatalogTrackResult
-    typealias CatalogAlbumDetail = LyricsFlowCatalog.CatalogAlbumDetail
-    typealias CatalogArtistDetail = LyricsFlowCatalog.CatalogArtistDetail
-    typealias CatalogPlaylistDetail = LyricsFlowCatalog.CatalogPlaylistDetail
-    typealias CatalogSongDetail = LyricsFlowCatalog.CatalogSongDetail
-    typealias EditorialShelf = LyricsFlowCatalog.EditorialShelf
 
     enum class LyricSource(val id: String) {
         LF_COMMUNITY("lfcommunity"),

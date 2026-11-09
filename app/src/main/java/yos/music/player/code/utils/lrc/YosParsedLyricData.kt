@@ -29,6 +29,18 @@ data class AmlBackgroundLine(
                 }
             }
         }
+
+    val text: String
+        get() = fullText
+
+    val placement: String
+        get() = if (placeAbove) "above" else "below"
+
+    val translation: String?
+        get() = translatedText
+
+    val transliteration: String?
+        get() = romanizedText
 }
 
 data class YosParsedLyricData(

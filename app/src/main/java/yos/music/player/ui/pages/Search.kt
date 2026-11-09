@@ -1403,7 +1403,7 @@ fun Search(navController: NavController) {
                                 val lineText = parsed.entries[lineIdx].dropLast(1).joinToString("") { it.second }
                                 val subText = parsed.subtitles.getOrNull(lineIdx)
                                     ?: parsed.transliterations.getOrNull(lineIdx)
-                                val bgList = parsed.backgroundLines.getOrNull(lineIdx).orEmpty()
+                                val bgList = listOfNotNull(parsed.backgroundLines.getOrNull(lineIdx))
 
                                 if (lineText.isNotBlank()) {
                                     Column(modifier = Modifier.fillMaxWidth()) {

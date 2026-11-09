@@ -533,7 +533,7 @@ private fun AppleMusicTabIcon(
 fun LyricsFlowFloatingMiniPlayer(
     hazeState: HazeState? = null,
     onExpandClick: () -> Unit = {},
-    track: YosMediaItem? = MediaViewModelObject.nowPlayingMediaItem.value,
+    track: YosMediaItem? = MediaController.musicPlaying.value,
     defaultTitle: String = com.lyricsflow.player.data.libraries.defaultTitle,
     isPlaying: Boolean = MediaViewModelObject.isPlaying.value,
     onTogglePlay: () -> Unit = {
@@ -750,9 +750,9 @@ fun LyricsFlowFloatingMiniPlayer(
                     overflow = TextOverflow.Clip,
                     color = contentColor
                 )
-                if (!track?.artist.isNullOrBlank()) {
+                if (!track?.artists.isNullOrBlank()) {
                     Text(
-                        text = track?.artist ?: "",
+                        text = track?.artists ?: "",
                         fontFamily = SFProDisplay,
                         fontWeight = FontWeight.Normal,
                         fontSize = 12.sp,
