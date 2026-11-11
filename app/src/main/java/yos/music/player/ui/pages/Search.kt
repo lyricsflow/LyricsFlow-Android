@@ -105,7 +105,8 @@ private data class BrowseCategoryItem(
     val title: String,
     val subtitle: String,
     val query: String,
-    val colors: List<Color>
+    val colors: List<Color>,
+    val artworkUrl: String = ""
 )
 
 private val AppleMusicBrowseCategories = listOf(
@@ -205,6 +206,7 @@ fun Search(navController: NavController) {
     val recentSearches = SettingsLibrary.SearchHistory
 
     var searchRecommendations by remember { mutableStateOf<List<LyricsFlowApi.CatalogTrackResult>>(emptyList()) }
+    var searchLandingCategories by remember { mutableStateOf<List<BrowseCategoryItem>>(emptyList()) }
     var isSearchingOnline by remember { mutableStateOf(false) }
     var catalogResponse by remember { mutableStateOf(LyricsFlowCatalogSearchResponse()) }
     var previewTrack by remember { mutableStateOf<LyricsFlowApi.CatalogTrackResult?>(null) }
@@ -213,6 +215,27 @@ fun Search(navController: NavController) {
 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
+            val landing = LyricsFlowApi.fetchSearchLandingRecommendations()
+            if (landing.isNotEmpty()) {
+                searchLandingCategories = landing.mapIndexed { idx, item ->
+                    val fallbackColors = AppleMusicBrowseCategories[idx % AppleMusicBrowseCategories.size].colors
+                    val parsedColor = runCatching {
+                        val hex = item.bgColorHex.removePrefix("#").trim()
+                        if (hex.length == 6) Color(android.graphics.Color.parseColor("#$hex")) else null
+                    }.getOrNull()
+                    BrowseCategoryItem(
+                        title = item.title,
+                        subtitle = item.subtitle,
+                        query = item.title,
+                        colors = if (parsedColor != null) {
+                            listOf(parsedColor, parsedColor.copy(alpha = 0.78f))
+                        } else {
+                            fallbackColors
+                        },
+                        artworkUrl = item.artworkUrl
+                    )
+                }
+            }
             searchRecommendations = LyricsFlowApi.fetchTrendingTracks(limit = 8)
         }
     }
@@ -540,7 +563,8 @@ fun Search(navController: NavController) {
                     )
                 }
 
-                val chunkedCategories = AppleMusicBrowseCategories.chunked(2)
+                val activeCategories = searchLandingCategories.ifEmpty { AppleMusicBrowseCategories }
+                val chunkedCategories = activeCategories.chunked(2)
                 items(chunkedCategories, key = { it.first().title }) { rowCategories ->
                     Row(
                         modifier = Modifier
@@ -560,10 +584,31 @@ fun Search(navController: NavController) {
                                         SettingsLibrary.addSearchHistoryQuery(cat.title)
                                         query = cat.query
                                     }
-                                    .padding(14.dp)
                             ) {
+                                if (cat.artworkUrl.isNotBlank()) {
+                                    AsyncImage(
+                                        model = cat.artworkUrl,
+                                        contentDescription = cat.title,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(
+                                                Brush.verticalGradient(
+                                                    colors = listOf(
+                                                        Color.Transparent,
+                                                        Color.Black.copy(alpha = 0.56f)
+                                                    )
+                                                )
+                                            )
+                                    )
+                                }
                                 Column(
-                                    modifier = Modifier.align(Alignment.BottomStart)
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .padding(14.dp)
                                 ) {
                                     Text(
                                         text = cat.title,
@@ -574,15 +619,17 @@ fun Search(navController: NavController) {
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
-                                    Text(
-                                        text = cat.subtitle,
-                                        fontFamily = SFProDisplay,
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 12.sp,
-                                        color = Color.White.copy(alpha = 0.8f),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
+                                    if (cat.subtitle.isNotBlank()) {
+                                        Text(
+                                            text = cat.subtitle,
+                                            fontFamily = SFProDisplay,
+                                            fontWeight = FontWeight.Medium,
+                                            fontSize = 12.sp,
+                                            color = Color.White.copy(alpha = 0.8f),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 }
                             }
                         }

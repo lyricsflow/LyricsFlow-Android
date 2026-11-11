@@ -171,6 +171,7 @@ import com.lyricsflow.player.ui.widgets.basic.NavItem
 import com.lyricsflow.player.ui.widgets.basic.ShadowImageWithCache
 import com.lyricsflow.player.ui.widgets.basic.LyricsflowWrapper
 import com.lyricsflow.player.ui.widgets.glass.LocalAppBackdrop
+import com.lyricsflow.player.ui.widgets.glass.LocalFloatingTabBarScrollConnection
 import com.lyricsflow.player.ui.widgets.glass.LocalInsideAppBackdrop
 import com.lyricsflow.player.ui.widgets.glass.LyricsFlowFloatingMiniPlayer
 import com.lyricsflow.player.ui.widgets.glass.LyricsFlowFloatingTabBar
@@ -345,7 +346,10 @@ class MainActivity : BaseActivity() {
                         // 以下为实际显示
 
                         // 主界面
-                        CompositionLocalProvider(LocalAppBackdrop provides appBackdrop) {
+                        CompositionLocalProvider(
+                            LocalAppBackdrop provides appBackdrop,
+                            LocalFloatingTabBarScrollConnection provides tabBarScrollConnection
+                        ) {
                         LyricsflowWrapper {
                             Surface(
                                 modifier = Modifier

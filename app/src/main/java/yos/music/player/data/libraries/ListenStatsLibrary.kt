@@ -54,6 +54,7 @@ data class StatsTrackEntry(
     val artistName: String,
     val albumName: String,
     val listenedMs: Long,
+    val playCount: Int,
     val thumb: String?,
     val libraryItem: LyricsflowMediaItem?
 )
@@ -263,6 +264,7 @@ object ListenStatsLibrary
                     artistName = firstEvent.artists?.toMultipleArtists()?.toArtistsString() ?: defaultArtistsName,
                     albumName = firstEvent.album ?: defaultAlbum,
                     listenedMs = trackGroup.value.sumOf { it.listenedMs },
+                    playCount = trackGroup.value.count { it.countsAsPlay },
                     thumb = libraryItem?.thumb?.toString() ?: firstEvent.thumb,
                     libraryItem = libraryItem
                 )
@@ -321,7 +323,10 @@ object ListenStatsLibrary
             }
             else
             {
-                cachedEntry.copy(listenedMs = cachedEntry.listenedMs + entry.listenedMs)
+                cachedEntry.copy(
+                    listenedMs = cachedEntry.listenedMs + entry.listenedMs,
+                    playCount = cachedEntry.playCount + entry.playCount
+                )
             }
         }
         return mergedEntries.values.sortedByDescending { it.listenedMs }

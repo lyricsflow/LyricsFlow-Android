@@ -196,6 +196,14 @@ object LyricsFlowApi {
         val items: List<LyricsFlowCatalogItem> = emptyList()
     )
 
+    data class SearchLandingCategory(
+        val id: String,
+        val title: String,
+        val subtitle: String = "",
+        val artworkUrl: String = "",
+        val bgColorHex: String = ""
+    )
+
     enum class LyricSource(val id: String) {
         LF_COMMUNITY("lfcommunity"),
         LYRICSFLOW("lyricsflow"),
@@ -2273,6 +2281,60 @@ object LyricsFlowApi {
         }
         // Fallback to top hits catalog search
         searchCatalog("Top Hits 2025", limit = 20)
+    }
+
+    /**
+     * Fetches the Apple Music Search Landing recommendations & browse categories from:
+     * `https://api.trylyricsflow.com/recommendations?storefront=us&l=en-US&platform=iphone&extend=editorialArtwork&art_url=c%2Cf&types=activities%2Capple-curators%2Ceditorial-items&with_params=concerts&omit_resource=autos&format_resources=map&name=search-landing`
+     */
+    suspend fun fetchSearchLandingRecommendations(): List<SearchLandingCategory> = withContext(Dispatchers.IO) {
+        val categories = mutableListOf<SearchLandingCategory>()
+        runCatching {
+            val url = "$API_BASE/recommendations?storefront=us&l=en-US&platform=iphone&extend=editorialArtwork" +
+                "&art_url=c%2Cf&types=activities%2Capple-curators%2Ceditorial-items&with_params=concerts" +
+                "&omit_resource=autos&format_resources=map&name=search-landing"
+            val text = httpGet(url, 8000)
+            if (!text.isNullOrBlank()) {
+                val root = JSONObject(text)
+                val resources = root.optJSONObject("resources")
+                if (resources != null) {
+                    val bucketTypes = listOf("editorial-items", "activities", "apple-curators")
+                    for (bucket in bucketTypes) {
+                        val mapObj = resources.optJSONObject(bucket) ?: continue
+                        val keys = mapObj.keys()
+                        while (keys.hasNext()) {
+                            val key = keys.next()
+                            val obj = mapObj.optJSONObject(key) ?: continue
+                            val attrs = obj.optJSONObject("attributes") ?: continue
+                            val name = attrs.optString("name")
+                                .ifBlank { attrs.optString("title") }
+                                .ifBlank { attrs.optJSONObject("editorialNotes")?.optString("name").orEmpty() }
+                            if (name.isBlank()) continue
+                            val subtitle = attrs.optString("subtitle")
+                                .ifBlank { attrs.optJSONObject("editorialNotes")?.optString("short").orEmpty() }
+                            val artObj = attrs.optJSONObject("editorialArtwork")?.optJSONObject("subscriptionHero")
+                                ?: attrs.optJSONObject("editorialArtwork")?.optJSONObject("storeFlowcase")
+                                ?: attrs.optJSONObject("editorialArtwork")?.optJSONObject("superHeroWide")
+                                ?: attrs.optJSONObject("artwork")
+                            val artUrl = resolveArtworkUrl(artObj, 600, 600).ifBlank {
+                                extractBestArtistOrEntityArtwork(attrs, 600)
+                            }
+                            val bgHex = artObj?.optString("bgColor").orEmpty()
+                            categories.add(
+                                SearchLandingCategory(
+                                    id = key,
+                                    title = name,
+                                    subtitle = subtitle,
+                                    artworkUrl = artUrl,
+                                    bgColorHex = bgHex
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        categories.distinctBy { it.title.lowercase(Locale.ROOT) }
     }
 
     suspend fun fetchEditorialNewShelves(): List<EditorialShelf> = withContext(Dispatchers.IO) {

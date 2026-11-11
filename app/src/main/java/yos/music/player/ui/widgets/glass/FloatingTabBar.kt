@@ -58,6 +58,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -197,6 +198,12 @@ fun rememberFloatingTabBarScrollConnection(
         FloatingTabBarScrollConnection(initialIsInline, scrollThresholdPx)
     }
 }
+
+/**
+ * Provides the active [FloatingTabBarScrollConnection] to descendant pages (e.g. `Search`)
+ * so their scrolling also collapses / expands the floating tab bar and miniplayer inline.
+ */
+val LocalFloatingTabBarScrollConnection = staticCompositionLocalOf<FloatingTabBarScrollConnection?> { null }
 
 /**
  * Floating Tab Bar ported from BitChord (`GlassNavBar.kt`, `FloatingTabBar.kt`, `FloatingBottomBar.kt`, `GlassSelectionPill.kt`).

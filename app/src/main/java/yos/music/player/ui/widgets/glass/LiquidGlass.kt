@@ -189,6 +189,26 @@ fun Modifier.liquidGlassCircle(
 )
 
 @Composable
+fun Modifier.liquidGlassCapsule(
+    backdrop: Backdrop = LocalAppBackdrop.current,
+    blurRadius: Dp = 10.dp,
+    refractionHeight: Dp = 16.dp,
+    refractionAmount: Dp = 20.dp,
+    surfaceTint: Color? = null,
+    shadow: Shadow? = Shadow.Default,
+): Modifier = liquidGlass(
+    backdrop = backdrop,
+    shape = RoundedCornerShape(100.dp),
+    blurRadius = blurRadius,
+    refractionHeight = refractionHeight,
+    refractionAmount = refractionAmount,
+    chromaticAberration = false,
+    depthEffect = false,
+    surfaceTint = surfaceTint,
+    shadow = shadow,
+)
+
+@Composable
 fun LiquidGlassSurface(
     modifier: Modifier = Modifier,
     backdrop: Backdrop = LocalAppBackdrop.current,

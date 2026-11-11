@@ -151,7 +151,7 @@ object SongDownloaderManager {
                 arrayOf(audioFile.absolutePath),
                 arrayOf("audio/mp4")
             ) { _, _ ->
-                scope.launch {
+                CoroutineScope(Dispatchers.IO).launch {
                     runCatching { MusicLibrary.scanMedia(context) }
                 }
             }
