@@ -8,7 +8,7 @@ import com.lyricsflow.player.data.objects.MediaViewModelObject
 /**
  * Lrc 歌词文本处理
  */
-class YosLrcFactory(private val formatText: Boolean = true) {
+class LyricsflowLrcFactory(private val formatText: Boolean = true) {
     /**
      * Lrc 歌词文本处理方法
      * @param lrcText Lrc 格式的文本

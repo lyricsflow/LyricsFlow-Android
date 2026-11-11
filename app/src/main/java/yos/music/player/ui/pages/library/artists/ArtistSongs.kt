@@ -34,7 +34,7 @@ import kotlinx.coroutines.withContext
 import com.lyricsflow.player.R
 import com.lyricsflow.player.code.MediaController
 import com.lyricsflow.player.data.libraries.ArtistLibrary
-import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.LyricsflowMediaItem
 import com.lyricsflow.player.data.libraries.lazyListKey
 import com.lyricsflow.player.data.objects.LibraryObject
 import com.lyricsflow.player.ui.pages.library.MusicList
@@ -96,13 +96,15 @@ fun ArtistSongs(navController: NavController)
             delay(150)
         }
 
-        withContext(Dispatchers.Default) {
-            displayedSongs.value = if (searchText.value.isBlank()) {
+        val query = searchText.value
+        val result = withContext(Dispatchers.Default) {
+            if (query.isBlank()) {
                 artistSongs
             } else {
-                PlayListSearch.matchAndRank(artistSongs, searchText.value)
+                PlayListSearch.matchAndRank(artistSongs, query)
             }
         }
+        displayedSongs.value = result
     }
 
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -187,7 +189,7 @@ fun ArtistSongs(navController: NavController)
 
 @Composable
 private fun ArtistSongItem(
-    music: YosMediaItem,
+    music: LyricsflowMediaItem,
     navController: NavController,
     onPlay: () -> Unit,
 )

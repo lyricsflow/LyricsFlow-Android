@@ -106,13 +106,13 @@ import com.lyricsflow.player.data.libraries.PlayListLibrary.unpin
 import com.lyricsflow.player.data.libraries.SettingsLibrary
 import com.lyricsflow.player.data.libraries.SettingsLibrary.EnableDescending
 import com.lyricsflow.player.data.libraries.SettingsLibrary.SongSort
-import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.LyricsflowMediaItem
 import com.lyricsflow.player.data.libraries.artistsList
 import com.lyricsflow.player.data.libraries.defaultArtists
 import com.lyricsflow.player.data.libraries.defaultTitle
 import com.lyricsflow.player.data.libraries.lazyListKey
 import com.lyricsflow.player.data.objects.LibraryObject
-import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.theme.LyricsflowRoundedCornerShape
 import com.lyricsflow.player.ui.pages.library.playlists.PendingPlayListDeletion
 import com.lyricsflow.player.ui.pages.library.playlists.PlayListAutoCover
 import com.lyricsflow.player.ui.pages.library.playlists.PlayListEditModal
@@ -124,7 +124,7 @@ import com.lyricsflow.player.ui.theme.withNight
 import com.lyricsflow.player.ui.widgets.basic.SearchTextField
 import com.lyricsflow.player.ui.widgets.basic.Title
 import com.lyricsflow.player.ui.widgets.basic.TitleBarIcon
-import com.lyricsflow.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.ui.widgets.basic.LyricsflowWrapper
 import com.lyricsflow.player.ui.widgets.basic.BlurredMenuContainer
 
 @Composable
@@ -192,11 +192,11 @@ fun NormalMusic(navController: NavController) {
             }
         } else {
             val useSearch = remember { derivedStateOf { searchText.value.isNotEmpty() } }
-            val list: MutableState<List<YosMediaItem>> = remember(activePlayList?.listID) {
+            val list: MutableState<List<LyricsflowMediaItem>> = remember(activePlayList?.listID) {
                 mutableStateOf(if (activePlayList != null) musicList else musicList.sortX())
             }
 
-            YosWrapper {
+            LyricsflowWrapper {
                 // PRD FR-M-05 + FR-S-06/07/08: on a playlist, sort
                 // is view-only and search is fuzzy with relevance
                 // ranking overriding the chosen sort. Search runs on
@@ -279,7 +279,7 @@ fun NormalMusic(navController: NavController) {
 
             Box(Modifier.fillMaxSize()) {
                 if (activePlayList == null) {
-                    YosWrapper {
+                    LyricsflowWrapper {
                         FloatingMenu({ expanded.value }, {
                             expanded.value = it
                         }, buttonPosition.value)
@@ -794,7 +794,7 @@ fun NormalMusic(navController: NavController) {
     }
 }
 
-private fun List<YosMediaItem>.sortX() =
+private fun List<LyricsflowMediaItem>.sortX() =
     this.sortedBy { song ->
         when (SongSort) {
             SettingsLibrary.SongSortEnum.MUSIC_TITLE.ordinal -> Pinyin.toPinyin(
@@ -824,7 +824,7 @@ private fun List<YosMediaItem>.sortX() =
  * project to a string key (Pinyin-aware for title/artist) and apply
  * the descending toggle.
  */
-private fun List<YosMediaItem>.sortForPlaylist(): List<YosMediaItem> {
+private fun List<LyricsflowMediaItem>.sortForPlaylist(): List<LyricsflowMediaItem> {
     val sorted = when (PlayListSortPreference.sort) {
         PlayListSort.Manual -> return if (PlayListSortPreference.descending) reversed() else this
         PlayListSort.Title -> sortedBy { Pinyin.toPinyin((it.title ?: defaultTitle)[0]) }
@@ -836,7 +836,7 @@ private fun List<YosMediaItem>.sortForPlaylist(): List<YosMediaItem> {
     return if (PlayListSortPreference.descending) sorted.reversed() else sorted
 }
 
-private fun normalMusicUriStubMedia(uri: android.net.Uri) = YosMediaItem(
+private fun normalMusicUriStubMedia(uri: android.net.Uri) = LyricsflowMediaItem(
     uri = uri,
     mediaId = null, mimeType = null,
     title = null, writer = null, compilation = null, composer = null,
@@ -1467,7 +1467,7 @@ fun FloatingMenuDivider() =
 @Composable
 private fun PlayListHeroArtwork(playList: PlayList) {
     val context = LocalContext.current
-    val shape = YosRoundedCornerShape(18.dp)
+    val shape = LyricsflowRoundedCornerShape(18.dp)
     val songsInPlaylist = remember(playList.songDataList) {
         playList.songDataList.mapNotNull { uri ->
             com.lyricsflow.player.data.libraries.MusicLibrary.songs.firstOrNull { it.uri == uri }

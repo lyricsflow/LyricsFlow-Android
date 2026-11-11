@@ -69,7 +69,7 @@ import com.lyricsflow.player.data.libraries.PlayListLibrary
 import com.lyricsflow.player.data.libraries.PlayListLibrary.addMusic
 import com.lyricsflow.player.data.libraries.PlayListLibrary.playList
 import com.lyricsflow.player.data.libraries.SettingsLibrary
-import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.LyricsflowMediaItem
 import com.lyricsflow.player.data.libraries.lazyListKey
 import com.lyricsflow.player.data.objects.LibraryObject
 import com.lyricsflow.player.ui.UI
@@ -83,13 +83,13 @@ import com.lyricsflow.player.ui.pages.library.FloatingMenuPlayListPickerContent
 import com.lyricsflow.player.ui.pages.library.MusicDetailCircleButton
 import com.lyricsflow.player.ui.pages.library.MusicDetailPage
 import com.lyricsflow.player.ui.pages.library.MusicList
-import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.theme.LyricsflowRoundedCornerShape
 import com.lyricsflow.player.ui.theme.withNight
 import com.lyricsflow.player.ui.toUI
 import com.lyricsflow.player.ui.widgets.basic.ImageQuality
 import com.lyricsflow.player.ui.widgets.basic.ShadowImageWithCache
 import com.lyricsflow.player.ui.widgets.basic.Title
-import com.lyricsflow.player.ui.widgets.basic.YosBottomSheetDialog
+import com.lyricsflow.player.ui.widgets.basic.LyricsflowBottomSheetDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -416,7 +416,7 @@ fun ArtistInfo(
 }
 
 @Composable
-private fun ArtistHeroArtwork(artistName: String, songs: List<YosMediaItem>)
+private fun ArtistHeroArtwork(artistName: String, songs: List<LyricsflowMediaItem>)
 {
     val context = LocalContext.current
     val realArtistAvatar = remember(artistName) { mutableStateOf("") }
@@ -555,7 +555,7 @@ private fun ArtistReleaseCard(release: ArtistRelease, onClick: () -> Unit)
 }
 
 @Composable
-private fun ArtistOverflowHeader(artistName: String, songs: List<YosMediaItem>)
+private fun ArtistOverflowHeader(artistName: String, songs: List<LyricsflowMediaItem>)
 {
     val context = LocalContext.current
 
@@ -572,7 +572,7 @@ private fun ArtistOverflowHeader(artistName: String, songs: List<YosMediaItem>)
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .size(64.dp)
-                .clip(YosRoundedCornerShape(10.dp)),
+                .clip(LyricsflowRoundedCornerShape(10.dp)),
             error = painterResource(id = R.drawable.songcredits_monogram_person),
             fallback = painterResource(id = R.drawable.songcredits_monogram_person),
             placeholder = painterResource(id = R.drawable.songcredits_monogram_person),
@@ -604,12 +604,12 @@ private fun ArtistOverflowHeader(artistName: String, songs: List<YosMediaItem>)
 private fun ArtistAddToPlaylistSheet(
     isOpen: MutableState<Boolean>,
     artistName: String,
-    songs: List<YosMediaItem>,
+    songs: List<LyricsflowMediaItem>,
 )
 {
     if (!isOpen.value) return
 
-    YosBottomSheetDialog(
+    LyricsflowBottomSheetDialog(
         blurred = true,
         onDismissRequest = { isOpen.value = false },
     ) {
@@ -624,7 +624,7 @@ private fun ArtistAddToPlaylistSheet(
 @Composable
 private fun ArtistAddToPlaylistContent(
     artistName: String,
-    songs: List<YosMediaItem>,
+    songs: List<LyricsflowMediaItem>,
     showHeader: Boolean = true,
     onDone: () -> Unit,
     onBack: (() -> Unit)? = null,

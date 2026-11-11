@@ -49,12 +49,12 @@ import com.lyricsflow.player.data.libraries.MusicLibrary.hideFolders
 import com.lyricsflow.player.data.objects.LibraryObject
 import com.lyricsflow.player.ui.UI
 import com.lyricsflow.player.ui.pages.settings.SettingBackground
-import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.theme.LyricsflowRoundedCornerShape
 import com.lyricsflow.player.ui.theme.withNight
 import com.lyricsflow.player.ui.toUI
 import com.lyricsflow.player.ui.widgets.basic.Title
-import com.lyricsflow.player.ui.widgets.basic.YosWrapper
-import com.lyricsflow.player.ui.widgets.basic.yosRoundColumn
+import com.lyricsflow.player.ui.widgets.basic.LyricsflowWrapper
+import com.lyricsflow.player.ui.widgets.basic.lyricsflowRoundColumn
 
 @Composable
 fun LibraryOverview(navController: NavController) =
@@ -65,7 +65,7 @@ fun LibraryOverview(navController: NavController) =
             navController.popBackStack()
         },
         content = {
-            yosRoundColumn {
+            lyricsflowRoundColumn {
                 itemsIndexed(
                     folders,
                     key = { _, folder -> folder.path }
@@ -108,7 +108,7 @@ private fun LazyItemScope.FolderItem(folder: Folder, itemClick: () -> Unit) {
             .padding(start = 22.dp, end = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val shape = YosRoundedCornerShape(4.dp)
+        val shape = LyricsflowRoundedCornerShape(4.dp)
         val density = LocalDensity.current
 
         Image(painter = painterResource(id = R.drawable.placeholder_folder), contentDescription = null,
@@ -151,7 +151,7 @@ private fun LazyItemScope.FolderItem(folder: Folder, itemClick: () -> Unit) {
             )
         }
 
-        YosWrapper {
+        LyricsflowWrapper {
             val scope = rememberCoroutineScope()
             val context = LocalContext.current
 

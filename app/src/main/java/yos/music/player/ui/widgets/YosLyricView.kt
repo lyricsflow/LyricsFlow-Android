@@ -86,6 +86,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextGeometricTransform
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
@@ -97,15 +98,16 @@ import com.lyricsflow.player.code.utils.lrc.AmlAnimationCurves
 import com.lyricsflow.player.code.utils.lrc.AmlBackgroundLine
 import com.lyricsflow.player.code.utils.lrc.AmlSpring
 import com.lyricsflow.player.code.utils.lrc.AmlSyllable
-import com.lyricsflow.player.code.utils.lrc.YosMediaEvent
-import com.lyricsflow.player.code.utils.lrc.YosUIConfig
+import com.lyricsflow.player.code.utils.lrc.LyricsflowMediaEvent
+import com.lyricsflow.player.code.utils.lrc.LyricsflowUIConfig
 import com.lyricsflow.player.code.utils.others.Vibrator
 import com.lyricsflow.player.data.libraries.SettingsLibrary
 import com.lyricsflow.player.data.objects.MainViewModelObject
 import com.lyricsflow.player.data.objects.MediaViewModelObject
 import com.lyricsflow.player.ui.theme.SFArabic
 import com.lyricsflow.player.ui.theme.SFProDisplay
-import com.lyricsflow.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.ui.theme.sfArabicDynamicFamily
+import com.lyricsflow.player.ui.widgets.basic.LyricsflowWrapper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -114,10 +116,10 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
-val yosEasing = CubicBezierEasing(0.28f, 0.11f, 0.22f, 1.0f)
+val lyricsflowEasing = CubicBezierEasing(0.28f, 0.11f, 0.22f, 1.0f)
 
 /**
- * LyricsFlow & yourLyrics Apple Music Lyric View (`YosLyricView`)
+ * LyricsFlow & yourLyrics Apple Music Lyric View (`LyricsflowLyricView`)
  * Direct port of `main/js/lyrics-animator.js`, `main/js/lyrics-applyer.js`, `main/js/spring.js`, and `main/js/is-rtl.js`:
  * - Uses `SFArabic` (`sfarabic.ttf`) for RTL (Arabic/Hebrew/Persian) lines and `SFProDisplay` for LTR/CJK lines.
  * - Moves whole words up (`-3px` harmonic spring `wordRiseOffsetPx`) rather than individual letters.
@@ -125,17 +127,17 @@ val yosEasing = CubicBezierEasing(0.28f, 0.11f, 0.22f, 1.0f)
  * - Drives line scrolling with per-line analytical harmonic oscillator `AmlSpring` (`_posYSpring`) + tempo-adaptive stiffness/damping (`getPosYSpringPolicy`) + `50ms` (`0.05s`) per-visible-line cascade wave stagger.
  */
 @Composable
-fun YosLyricView(
+fun LyricsflowLyricView(
     lrcEntriesLambda: () -> List<List<Pair<Float, String>>>,
     lineEndTimesLambda: () -> List<Float> = { emptyList() },
     lineTransliterationsLambda: () -> List<String?> = { emptyList() },
     lineSubtitlesLambda: () -> List<String?> = { emptyList() },
     isTtmlLyricsLambda: () -> Boolean = { false },
     liveTimeLambda: () -> Int,
-    mediaEvent: YosMediaEvent,
+    mediaEvent: LyricsflowMediaEvent,
     translationLambda: () -> Boolean = { true },
     blurLambda: () -> Boolean = { false },
-    uiConfig: YosUIConfig = YosUIConfig(),
+    uiConfig: LyricsflowUIConfig = LyricsflowUIConfig(),
     weightLambda: () -> Boolean,
     modifier: Modifier,
     onBackClick: () -> Unit
@@ -199,8 +201,8 @@ fun YosLyricView(
     } else {
         val scrollState = rememberLazyListState()
         val currentLyricIndex =
-            remember("YosLyricView_currentLyricIndex") { MainViewModelObject.syncLyricIndex }
-        val ttmlLiveTime = remember("YosLyricView_ttmlLiveTime") {
+            remember("LyricsflowLyricView_currentLyricIndex") { MainViewModelObject.syncLyricIndex }
+        val ttmlLiveTime = remember("LyricsflowLyricView_ttmlLiveTime") {
             mutableIntStateOf(liveTimeLambda())
         }
 
@@ -208,7 +210,7 @@ fun YosLyricView(
             isTtmlLyrics || lineSyllablesList.any { it.size > 1 } || lrcEntries.any { it.size > 2 }
         }
 
-        YosWrapper {
+        LyricsflowWrapper {
             LaunchedEffect(hasWordLevelSync, lrcEntries) {
                 while (true) {
                     ttmlLiveTime.intValue = liveTimeLambda()
@@ -221,7 +223,7 @@ fun YosLyricView(
         val lastFocusedScrollIdx = remember(lrcEntries) { mutableIntStateOf(-1) }
 
         val focusedLyricIndices = remember(
-            "YosLyricView_focusedLyricIndices",
+            "LyricsflowLyricView_focusedLyricIndices",
             hasWordLevelSync,
             lrcEntries,
             lineEndTimes
@@ -294,7 +296,7 @@ fun YosLyricView(
 
         // Scroll anchor index with `lyrics-animator.js` 380ms early lead-in for tight gaps (< 1000ms)
         val focusedLyricAnchorIndex = remember(
-            "YosLyricView_focusedLyricAnchorIndex",
+            "LyricsflowLyricView_focusedLyricAnchorIndex",
             focusedLyricIndices,
             lrcEntries,
             lineEndTimes
@@ -331,14 +333,14 @@ fun YosLyricView(
             }
         }
 
-        val enableLyricScroll = remember("YosLyricView_enableLyricScroll") {
+        val enableLyricScroll = remember("LyricsflowLyricView_enableLyricScroll") {
             mutableStateOf(true)
         }
 
-        val height = rememberSaveable(key = "YosLyricView_height") { mutableIntStateOf(0) }
+        val height = rememberSaveable(key = "LyricsflowLyricView_height") { mutableIntStateOf(0) }
         // `lyrics-animator.js` line 327: `containerHeight * 0.24` (mobile top anchor)
         val targetWeight = 0.14f
-        val targetOffset = rememberSaveable(height.intValue, key = "YosLyricView_targetOffset") {
+        val targetOffset = rememberSaveable(height.intValue, key = "LyricsflowLyricView_targetOffset") {
             height.intValue * targetWeight
         }
 
@@ -401,7 +403,7 @@ fun YosLyricView(
             }
         }
 
-        YosWrapper {
+        LyricsflowWrapper {
             LaunchedEffect(isUserScrolling.value) {
                 if (isUserScrolling.value) {
                     enableLyricScroll.value = false
@@ -414,7 +416,7 @@ fun YosLyricView(
 
         // `setLineAnimTargets` from `main/js/lyrics-animator.js` (lines 269-422):
         // Calculates tempo-adaptive spring policy (`getPosYSpringPolicy`) and 50ms (`0.05s`) per-visible-line cascade stagger!
-        YosWrapper {
+        LyricsflowWrapper {
             LaunchedEffect(focusedLyricAnchorIndex.value, translationLambda(), enableLyricScroll.value) {
                 try {
                     if (!enableLyricScroll.value) return@LaunchedEffect
@@ -487,7 +489,7 @@ fun YosLyricView(
             }
         }
 
-        YosWrapper {
+        LyricsflowWrapper {
             LazyColumn(
                 state = scrollState,
                 contentPadding = PaddingValues(vertical = 18.dp),
@@ -562,25 +564,83 @@ fun YosLyricView(
                     val springYOffsetPx = lineSpringOffsetsPx[index] ?: 0f
 
                     key(index, lines) {
-                        val translation = remember(
-                            index,
-                            lines,
-                            isTtmlLyrics,
-                            translationLambda(),
-                            lineTransliterations,
-                            lineSubtitles
-                        ) {
-                            if (isTtmlLyrics || lineSubtitles.getOrNull(index) != null || lineTransliterations.getOrNull(index) != null) {
-                                val secondaryText = if (translationLambda()) {
-                                    lineSubtitles.getOrNull(index) ?: lineTransliterations.getOrNull(index)
-                                } else {
-                                    lineTransliterations.getOrNull(index)
-                                }
-                                secondaryText?.ifBlank { null }
+                        val rawSubtitle = remember(index, lines, isTtmlLyrics, lineSubtitles) {
+                            if (isTtmlLyrics || lineSubtitles.getOrNull(index) != null) {
+                                lineSubtitles.getOrNull(index)?.ifBlank { null }
                             } else {
-                                val str = lines.last().second
-                                str.ifBlank { null }
+                                lines.last().second.ifBlank { null }
                             }
+                        }
+                        val rawPronunciation = remember(index, lineTransliterations) {
+                            lineTransliterations.getOrNull(index)?.ifBlank { null }
+                        }
+
+                        val showTranslationPref = translationLambda() && SettingsLibrary.LyricShowTranslation
+                        val showPronunciationPref = SettingsLibrary.LyricShowPronunciation
+                        val swapOriginalWithPronunciation = SettingsLibrary.LyricSwapOriginalWithPronunciation && !rawPronunciation.isNullOrBlank()
+                        val hideOriginalInPronunciationBar = SettingsLibrary.LyricHideOriginalInPronunciationBar
+
+                        val effectiveMainLyric = remember(lines, rawPronunciation, swapOriginalWithPronunciation, lineStartMs, lineEndMs) {
+                            val baseMain = lines.dropLast(1)
+                            if (swapOriginalWithPronunciation && !rawPronunciation.isNullOrBlank()) {
+                                listOf(lineStartMs to "", lineEndMs to rawPronunciation)
+                            } else {
+                                baseMain
+                            }
+                        }
+                        val effectiveSyllables = remember(lineSyllables, rawPronunciation, swapOriginalWithPronunciation, lineStartMs, lineEndMs) {
+                            if (swapOriginalWithPronunciation && !rawPronunciation.isNullOrBlank()) {
+                                if (lineSyllables.isEmpty()) {
+                                    emptyList()
+                                } else {
+                                    val words = rawPronunciation.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+                                    if (words.isEmpty()) {
+                                        emptyList()
+                                    } else {
+                                        val totalChars = words.sumOf { it.length }.coerceAtLeast(1)
+                                        val totalDur = max(lineEndMs - lineStartMs, 200f)
+                                        var cursor = lineStartMs
+                                        words.mapIndexed { wIdx, w ->
+                                            val wDur = totalDur * (w.length.toFloat() / totalChars.toFloat())
+                                            val wStart = cursor
+                                            val wEnd = if (wIdx == words.lastIndex) max(lineEndMs, wStart + 50f) else (wStart + wDur)
+                                            cursor = wEnd
+                                            AmlSyllable(
+                                                text = w,
+                                                startTimeMs = wStart,
+                                                endTimeMs = wEnd,
+                                                isPartOfWord = false
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                lineSyllables
+                            }
+                        }
+
+                        val effectivePronunciationBarText = remember(
+                            lines,
+                            rawPronunciation,
+                            showPronunciationPref,
+                            swapOriginalWithPronunciation,
+                            hideOriginalInPronunciationBar
+                        ) {
+                            if (!showPronunciationPref) {
+                                null
+                            } else if (swapOriginalWithPronunciation) {
+                                if (hideOriginalInPronunciationBar) {
+                                    null
+                                } else {
+                                    lines.dropLast(1).joinToString("") { it.second }.trim().ifBlank { null }
+                                }
+                            } else {
+                                rawPronunciation
+                            }
+                        }
+
+                        val translation = remember(rawSubtitle, showTranslationPref) {
+                            if (showTranslationPref) rawSubtitle else null
                         }
 
                         // AMLL / LyricsFlow Blur calculation (`setLineAnimTargets` lines 385-411)
@@ -650,17 +710,18 @@ fun YosLyricView(
                                 }
                             }
 
-                            YosWrapper {
+                            LyricsflowWrapper {
                                 LyricItem(
                                     isCurrentLambda = { isCurrent.value },
                                     isTopLambda = { isTop.value },
-                                    mainLyric = lines.dropLast(1),
-                                    syllables = lineSyllables,
+                                    mainLyric = effectiveMainLyric,
+                                    syllables = effectiveSyllables,
                                     backgroundLines = lineBackgrounds,
                                     lineStartTimeMs = lineStartMs,
                                     lineEndTimeMs = lineEndMs,
+                                    pronunciationText = effectivePronunciationBarText,
                                     translation = translation,
-                                    showTranslation = if (isTtmlLyrics) translation != null else translationLambda(),
+                                    showTranslation = translation != null,
                                     subTextSize = uiConfig.subTextSize,
                                     blur = { blur.value },
                                     mainTextBasicColor = mainTextBasicColor,
@@ -714,7 +775,7 @@ fun YosLyricView(
             }
         }
 
-        YosWrapper {
+        LyricsflowWrapper {
             LaunchedEffect(Unit) {
                 try {
                     if (currentLyricIndex.intValue != -1) {
@@ -761,7 +822,7 @@ private fun LazyItemScope.Line(
     viewAlign: Alignment.Horizontal,
     draw: CacheDrawScope.(Constraints, TextLayoutResult) -> DrawResult
 ) =
-    YosWrapper {
+    LyricsflowWrapper {
         val styledString = remember(style, lines) {
             buildString {
                 lines.forEach { char ->
@@ -893,6 +954,7 @@ fun LazyItemScope.LyricItem(
     backgroundLines: List<AmlBackgroundLine> = emptyList(),
     lineStartTimeMs: Float = 0f,
     lineEndTimeMs: Float = 0f,
+    pronunciationText: String? = null,
     translation: String?,
     showTranslation: Boolean,
     subTextSize: Int,
@@ -936,7 +998,7 @@ fun LazyItemScope.LyricItem(
 
     val liveTime = remember(mainLyric) { mutableIntStateOf(liveTimeLambda()) }
 
-    YosWrapper {
+    LyricsflowWrapper {
         val launch = remember(mainLyric, backgroundLines) {
             derivedStateOf {
                 isLyricEmpty() || !isNotOneByOne.value || backgroundLines.isNotEmpty()
@@ -1044,7 +1106,7 @@ fun LazyItemScope.LyricItem(
         units
     }
 
-    YosWrapper {
+    LyricsflowWrapper {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -1066,13 +1128,13 @@ fun LazyItemScope.LyricItem(
             val tweenSpecWithDelay: AnimationSpec<Float> = remember(mainLyric) {
                 TweenSpec(
                     durationMillis = 270,
-                    easing = yosEasing,
+                    easing = lyricsflowEasing,
                     delay = 90
                 )
             }
 
             val tweenSpecWithoutDelay: AnimationSpec<Float> = remember(mainLyric) {
-                TweenSpec(durationMillis = 300, easing = yosEasing, delay = 40)
+                TweenSpec(durationMillis = 300, easing = lyricsflowEasing, delay = 40)
             }
 
             // `Specs.deselectedScale = 0.98`, active `1.0`
@@ -1116,14 +1178,14 @@ fun LazyItemScope.LyricItem(
                         enter = fadeIn(
                             animationSpec = TweenSpec(
                                 durationMillis = 420,
-                                easing = yosEasing
+                                easing = lyricsflowEasing
                             )
                         ) + scaleIn(
                             initialScale = 0.85f,
                             transformOrigin = otherSideAnimate,
                             animationSpec = TweenSpec(
                                 durationMillis = 420,
-                                easing = yosEasing
+                                easing = lyricsflowEasing
                             )
                         ),
                         exit = fadeOut() + scaleOut(
@@ -1131,11 +1193,11 @@ fun LazyItemScope.LyricItem(
                             transformOrigin = otherSideAnimate,
                             animationSpec = TweenSpec(
                                 durationMillis = 300,
-                                easing = yosEasing
+                                easing = lyricsflowEasing
                             )
                         )
                     ) {
-                        YosWrapper {
+                        LyricsflowWrapper {
                             LyricCard(
                                 { scale.value },
                                 cardPadding,
@@ -1160,7 +1222,7 @@ fun LazyItemScope.LyricItem(
                     }
                 }
             } else {
-                YosWrapper {
+                LyricsflowWrapper {
                     LyricCard(
                         { scale.value },
                         cardPadding,
@@ -1187,7 +1249,7 @@ fun LazyItemScope.LyricItem(
                             }
                         }
 
-                        YosWrapper {
+                        LyricsflowWrapper {
                             Column(
                                 Modifier
                                     .then(blurModifier.value)
@@ -1198,7 +1260,7 @@ fun LazyItemScope.LyricItem(
                                     remember(mainLyric) {
                                         TweenSpec(
                                             durationMillis = 320,
-                                            easing = yosEasing,
+                                            easing = lyricsflowEasing,
                                             delay = 110
                                         )
                                     }
@@ -1207,7 +1269,7 @@ fun LazyItemScope.LyricItem(
                                     remember(mainLyric) {
                                         TweenSpec(
                                             durationMillis = 320,
-                                            easing = yosEasing,
+                                            easing = lyricsflowEasing,
                                             delay = 60
                                         )
                                     }
@@ -1228,7 +1290,7 @@ fun LazyItemScope.LyricItem(
                                     )
                                 }
 
-                                YosWrapper {
+                                LyricsflowWrapper {
                                     val thisAlphaAnimated = animateFloatAsState(
                                         targetValue = if (isCurrentLambda()) 1f else 0.22f,
                                         animationSpec = if (isCurrentLambda()) alphaTweenSpecWithDelay else alphaTweenSpecWithoutDelay,
@@ -1487,7 +1549,8 @@ fun LazyItemScope.LyricItem(
                                                     }) {
                                                         drawText(
                                                             textLayoutResult = measureResult,
-                                                            brush = wordBrush
+                                                            brush = wordBrush,
+                                                            alpha = 1f
                                                         )
                                                     }
                                                 } else {
@@ -1528,7 +1591,8 @@ fun LazyItemScope.LyricItem(
                                                             }
                                                             drawText(
                                                                 textLayoutResult = measureResult,
-                                                                brush = wordBrush
+                                                                brush = wordBrush,
+                                                                alpha = 1f
                                                             )
                                                         }
                                                     }
@@ -1538,8 +1602,79 @@ fun LazyItemScope.LyricItem(
                                     }
                                 }
 
-                                // Secondary line: Translation or Romanization/Transliteration (uses SFArabic if RTL)
-                                YosWrapper {
+                                // Pronunciation / Romanization line with horizontal word-progress swipe (0f vertical lift)
+                                LyricsflowWrapper {
+                                    AnimatedVisibility(!pronunciationText.isNullOrBlank()) {
+                                        pronunciationText?.let { pronStr ->
+                                            val isPronRtl = remember(pronStr) {
+                                                AmlAnimationCurves.isRtlText(pronStr)
+                                            }
+                                            val pronAlpha = animateFloatAsState(
+                                                targetValue = if (isCurrentLambda()) 0.78f else 0.22f,
+                                                animationSpec = if (isCurrentLambda()) alphaTweenSpecWithDelay else alphaTweenSpecWithoutDelay,
+                                                label = "PronunciationAlpha"
+                                            )
+                                            val nowMs = liveTime.intValue.toFloat()
+                                            val firstSylStart = wordRunUnits.firstOrNull()?.startTimeMs ?: lineStartTimeMs
+                                            val lastSylEnd = wordRunUnits.lastOrNull()?.endTimeMs ?: lineEndTimeMs
+                                            val pronSwipeProgress = if (!isNotOneByOne.value && isCurrentLambda()) {
+                                                ((nowMs - firstSylStart) / (lastSylEnd - firstSylStart).coerceAtLeast(1f)).coerceIn(0f, 1f)
+                                            } else if (isCurrentLambda()) {
+                                                1f
+                                            } else {
+                                                0f
+                                            }
+
+                                            val pronBrush: Brush = if (!isNotOneByOne.value && isCurrentLambda() && pronSwipeProgress in 0.001f..0.999f) {
+                                                if (isPronRtl) {
+                                                    val edge = 1f - pronSwipeProgress
+                                                    Brush.horizontalGradient(
+                                                        0f to Color.White.copy(alpha = 0.38f),
+                                                        (edge - 0.08f).coerceIn(0f, 1f) to Color.White.copy(alpha = 0.38f),
+                                                        (edge + 0.08f).coerceIn(0f, 1f) to Color.White.copy(alpha = 0.96f),
+                                                        1f to Color.White.copy(alpha = 0.96f)
+                                                    )
+                                                } else {
+                                                    Brush.horizontalGradient(
+                                                        0f to Color.White.copy(alpha = 0.96f),
+                                                        (pronSwipeProgress - 0.08f).coerceIn(0f, 1f) to Color.White.copy(alpha = 0.96f),
+                                                        (pronSwipeProgress + 0.08f).coerceIn(0f, 1f) to Color.White.copy(alpha = 0.38f),
+                                                        1f to Color.White.copy(alpha = 0.38f)
+                                                    )
+                                                }
+                                            } else {
+                                                SolidColor(
+                                                    if (isCurrentLambda()) Color.White.copy(alpha = 0.88f)
+                                                    else subTextBasicColor
+                                                )
+                                            }
+
+                                            Text(
+                                                text = pronStr,
+                                                style = TextStyle(
+                                                    fontFamily = if (isPronRtl) SFArabic else SFProDisplay,
+                                                    fontSize = (subTextSize + 1).sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    lineHeight = (subTextSize + 6).sp,
+                                                    letterSpacing = if (isPronRtl) 0.sp else 0.15.sp,
+                                                    textAlign = textAlign,
+                                                    brush = pronBrush
+                                                ),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .graphicsLayer {
+                                                        this.alpha = pronAlpha.value
+                                                        compositingStrategy = CompositingStrategy.ModulateAlpha
+                                                    }
+                                                    .padding(horizontal = 16.dp)
+                                                    .padding(top = 3.dp)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Secondary line: Translation (uses SFArabic if RTL)
+                                LyricsflowWrapper {
                                     AnimatedVisibility(showTranslation && translation != null) {
                                         translation?.let { subStr ->
                                             val isSubRtl = remember(subStr) {
@@ -1624,7 +1759,7 @@ private fun AmlBackgroundVocalRow(
     )
     val slideAlpha = animateFloatAsState(
         targetValue = if (isBgActive) 0.78f else 0.18f,
-        animationSpec = tween(durationMillis = 260, easing = yosEasing),
+        animationSpec = tween(durationMillis = 260, easing = lyricsflowEasing),
         label = "BgVocalAlpha"
     )
 
@@ -1633,8 +1768,8 @@ private fun AmlBackgroundVocalRow(
 
     AnimatedVisibility(
         visible = parentLineActive || isBgActive,
-        enter = expandVertically(tween(260, easing = yosEasing)) + fadeIn(tween(240)),
-        exit = shrinkVertically(tween(240, easing = yosEasing)) + fadeOut(tween(200))
+        enter = expandVertically(tween(260, easing = lyricsflowEasing)) + fadeIn(tween(240)),
+        exit = shrinkVertically(tween(240, easing = lyricsflowEasing)) + fadeOut(tween(200))
     ) {
         Column(
             horizontalAlignment = rowAlign,
@@ -1721,7 +1856,7 @@ private fun LyricCard(
     viewAlign: Alignment.Horizontal,
     content: @Composable () -> Unit,
 ) =
-    YosWrapper {
+    LyricsflowWrapper {
         Column(
             modifier = Modifier
                 .graphicsLayer {
@@ -1791,77 +1926,98 @@ fun CountdownAnimation(progress: () -> Float, colorLambda: () -> Color) {
     AmlInterludeDotsView(state = state, color = colorLambda())
 }
 
-private val ConfiguredLyricFontWeight: FontWeight
+private val ConfiguredLyricFontWeightNumeric: Int
     get() = when (SettingsLibrary.LyricFontWeight) {
-        "Thin" -> FontWeight.Thin
-        "ExtraLight" -> FontWeight.ExtraLight
-        "Light" -> FontWeight.Light
-        "Regular" -> FontWeight.Normal
-        "Medium" -> FontWeight.Medium
-        "SemiBold" -> FontWeight.SemiBold
-        "Bold" -> FontWeight.Bold
-        "ExtraBold" -> FontWeight.ExtraBold
-        "Black" -> FontWeight.Black
-        else -> FontWeight.Bold
+        "Thin" -> 100
+        "ExtraLight" -> 200
+        "Light" -> 300
+        "Regular" -> 400
+        "Medium" -> 500
+        "SemiBold" -> 600
+        "Bold" -> 700
+        "ExtraBold" -> 800
+        "Black" -> 900
+        else -> SettingsLibrary.LyricFontWeightNumeric.coerceIn(300, 900)
     }
 
-val MainTextStyle = TextStyle(
-    fontFamily = SFProDisplay,
-    fontSize = 31.sp,
-    lineHeight = 40.sp,
-    fontWeight = ConfiguredLyricFontWeight,
-    letterSpacing = (-0.3).sp,
-    lineHeightStyle = LineHeightStyle(
-        alignment = LineHeightStyle.Alignment.Center,
-        trim = LineHeightStyle.Trim.None
-    ),
-    lineBreak = LineBreak(
-        strategy = if (SettingsLibrary.LyricLineBalance) LineBreak.Strategy.Balanced else LineBreak.Strategy.Simple,
-        LineBreak.Strictness.Default,
-        LineBreak.WordBreak.Default
+private val ConfiguredLyricFontWeight: FontWeight
+    get() = FontWeight(ConfiguredLyricFontWeightNumeric)
+
+private val ConfiguredLyricScaleX: Float
+    get() = (SettingsLibrary.LyricFontWidth.coerceIn(75, 125) / 100f)
+
+val MainTextStyle: TextStyle
+    get() = TextStyle(
+        fontFamily = SFProDisplay,
+        fontSize = 31.sp,
+        lineHeight = 40.sp,
+        fontWeight = ConfiguredLyricFontWeight,
+        textGeometricTransform = TextGeometricTransform(scaleX = ConfiguredLyricScaleX),
+        letterSpacing = (-0.3).sp,
+        lineHeightStyle = LineHeightStyle(
+            alignment = LineHeightStyle.Alignment.Center,
+            trim = LineHeightStyle.Trim.None
+        ),
+        lineBreak = LineBreak(
+            strategy = if (SettingsLibrary.LyricLineBalance) LineBreak.Strategy.Balanced else LineBreak.Strategy.Simple,
+            LineBreak.Strictness.Default,
+            LineBreak.WordBreak.Default
+        )
     )
-)
 
 /**
  * Apple SF Arabic lyric style (`sfarabic.ttf`), with zero letter-spacing so Arabic cursive ligatures stay connected.
+ * Dynamically uses variable font weight (`800` default) and width (`wdth`).
  */
-val MainArabicTextStyle = TextStyle(
-    fontFamily = SFArabic,
-    fontSize = 31.sp,
-    lineHeight = 42.sp,
-    fontWeight = ConfiguredLyricFontWeight,
-    letterSpacing = 0.sp,
-    lineHeightStyle = LineHeightStyle(
-        alignment = LineHeightStyle.Alignment.Center,
-        trim = LineHeightStyle.Trim.None
-    ),
-    lineBreak = LineBreak(
-        strategy = if (SettingsLibrary.LyricLineBalance) LineBreak.Strategy.Balanced else LineBreak.Strategy.Simple,
-        LineBreak.Strictness.Default,
-        LineBreak.WordBreak.Default
+val MainArabicTextStyle: TextStyle
+    get() = TextStyle(
+        fontFamily = sfArabicDynamicFamily(
+            weight = ConfiguredLyricFontWeightNumeric,
+            width = SettingsLibrary.LyricFontWidth.coerceIn(75, 125).toFloat()
+        ),
+        fontSize = 31.sp,
+        lineHeight = 42.sp,
+        fontWeight = ConfiguredLyricFontWeight,
+        textGeometricTransform = TextGeometricTransform(scaleX = ConfiguredLyricScaleX),
+        letterSpacing = 0.sp,
+        lineHeightStyle = LineHeightStyle(
+            alignment = LineHeightStyle.Alignment.Center,
+            trim = LineHeightStyle.Trim.None
+        ),
+        lineBreak = LineBreak(
+            strategy = if (SettingsLibrary.LyricLineBalance) LineBreak.Strategy.Balanced else LineBreak.Strategy.Simple,
+            LineBreak.Strictness.Default,
+            LineBreak.WordBreak.Default
+        )
     )
-)
 
-val BackgroundVocalTextStyle = TextStyle(
-    fontFamily = SFProDisplay,
-    fontSize = 21.5.sp,
-    lineHeight = 28.sp,
-    fontWeight = FontWeight.Bold,
-    letterSpacing = (-0.2).sp,
-    lineHeightStyle = LineHeightStyle(
-        alignment = LineHeightStyle.Alignment.Center,
-        trim = LineHeightStyle.Trim.None
+val BackgroundVocalTextStyle: TextStyle
+    get() = TextStyle(
+        fontFamily = SFProDisplay,
+        fontSize = 21.5.sp,
+        lineHeight = 28.sp,
+        fontWeight = ConfiguredLyricFontWeight,
+        textGeometricTransform = TextGeometricTransform(scaleX = ConfiguredLyricScaleX),
+        letterSpacing = (-0.2).sp,
+        lineHeightStyle = LineHeightStyle(
+            alignment = LineHeightStyle.Alignment.Center,
+            trim = LineHeightStyle.Trim.None
+        )
     )
-)
 
-val BackgroundArabicTextStyle = TextStyle(
-    fontFamily = SFArabic,
-    fontSize = 21.5.sp,
-    lineHeight = 30.sp,
-    fontWeight = FontWeight.Bold,
-    letterSpacing = 0.sp,
-    lineHeightStyle = LineHeightStyle(
-        alignment = LineHeightStyle.Alignment.Center,
-        trim = LineHeightStyle.Trim.None
+val BackgroundArabicTextStyle: TextStyle
+    get() = TextStyle(
+        fontFamily = sfArabicDynamicFamily(
+            weight = ConfiguredLyricFontWeightNumeric,
+            width = SettingsLibrary.LyricFontWidth.coerceIn(75, 125).toFloat()
+        ),
+        fontSize = 21.5.sp,
+        lineHeight = 30.sp,
+        fontWeight = ConfiguredLyricFontWeight,
+        textGeometricTransform = TextGeometricTransform(scaleX = ConfiguredLyricScaleX),
+        letterSpacing = 0.sp,
+        lineHeightStyle = LineHeightStyle(
+            alignment = LineHeightStyle.Alignment.Center,
+            trim = LineHeightStyle.Trim.None
+        )
     )
-)

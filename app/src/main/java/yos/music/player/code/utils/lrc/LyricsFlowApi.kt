@@ -3,7 +3,8 @@ package com.lyricsflow.player.code.utils.lrc
 import android.content.Context
 import android.net.Uri
 import android.util.Log
-import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.LyricsflowMediaItem
+import com.lyricsflow.player.data.libraries.SettingsLibrary
 import com.lyricsflow.player.data.libraries.artistsName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -124,6 +125,19 @@ object LyricsFlowApi {
         val relatedAlbums: List<LyricsFlowCatalogItem> = emptyList()
     )
 
+    data class CatalogConcertItem(
+        val id: String,
+        val title: String,
+        val dateText: String,
+        val monthShort: String,
+        val dayNumber: String,
+        val fullDateLine: String,
+        val doorsLine: String,
+        val venueName: String,
+        val cityCountry: String,
+        val ticketUrl: String = ""
+    )
+
     data class CatalogArtistDetail(
         val id: String,
         val name: String,
@@ -132,6 +146,7 @@ object LyricsFlowApi {
         val logoUrl: String = "",
         val keyColorHex: String = "",
         val upcomingConcertBadge: String = "",
+        val upcomingConcerts: List<CatalogConcertItem> = emptyList(),
         val bio: String = "",
         val genre: String = "",
         val origin: String = "",
@@ -197,14 +212,29 @@ object LyricsFlowApi {
         val source: String
     )
 
-    fun getStreamUrl(songId: String, codec: String = "aac"): String {
-        return "$API_BASE/stream?song=${encode(songId)}&codec=$codec&fallback=false&l=en-US"
+    fun getStreamUrl(songId: String, codec: String = ""): String {
+        val resolvedCodec = codec.ifBlank {
+            when {
+                runCatching { SettingsLibrary.EnableDolbyAtmos }.getOrDefault(false) -> "atmos"
+                runCatching { SettingsLibrary.EnableLosslessStreaming }.getOrDefault(false) -> "alac"
+                else -> "aac"
+            }
+        }
+        return if (resolvedCodec == "alac" || resolvedCodec == "atmos" || resolvedCodec == "ec3") {
+            "$API_BASE/download?song=${encode(songId)}&codec=$resolvedCodec&l=en-US&fallback=true"
+        } else {
+            "$API_BASE/stream?song=${encode(songId)}&codec=$resolvedCodec&fallback=false&l=en-US"
+        }
     }
 
     suspend fun resolveFallbackStreamUrl(songId: String, currentUri: String): String? = withContext(Dispatchers.IO) {
         val cleanId = songId.trim()
         if (cleanId.isEmpty() || cleanId.startsWith("local_") || cleanId.startsWith("upload_")) return@withContext null
         when {
+            currentUri.contains("codec=atmos") || currentUri.contains("codec=ec3") ->
+                "$API_BASE/download?song=${encode(cleanId)}&codec=alac&l=en-US&fallback=true"
+            currentUri.contains("codec=alac") ->
+                "$API_BASE/stream?song=${encode(cleanId)}&codec=aac&fallback=false&l=en-US"
             currentUri.contains("codec=aac&") -> "$API_BASE/stream?song=${encode(cleanId)}&codec=aac-web&fallback=false&l=en-US"
             currentUri.contains("codec=aac-web") -> "$API_BASE/download?song=${encode(cleanId)}&l=en-US"
             currentUri.contains("/download?") -> {
@@ -220,20 +250,20 @@ object LyricsFlowApi {
         }
     }
 
-    fun CatalogTrackResult.toYosMediaItem(): YosMediaItem {
+    fun CatalogTrackResult.toLyricsflowMediaItem(): LyricsflowMediaItem {
         val streamUriStr = if (id.isNotBlank() && !id.startsWith("local_")) {
             getStreamUrl(id)
         } else {
             previewUrl.ifBlank { getStreamUrl(id) }
         }
         val parsedArtUri = artworkUrl.takeIf { it.isNotBlank() }?.let { Uri.parse(it) }
-        return YosMediaItem(
+        return LyricsflowMediaItem(
             uri = Uri.parse(streamUriStr),
             mediaId = id.ifBlank { "${title}_${artist}" },
             mimeType = null,
             title = title,
             writer = composerName.ifBlank { artist },
-            compilation = null,
+            compilation = if (isExplicit) "explicit" else null,
             composer = composerName.ifBlank { null },
             artists = artist,
             album = album.ifBlank { "$title - Single" },
@@ -259,9 +289,9 @@ object LyricsFlowApi {
 
     suspend fun fetchAndParseLyrics(
         context: Context,
-        music: YosMediaItem,
+        music: LyricsflowMediaItem,
         durationMs: Long = 0L
-    ): YosParsedLyricData? = withContext(Dispatchers.IO) {
+    ): LyricsflowParsedLyricData? = withContext(Dispatchers.IO) {
         val title = music.title?.trim()?.takeIf { it.isNotEmpty() } ?: return@withContext null
         val artist = music.artistsName?.trim()?.takeIf { it.isNotEmpty() }
             ?: music.albumArtists?.trim().orEmpty()
@@ -385,13 +415,13 @@ object LyricsFlowApi {
         null
     }
 
-    fun parseRawLyricText(rawText: String): YosParsedLyricData? {
+    fun parseRawLyricText(rawText: String): LyricsflowParsedLyricData? {
         val trimmed = rawText.trim()
         if (trimmed.isEmpty()) return null
-        if (YosTtmlFactory.isTtmlText(trimmed)) {
-            YosTtmlFactory().formatTtmlEntries(trimmed)?.let { return it }
+        if (LyricsflowTtmlFactory.isTtmlText(trimmed)) {
+            LyricsflowTtmlFactory().formatTtmlEntries(trimmed)?.let { return it }
         }
-        var entries = YosLrcFactory().formatLrcEntries(trimmed)
+        var entries = LyricsflowLrcFactory().formatLrcEntries(trimmed)
         if (entries.isEmpty()) {
             // Fallback for plain unsynced lyrics so the user never sees "Lyrics not ready" when plain text lyrics exist
             val plainLines = trimmed.lines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("[") }
@@ -449,7 +479,7 @@ object LyricsFlowApi {
         } else {
             List(entries.size) { false }
         }
-        return YosParsedLyricData(
+        return LyricsflowParsedLyricData(
             entries = entries,
             endTimes = endTimes,
             otherSideForLines = normalizedOtherSide,
@@ -472,7 +502,7 @@ object LyricsFlowApi {
         } ?: return null
         val streamUrl = entry.optString("stream_url").takeIf { it.isNotBlank() } ?: return null
         val fullUrl = if (streamUrl.startsWith("http")) streamUrl else "$API_BASE$streamUrl"
-        val ttml = httpGet(fullUrl, 8000)?.takeIf { YosTtmlFactory.isTtmlText(it) } ?: return null
+        val ttml = httpGet(fullUrl, 8000)?.takeIf { LyricsflowTtmlFactory.isTtmlText(it) } ?: return null
         return FetchedLyricPayload(ttml, true, "LyricsFlow Community")
     }
 
@@ -504,7 +534,7 @@ object LyricsFlowApi {
     private fun extractSyncedLyricsFromResponse(responseText: String?): FetchedLyricPayload? {
         if (responseText.isNullOrBlank()) return null
         val trimmed = responseText.trim()
-        if (YosTtmlFactory.isTtmlText(trimmed)) {
+        if (LyricsflowTtmlFactory.isTtmlText(trimmed)) {
             return FetchedLyricPayload(trimmed, true, "LyricsFlow")
         }
         return runCatching {
@@ -513,7 +543,7 @@ object LyricsFlowApi {
                 ?: json.optString("ttml").takeIf { it.isNotBlank() }
                 ?: json.optString("lyrics").takeIf { it.isNotBlank() }
                 ?: return null
-            FetchedLyricPayload(synced, YosTtmlFactory.isTtmlText(synced), "LyricsFlow")
+            FetchedLyricPayload(synced, LyricsflowTtmlFactory.isTtmlText(synced), "LyricsFlow")
         }.getOrNull()
     }
 
@@ -523,7 +553,7 @@ object LyricsFlowApi {
         val responseText = httpGet(url, 8000) ?: return null
         val json = JSONObject(responseText)
         val ttml = json.optString("ttml").takeIf { it.isNotBlank() } ?: return null
-        return FetchedLyricPayload(ttml, YosTtmlFactory.isTtmlText(ttml), "BetterLyrics")
+        return FetchedLyricPayload(ttml, LyricsflowTtmlFactory.isTtmlText(ttml), "BetterLyrics")
     }
 
     private fun fetchLyricsPlus(
@@ -621,9 +651,18 @@ object LyricsFlowApi {
     private fun convertLyricsPlusToTtml(data: JSONObject): String? {
         val lyrics = data.optJSONArray("lyrics") ?: return null
         if (lyrics.length() == 0) return null
+        var hasWordSync = false
+        for (i in 0 until lyrics.length()) {
+            val syllabus = lyrics.optJSONObject(i)?.optJSONArray("syllabus")
+            if (syllabus != null && syllabus.length() > 0) {
+                hasWordSync = true
+                break
+            }
+        }
+        val timingAttr = if (hasWordSync) "Word" else "Line"
         val sb = StringBuilder()
         sb.append("""<?xml version="1.0" encoding="UTF-8"?>""")
-        sb.append("""<tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata" xmlns:itunes="http://music.apple.com/lyric-ttml-internal" itunes:timing="Word"><body><div>""")
+        sb.append("""<tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata" xmlns:itunes="http://music.apple.com/lyric-ttml-internal" itunes:timing="$timingAttr"><body><div>""")
 
         for (i in 0 until lyrics.length()) {
             val line = lyrics.optJSONObject(i) ?: continue
@@ -1693,14 +1732,16 @@ object LyricsFlowApi {
                                     !it.title.contains(" - EP", ignoreCase = true) &&
                                     (it.trackCount == 0 || it.trackCount > 3)
                             }
-                        }
+                        }.sortedByDescending { it.releaseYear.toIntOrNull() ?: 0 }
                         val finalSingles = singlesFromView.ifEmpty {
                             allDiscography.filter {
                                 it.title.contains(" - Single", ignoreCase = true) ||
                                     it.title.contains(" - EP", ignoreCase = true) ||
                                     (it.trackCount in 1..3)
                             }
-                        }
+                        }.sortedByDescending { it.releaseYear.toIntOrNull() ?: 0 }
+                        val resolvedLatest = (listOfNotNull(latestRelease) + finalAlbums + finalSingles)
+                            .maxByOrNull { it.releaseYear.toIntOrNull() ?: 0 }
 
                         if (artworkUrl.isNotBlank()) {
                             artistAvatarCache[resolvedArtistId] = artworkUrl
@@ -1718,7 +1759,7 @@ object LyricsFlowApi {
                             genre = genre,
                             origin = origin,
                             formedYear = formedYear,
-                            latestRelease = latestRelease ?: finalAlbums.firstOrNull() ?: finalSingles.firstOrNull(),
+                            latestRelease = resolvedLatest,
                             topSongs = topSongs,
                             essentialAlbums = essentialAlbums,
                             albums = finalAlbums,
@@ -1957,22 +1998,52 @@ object LyricsFlowApi {
             }
         }
 
-        // Extract upcoming concert badge if available (e.g., "20 Aug · Hasselt" in Screenshot 2)
+        // Extract upcoming concerts & badge (e.g., "Concerts Upcoming" + full concert list)
         var upcomingConcertBadge = ""
+        val upcomingConcerts = mutableListOf<CatalogConcertItem>()
         if (concertsMap != null) {
-            val cKey = concertsMap.keys().asSequence().firstOrNull()
-            val cObj = cKey?.let { concertsMap.optJSONObject(it) }
-            val cAttr = cObj?.optJSONObject("attributes")
-            if (cAttr != null) {
+            val cKeys = concertsMap.keys()
+            while (cKeys.hasNext()) {
+                val cKey = cKeys.next()
+                val cObj = concertsMap.optJSONObject(cKey) ?: continue
+                val cAttr = cObj.optJSONObject("attributes") ?: continue
                 val startDate = cAttr.optString("startDate").ifBlank { cAttr.optString("eventDate") }
                 val datePart = formatShortDayMonth(startDate)
+                val parts = datePart.split(" ")
+                val dayNum = parts.firstOrNull().orEmpty().ifBlank { "20" }
+                val monthShort = parts.getOrNull(1)?.uppercase(Locale.US).orEmpty().ifBlank { "AUG" }
+                val fullDate = formatReleaseDateHuman(startDate).ifBlank { datePart }
                 val venueId = cObj.optJSONObject("relationships")?.optJSONObject("venues")
                     ?.optJSONArray("data")?.optJSONObject(0)?.optString("id").orEmpty()
                 val venueAttr = venuesMap?.optJSONObject(venueId)?.optJSONObject("attributes")
-                val city = venueAttr?.optString("city")
-                    ?.ifBlank { venueAttr.optString("name") }
-                    ?: cAttr.optString("city").ifBlank { cAttr.optString("venueName") }
-                upcomingConcertBadge = listOf(datePart, city).filter { it.isNotBlank() }.joinToString(" · ")
+                val venueName = venueAttr?.optString("name")
+                    ?.ifBlank { cAttr.optString("venueName") }
+                    ?: cAttr.optString("venueName").ifBlank { cAttr.optString("name") }
+                val city = venueAttr?.optString("city")?.ifBlank { cAttr.optString("city") }
+                    ?: cAttr.optString("city")
+                val country = venueAttr?.optString("country").orEmpty()
+                val cityCountry = listOf(city, country).filter { it.isNotBlank() }.joinToString(", ")
+                val ticketUrl = cAttr.optJSONArray("tickets")?.optJSONObject(0)?.optString("url")
+                    ?: cAttr.optString("ticketUrl").ifBlank { cAttr.optString("url") }
+                val concertTitle = cAttr.optString("name").ifBlank { "$name Live" }
+
+                if (upcomingConcertBadge.isBlank()) {
+                    upcomingConcertBadge = "Concerts Upcoming"
+                }
+                upcomingConcerts.add(
+                    CatalogConcertItem(
+                        id = cKey,
+                        title = concertTitle,
+                        dateText = listOf(datePart, city.ifBlank { venueName }).filter { it.isNotBlank() }.joinToString(" · "),
+                        monthShort = monthShort,
+                        dayNumber = dayNum,
+                        fullDateLine = fullDate,
+                        doorsLine = "Doors: 7:30 PM",
+                        venueName = venueName.ifBlank { "$name World Tour" },
+                        cityCountry = cityCountry.ifBlank { city },
+                        ticketUrl = ticketUrl
+                    )
+                )
             }
         }
 
@@ -1982,14 +2053,16 @@ object LyricsFlowApi {
                     !it.title.contains(" - EP", ignoreCase = true) &&
                     (it.trackCount == 0 || it.trackCount > 3)
             }
-        }
+        }.sortedByDescending { it.releaseYear.toIntOrNull() ?: 0 }
         val finalSingles = singles.ifEmpty {
             discographySupplement.filter {
                 it.title.contains(" - Single", ignoreCase = true) ||
                     it.title.contains(" - EP", ignoreCase = true) ||
                     (it.trackCount in 1..3)
             }
-        }
+        }.sortedByDescending { it.releaseYear.toIntOrNull() ?: 0 }
+        val resolvedLatest = (listOfNotNull(latestRelease) + finalAlbums + finalSingles)
+            .maxByOrNull { it.releaseYear.toIntOrNull() ?: 0 }
 
         return CatalogArtistDetail(
             id = artistId,
@@ -1999,11 +2072,12 @@ object LyricsFlowApi {
             logoUrl = logoUrl,
             keyColorHex = keyColorHex,
             upcomingConcertBadge = upcomingConcertBadge,
+            upcomingConcerts = upcomingConcerts,
             bio = bio,
             genre = genre,
             origin = origin,
             formedYear = formedYear,
-            latestRelease = latestRelease ?: finalAlbums.firstOrNull() ?: finalSingles.firstOrNull(),
+            latestRelease = resolvedLatest,
             topSongs = topSongs,
             essentialAlbums = essentialAlbums,
             albums = finalAlbums,

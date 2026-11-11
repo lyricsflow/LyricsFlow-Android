@@ -52,11 +52,11 @@ fun About(navController: NavController) =
                         ListHeader(content = stringResource(id = R.string.settings_others_about_developers))
                         RoundColumn {
                             LabelItem(
-                                title = "Yos-X (MULTIPLY STUDIO)",
-                                desc = stringResource(id = R.string.settings_others_about_developers_yos_x)
+                                title = "LyricsFlow Team",
+                                desc = stringResource(id = R.string.settings_others_about_developers_lyricsflow_x)
                             ) {
                                 startWeb(
-                                    url = "https://github.com/Yos-X",
+                                    url = "https://github.com/lyricsflow",
                                     context
                                 )
                             }
@@ -66,12 +66,11 @@ fun About(navController: NavController) =
 
                         RoundColumn {
                             LabelItem(
-                                title = stringResource(id = R.string.settings_others_about_contact_us),
+                                title = "LyricsFlow GitHub",
                                 superLink = true
                             ) {
-                                val linkResult = Base64.decode(telegramLink, Base64.URL_SAFE).decodeToString()
                                 startWeb(
-                                    url = linkResult,
+                                    url = "https://github.com/lyricsflow/LyricsFlow-Android",
                                     context
                                 )
                             }

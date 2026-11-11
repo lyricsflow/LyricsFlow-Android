@@ -19,10 +19,10 @@ val settingContainerBackDark = Color(0xFF1c1c1e)
 
 @Composable
 infix fun Color.withNight(nightColor: Color): Color {
-    return if (isFlamingoInDarkMode()) nightColor else this
+    return if (isLyricsFlowInDarkMode()) nightColor else this
 }
 
 @Composable
-fun isFlamingoInDarkMode(): Boolean {
+fun isLyricsFlowInDarkMode(): Boolean {
     return if (SettingsLibrary.CustomTheme == "Auto") isSystemInDarkTheme() else SettingsLibrary.CustomTheme == "Dark"
 }

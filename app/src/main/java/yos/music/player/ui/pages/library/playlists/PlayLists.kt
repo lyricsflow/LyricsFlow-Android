@@ -101,10 +101,10 @@ import com.lyricsflow.player.data.libraries.PlayList
 import com.lyricsflow.player.data.libraries.PlayListLibrary
 import com.lyricsflow.player.data.libraries.PlayListLibrary.addMusic
 import com.lyricsflow.player.data.libraries.PlayListLibrary.playList
-import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.LyricsflowMediaItem
 import com.lyricsflow.player.data.objects.LibraryObject
 import com.lyricsflow.player.ui.UI
-import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.theme.LyricsflowRoundedCornerShape
 import com.lyricsflow.player.ui.theme.withNight
 import com.lyricsflow.player.ui.toUI
 import com.lyricsflow.player.ui.widgets.basic.Title
@@ -120,10 +120,17 @@ private val PlayListContextMenuEstimatedHeight = 342.dp
 fun PlayLists(navController: NavController) {
     // PRD §5.4: pinned playlists float to the top in pinOrder asc;
     // unpinned tail keeps the existing alpha-by-name order.
-    val playLists = playList
+    val playLists = remember(playList) {
+        playList.mapIndexed { idx, p ->
+            val safeId = p.safeId.ifBlank { "pl_$idx" }
+            val safeName = p.safeName
+            val safeSongs = p.safeSongs
+            p.copy(listID = safeId, name = safeName, songDataList = safeSongs)
+        }
+    }
     val pinned = playLists.filter { it.isPinned }
         .sortedBy { it.pinOrder ?: Int.MAX_VALUE }
-    val unpinned = playLists.filter { !it.isPinned }.sortedBy { it.name }
+    val unpinned = playLists.filter { !it.isPinned }.sortedBy { it.safeName }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -359,7 +366,7 @@ fun PlayLists(navController: NavController) {
 
                 itemsIndexed(
                     visibleAll,
-                    key = { _, p -> p.listID }
+                    key = { idx, p -> "${p.safeId}_$idx" }
                 ) { index, playList ->
                     val isPinned = playList.isPinned
                     val rowRootPosition = remember(playList.listID) {
@@ -461,8 +468,8 @@ private fun PlayListDivider() {
 
 private fun convertToSongList(
     songDataList: List<Uri>,
-    songs: List<YosMediaItem>
-): List<YosMediaItem> {
+    songs: List<LyricsflowMediaItem>
+): List<LyricsflowMediaItem> {
     return songDataList.fastMapNotNull { uri ->
         songs.find { it.uri == uri }
     }
@@ -749,7 +756,7 @@ private fun PlayListContextMenuCard(
 private fun PlayListContextMenuHeader(playList: PlayList)
 {
     val context = LocalContext.current
-    val shape = YosRoundedCornerShape(5.dp)
+    val shape = LyricsflowRoundedCornerShape(5.dp)
     val songsInPlaylist = remember(playList.songDataList) {
         playList.songDataList.mapNotNull { uri ->
             songs.firstOrNull { it.uri == uri }
@@ -1171,7 +1178,7 @@ private fun PlayListContextMenuDivider(color: Color)
     )
 }
 
-private fun uriStubMedia(uri: Uri) = YosMediaItem(
+private fun uriStubMedia(uri: Uri) = LyricsflowMediaItem(
     uri = uri,
     mediaId = null, mimeType = null,
     title = null, writer = null, compilation = null, composer = null,
@@ -1195,7 +1202,6 @@ private fun LazyItemScope.PlayListItem(playList: PlayList, itemClick: () -> Unit
 
     Row(
         modifier = Modifier
-            .animateItem(fadeInSpec = null, fadeOutSpec = null)
             .height(80.dp)
             .fillMaxWidth()
             .background(
@@ -1210,7 +1216,7 @@ private fun LazyItemScope.PlayListItem(playList: PlayList, itemClick: () -> Unit
             .padding(start = 22.dp, end = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val shape = YosRoundedCornerShape(4.dp)
+        val shape = LyricsflowRoundedCornerShape(4.dp)
         val density = LocalDensity.current
 
         Image(painter = painterResource(id = R.drawable.placeholder_playlist_default),
@@ -1275,7 +1281,6 @@ private fun LazyItemScope.PlayListItem(playListType: PlayListType, title: String
 
     Row(
         modifier = Modifier
-            .animateItem(fadeInSpec = null, fadeOutSpec = null)
             .height(80.dp)
             .fillMaxWidth()
             .background(
@@ -1290,7 +1295,7 @@ private fun LazyItemScope.PlayListItem(playListType: PlayListType, title: String
             .padding(start = 22.dp, end = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val shape = YosRoundedCornerShape(4.dp)
+        val shape = LyricsflowRoundedCornerShape(4.dp)
         val density = LocalDensity.current
 
         val coverResId = when (playListType)
@@ -1372,7 +1377,7 @@ private fun LazyItemScope.PinnedAwarePlayListItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
-    val shape = YosRoundedCornerShape(4.dp)
+    val shape = LyricsflowRoundedCornerShape(4.dp)
     val density = LocalDensity.current
     val rowAlpha = if (dimmed) 0.35f else 1f
     val context = LocalContext.current
@@ -1381,7 +1386,6 @@ private fun LazyItemScope.PinnedAwarePlayListItem(
 
     Row(
         modifier = Modifier
-            .animateItem(fadeInSpec = null, fadeOutSpec = null)
             .height(80.dp)
             .fillMaxWidth()
             .onGloballyPositioned {
@@ -1412,7 +1416,7 @@ private fun LazyItemScope.PinnedAwarePlayListItem(
             .padding(start = 22.dp, end = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Resolve the playlist's URIs to YosMediaItem for the
+        // Resolve the playlist's URIs to LyricsflowMediaItem for the
         // auto-collage fallback. Cheap — same lookup performed each
         // time the row recomposes; with a few hundred songs in the
         // library this is sub-millisecond.
@@ -1484,7 +1488,7 @@ private fun LazyItemScope.PinnedAwarePlayListItem(
                         .size(18.dp)
                         .background(
                             color = MaterialTheme.colorScheme.primary,
-                            shape = YosRoundedCornerShape(9.dp),
+                            shape = LyricsflowRoundedCornerShape(9.dp),
                         ),
                     contentAlignment = Alignment.Center,
                 ) {

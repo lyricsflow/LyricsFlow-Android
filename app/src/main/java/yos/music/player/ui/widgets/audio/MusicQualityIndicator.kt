@@ -32,8 +32,8 @@ import androidx.compose.ui.unit.sp
 import com.lyricsflow.player.R
 import com.lyricsflow.player.code.MediaController.musicPlaying
 import com.lyricsflow.player.data.objects.MediaViewModelObject
-import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
-import com.lyricsflow.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.ui.theme.LyricsflowRoundedCornerShape
+import com.lyricsflow.player.ui.widgets.basic.LyricsflowWrapper
 import com.lyricsflow.player.ui.widgets.effects.overlayEffect
 
 @Composable
@@ -114,7 +114,7 @@ fun MusicQualityIndicator() {
                                 .overlayEffect()
                                 .background(
                                     color = Color(0x14FFFFFF),
-                                    shape = YosRoundedCornerShape(5.dp)
+                                    shape = LyricsflowRoundedCornerShape(5.dp)
                                 )
                                 .height(20.dp)
                                 .padding(horizontal = 7.dp),
@@ -133,7 +133,7 @@ fun MusicQualityIndicator() {
                                 )
                                 Spacer(modifier = Modifier.width(5.dp))
 
-                                YosWrapper {
+                                LyricsflowWrapper {
 
                                     val text =
                                         if (isHiRes.value) "Hi-Res" else stringResource(id = R.string.music_quality_lossless)

@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -39,7 +40,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.lyricsflow.player.data.libraries.SettingsLibrary
-import com.lyricsflow.player.ui.theme.isFlamingoInDarkMode
+import com.lyricsflow.player.ui.theme.isLyricsFlowInDarkMode
 import com.lyricsflow.player.ui.widgets.backdrop.Backdrop
 import com.lyricsflow.player.ui.widgets.backdrop.backdrops.LayerBackdrop
 import com.lyricsflow.player.ui.widgets.backdrop.backdrops.rememberLayerBackdrop
@@ -58,6 +59,12 @@ import com.lyricsflow.player.ui.widgets.backdrop.shadow.Shadow
  * the screen scaffold; consumers fall back to [emptyBackdrop] when not set.
  */
 val LocalAppBackdrop = staticCompositionLocalOf<Backdrop> { emptyBackdrop() }
+
+/**
+ * True when composing inside the root [AnimatedNavHost] that records into [LocalAppBackdrop].
+ * Prevents [Modifier.liquidGlass] from drawing [LocalAppBackdrop]'s RenderNode into itself.
+ */
+val LocalInsideAppBackdrop = compositionLocalOf { false }
 
 /**
  * When a [liquidGlass] surface sits inside a scope that provides a
@@ -108,15 +115,16 @@ fun Modifier.liquidGlass(
     onDrawSurface: (DrawScope.() -> Unit)? = null,
 ): Modifier {
     val reduceBlur = !SettingsLibrary.BarBlurEffect
-    val isDark = isFlamingoInDarkMode()
+    val isDark = isLyricsFlowInDarkMode()
+    val isSelfDraw = backdrop === LocalAppBackdrop.current && LocalInsideAppBackdrop.current
 
-    if (reduceBlur || !isGlassSupported()) {
+    if (reduceBlur || !isGlassSupported() || isSelfDraw) {
         val fallbackColor = surfaceTint ?: if (isDark) {
             Color(0xFF1E1E22).copy(alpha = 0.94f)
         } else {
             Color(0xFFF2F2F7).copy(alpha = 0.94f)
         }
-        val borderColor = if (isDark) Color.White.copy(alpha = 0.10f) else Color.Black.copy(alpha = 0.08f)
+        val borderColor = if (isDark) Color.White.copy(alpha = 0.14f) else Color.Black.copy(alpha = 0.08f)
         return this
             .clip(shape)
             .background(fallbackColor, shape)
@@ -271,7 +279,7 @@ fun LiquidGlassCircleButton(
 ) {
     val appBackdrop = LocalAppBackdrop.current
     val useRefractionBackdrop = backdrop != null && backdrop !== appBackdrop
-    val isDark = isFlamingoInDarkMode()
+    val isDark = isLyricsFlowInDarkMode()
     val resolvedTint = surfaceTint ?: if (isDark) {
         Color(0xFF1E1E24).copy(alpha = 0.56f)
     } else {
@@ -330,7 +338,7 @@ fun LiquidGlassPillGroup(
 ) {
     val appBackdrop = LocalAppBackdrop.current
     val useRefractionBackdrop = backdrop != null && backdrop !== appBackdrop
-    val isDark = isFlamingoInDarkMode()
+    val isDark = isLyricsFlowInDarkMode()
     val pillShape = RoundedCornerShape(100.dp)
     val resolvedTint = surfaceTint ?: if (isDark) {
         Color(0xFF1E1E24).copy(alpha = 0.56f)

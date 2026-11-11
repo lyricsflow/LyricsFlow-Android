@@ -45,7 +45,7 @@ import androidx.compose.ui.unit.IntOffset
 import com.lyricsflow.player.ui.theme.withNight
 import com.lyricsflow.player.R
 import com.lyricsflow.player.code.utils.others.Vibrator
-import com.lyricsflow.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.ui.widgets.basic.LyricsflowWrapper
 
 
 @Composable
@@ -238,7 +238,7 @@ fun DefaultItem(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.End
         ) {
-            YosWrapper {
+            LyricsflowWrapper {
                 backIcon?.invoke()
             }
         }

@@ -43,7 +43,7 @@ data class AmlBackgroundLine(
         get() = romanizedText
 }
 
-data class YosParsedLyricData(
+data class LyricsflowParsedLyricData(
     val entries: List<List<Pair<Float, String>>>,
     val endTimes: List<Float>,
     val otherSideForLines: List<Boolean>,

@@ -35,7 +35,7 @@ import kotlinx.coroutines.launch
 import com.lyricsflow.player.R
 import com.lyricsflow.player.code.utils.others.Vibrator
 import com.lyricsflow.player.data.libraries.SettingsLibrary
-import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.theme.LyricsflowRoundedCornerShape
 import com.lyricsflow.player.ui.theme.withNight
 import com.lyricsflow.player.ui.widgets.basic.DialogContent
 import com.lyricsflow.player.ui.widgets.basic.OptionDialog
@@ -76,7 +76,7 @@ fun ScreenCornerSetDialog(modifier: Modifier = Modifier, onDismiss: () -> Unit) 
                         color = (Color.LightGray withNight Color.DarkGray).copy(
                             alpha = 0.15f
                         ),
-                        shape = YosRoundedCornerShape(14.dp)
+                        shape = LyricsflowRoundedCornerShape(14.dp)
                     )
                     .padding(vertical = 15.dp, horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
 

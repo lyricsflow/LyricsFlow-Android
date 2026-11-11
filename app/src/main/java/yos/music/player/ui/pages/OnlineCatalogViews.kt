@@ -40,7 +40,9 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.ArrowDownward
+import androidx.compose.material.icons.rounded.ArrowOutward
 import androidx.compose.material.icons.rounded.AudioFile
+import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ConfirmationNumber
 import androidx.compose.material.icons.rounded.ContentCopy
@@ -48,6 +50,7 @@ import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -94,6 +97,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.google.accompanist.insets.statusBarsPadding
 import com.lyricsflow.player.code.MediaController
+import com.lyricsflow.player.code.utils.downloader.SongDownloaderManager
 import com.lyricsflow.player.code.utils.lrc.LyricsFlowApi
 import com.lyricsflow.player.code.utils.lrc.LyricsFlowCatalogItem
 import com.lyricsflow.player.code.utils.others.Vibrator
@@ -101,7 +105,7 @@ import com.lyricsflow.player.data.libraries.SettingsLibrary
 import com.lyricsflow.player.data.objects.LibraryObject
 import com.lyricsflow.player.ui.UI
 import com.lyricsflow.player.ui.theme.SFProDisplay
-import com.lyricsflow.player.ui.theme.isFlamingoInDarkMode
+import com.lyricsflow.player.ui.theme.isLyricsFlowInDarkMode
 import com.lyricsflow.player.ui.theme.withNight
 import com.lyricsflow.player.ui.toUI
 import com.lyricsflow.player.ui.widgets.backdrop.backdrops.layerBackdrop
@@ -176,6 +180,9 @@ fun OnlineAlbumView(navController: NavController) {
     var albumDetail by remember(albumId) { mutableStateOf<LyricsFlowApi.CatalogAlbumDetail?>(null) }
     var isLoading by remember(albumId) { mutableStateOf(true) }
     var showEditorialSheet by remember { mutableStateOf(false) }
+    var selectedRecordLabel by remember { mutableStateOf<String?>(null) }
+    var recordLabelAlbums by remember { mutableStateOf<List<LyricsFlowCatalogItem>>(emptyList()) }
+    var isLoadingLabelAlbums by remember { mutableStateOf(false) }
 
     BackHandler { navController.popBackStack() }
 
@@ -193,7 +200,7 @@ fun OnlineAlbumView(navController: NavController) {
         isLoading = false
     }
 
-    val isDark = isFlamingoInDarkMode()
+    val isDark = isLyricsFlowInDarkMode()
     val parsedKeyBg = remember(albumDetail?.bgColorHex) {
         parseHexColorOrNull(albumDetail?.bgColorHex)
     }
@@ -529,13 +536,16 @@ fun OnlineAlbumView(navController: NavController) {
                             onClick = {
                                 Vibrator.click(context)
                                 val key = albumId.ifBlank { resolvedTitle }
-                                SettingsLibrary.toggleAlbumSaved(key)
-                                isSavedAlbum = SettingsLibrary.isAlbumSaved(key)
-                                Toast.makeText(
-                                    context,
-                                    if (isSavedAlbum) "Saved $resolvedTitle" else "Removed $resolvedTitle",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                SettingsLibrary.saveAlbum(key)
+                                isSavedAlbum = true
+                                SongDownloaderManager.downloadFullAlbumAsync(
+                                    context = context,
+                                    scope = scope,
+                                    albumTitle = resolvedTitle,
+                                    artistName = resolvedArtist,
+                                    artworkUrl = resolvedArtwork,
+                                    tracks = tracks
+                                )
                             },
                             size = 48.dp,
                             backdrop = heroBackdrop
@@ -706,6 +716,24 @@ fun OnlineAlbumView(navController: NavController) {
                     }
 
                     Icon(
+                        imageVector = Icons.Rounded.Download,
+                        contentDescription = "Download Track + TTML + Cover",
+                        tint = textColor.copy(alpha = 0.65f),
+                        modifier = Modifier
+                            .padding(end = 10.dp)
+                            .size(19.dp)
+                            .clickable {
+                                Vibrator.click(context)
+                                SongDownloaderManager.downloadTrackAsync(
+                                    context = context,
+                                    scope = scope,
+                                    track = track,
+                                    albumTitleFallback = resolvedTitle
+                                )
+                            }
+                    )
+
+                    Icon(
                         imageVector = Icons.Rounded.MoreHoriz,
                         contentDescription = "Track Options",
                         tint = textColor.copy(alpha = 0.75f),
@@ -762,14 +790,37 @@ fun OnlineAlbumView(navController: NavController) {
                             color = secondaryColor
                         )
                     }
-                    albumDetail?.recordLabel?.takeIf { it.isNotBlank() }?.let {
-                        Text(
-                            text = it,
-                            fontFamily = SFProDisplay,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 12.sp,
-                            color = AppleCrimson
-                        )
+                    albumDetail?.recordLabel?.takeIf { it.isNotBlank() }?.let { labelName ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier
+                                .padding(top = 2.dp)
+                                .clickable {
+                                    Vibrator.click(context)
+                                    selectedRecordLabel = labelName
+                                    isLoadingLabelAlbums = true
+                                    scope.launch(Dispatchers.IO) {
+                                        val searchRes = LyricsFlowApi.searchFullCatalog(labelName, limit = 20)
+                                        recordLabelAlbums = searchRes.albums
+                                        isLoadingLabelAlbums = false
+                                    }
+                                }
+                        ) {
+                            Text(
+                                text = labelName,
+                                fontFamily = SFProDisplay,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 12.5.sp,
+                                color = AppleCrimson
+                            )
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                                contentDescription = "View Record Label",
+                                tint = AppleCrimson,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -857,6 +908,124 @@ fun OnlineAlbumView(navController: NavController) {
             }
         }
     }
+
+    selectedRecordLabel?.let { labelName ->
+        ModalBottomSheet(
+            onDismissRequest = { selectedRecordLabel = null },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = Color(0xFF161618),
+            contentColor = Color.White
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(520.dp)
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+            ) {
+                Text(
+                    text = "RECORD LABEL",
+                    fontFamily = SFProDisplay,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    letterSpacing = 0.8.sp,
+                    color = AppleCrimson
+                )
+                Text(
+                    text = labelName,
+                    fontFamily = SFProDisplay,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 24.sp,
+                    color = Color.White,
+                    modifier = Modifier.padding(top = 2.dp, bottom = 14.dp)
+                )
+                if (isLoadingLabelAlbums) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = AppleCrimson)
+                    }
+                } else if (recordLabelAlbums.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No additional releases found for $labelName",
+                            fontFamily = SFProDisplay,
+                            fontSize = 15.sp,
+                            color = Color.White.copy(alpha = 0.6f)
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(bottom = 28.dp)
+                    ) {
+                        itemsIndexed(recordLabelAlbums, key = { idx, item -> "lbl_alb_${item.id}_$idx" }) { _, item ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        Vibrator.click(context)
+                                        selectedRecordLabel = null
+                                        LibraryObject.openOnlineAlbum(
+                                            albumId = item.id,
+                                            title = item.title,
+                                            artist = item.subtitle,
+                                            artworkUrl = item.artworkUrl
+                                        )
+                                    }
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AsyncImage(
+                                    model = item.artworkUrl,
+                                    contentDescription = item.title,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Color.White.copy(alpha = 0.08f))
+                                )
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(horizontal = 14.dp)
+                                ) {
+                                    Text(
+                                        text = item.title,
+                                        fontFamily = SFProDisplay,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 16.sp,
+                                        color = Color.White,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = buildString {
+                                            append(item.subtitle)
+                                            if (item.releaseYear.isNotBlank()) append(" · ${item.releaseYear}")
+                                        },
+                                        fontFamily = SFProDisplay,
+                                        fontSize = 13.sp,
+                                        color = Color.White.copy(alpha = 0.62f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                                    contentDescription = null,
+                                    tint = Color.White.copy(alpha = 0.5f)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 // ============================================================================
@@ -877,6 +1046,7 @@ fun OnlineArtistView(navController: NavController) {
     var isLoading by remember(artistId, fallbackName) { mutableStateOf(true) }
     var showBioSheet by remember { mutableStateOf(false) }
     var showAllTopSongs by remember(artistId, fallbackName) { mutableStateOf(false) }
+    var selectedConcert by remember { mutableStateOf<LyricsFlowApi.CatalogConcertItem?>(null) }
 
     BackHandler { navController.popBackStack() }
 
@@ -889,7 +1059,7 @@ fun OnlineArtistView(navController: NavController) {
         isLoading = false
     }
 
-    val isDark = isFlamingoInDarkMode()
+    val isDark = isLyricsFlowInDarkMode()
     val bgColor = Color(0xFFF8F8FA) withNight Color(0xFF0A0E14)
     val textColor = Color.Black withNight Color.White
     val secondaryColor = (Color.Black withNight Color.White).copy(alpha = 0.58f)
@@ -1075,14 +1245,18 @@ fun OnlineArtistView(navController: NavController) {
                         .padding(horizontal = 20.dp, vertical = 12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Optional Concert Badge (`🗓 20 Aug · Hasselt` in Screenshot 2)
-                    if (concertBadge.isNotBlank()) {
+                    // Optional Concert Badge (`Concerts Upcoming` pill)
+                    if (concertBadge.isNotBlank() || artistDetail?.upcomingConcerts?.isNotEmpty() == true) {
                         Row(
                             modifier = Modifier
                                 .padding(bottom = 10.dp)
                                 .clip(RoundedCornerShape(100.dp))
                                 .background(Color.Black.copy(alpha = 0.48f))
                                 .border(BorderStroke(0.5.dp, Color.White.copy(alpha = 0.16f)), RoundedCornerShape(100.dp))
+                                .clickable {
+                                    Vibrator.click(context)
+                                    selectedConcert = artistDetail?.upcomingConcerts?.firstOrNull()
+                                }
                                 .padding(horizontal = 12.dp, vertical = 5.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -1094,7 +1268,7 @@ fun OnlineArtistView(navController: NavController) {
                                 modifier = Modifier.size(13.dp)
                             )
                             Text(
-                                text = concertBadge,
+                                text = "Concerts Upcoming",
                                 fontFamily = SFProDisplay,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 12.5.sp,
@@ -1599,6 +1773,108 @@ fun OnlineArtistView(navController: NavController) {
                 }
             }
 
+            // 8.5. Upcoming Concerts Horizontal Slider
+            val concerts = artistDetail?.upcomingConcerts.orEmpty()
+            if (concerts.isNotEmpty()) {
+                item(key = "online_artist_concerts") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp, bottom = 10.dp)
+                    ) {
+                        Text(
+                            text = "Concerts",
+                            fontFamily = SFProDisplay,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 21.sp,
+                            color = textColor,
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState())
+                                .padding(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            concerts.forEach { concert ->
+                                Surface(
+                                    shape = RoundedCornerShape(18.dp),
+                                    color = cardBg,
+                                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),
+                                    modifier = Modifier
+                                        .width(248.dp)
+                                        .iosPressScale {
+                                            Vibrator.click(context)
+                                            selectedConcert = concert
+                                        }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(14.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                                    ) {
+                                        Surface(
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = artistAccentColor.copy(alpha = 0.18f),
+                                            modifier = Modifier.size(52.dp)
+                                        ) {
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.Center
+                                            ) {
+                                                Text(
+                                                    text = concert.monthShort,
+                                                    fontFamily = SFProDisplay,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 11.sp,
+                                                    color = artistAccentColor
+                                                )
+                                                Text(
+                                                    text = concert.dayNumber,
+                                                    fontFamily = SFProDisplay,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 18.sp,
+                                                    color = textColor
+                                                )
+                                            }
+                                        }
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = concert.venueName,
+                                                fontFamily = SFProDisplay,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 15.sp,
+                                                color = textColor,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = concert.cityCountry,
+                                                fontFamily = SFProDisplay,
+                                                fontSize = 13.sp,
+                                                color = secondaryColor,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = concert.fullDateLine,
+                                                fontFamily = SFProDisplay,
+                                                fontSize = 12.sp,
+                                                color = artistAccentColor,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.padding(top = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // 9. Similar Artists Circular Shelf
             val similar = artistDetail?.similarArtists.orEmpty()
             if (similar.isNotEmpty()) {
@@ -1707,6 +1983,331 @@ fun OnlineArtistView(navController: NavController) {
                     color = Color.White.copy(alpha = 0.9f),
                     modifier = Modifier.padding(bottom = 32.dp)
                 )
+            }
+        }
+    }
+
+    // Concert Detail ModalBottomSheet (Apple Music iOS 27 style)
+    selectedConcert?.let { concert ->
+        val setListTracks = artistDetail?.topSongs.orEmpty().take(12)
+        ModalBottomSheet(
+            onDismissRequest = { selectedConcert = null },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = Color(0xFF141418),
+            contentColor = Color.White
+        ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(640.dp),
+                contentPadding = PaddingValues(horizontal = 22.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item(key = "concert_sheet_hero") {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(modifier = Modifier.size(164.dp)) {
+                            AsyncImage(
+                                model = resolvedArtwork,
+                                contentDescription = resolvedName,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.1f))
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = Color(0xFF24242A),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+                                shadowElevation = 8.dp,
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .size(54.dp)
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = concert.monthShort,
+                                        fontFamily = SFProDisplay,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                        color = AppleCrimson
+                                    )
+                                    Text(
+                                        text = concert.dayNumber,
+                                        fontFamily = SFProDisplay,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 19.sp,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Text(
+                            text = resolvedName,
+                            fontFamily = SFProDisplay,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 26.sp,
+                            color = Color.White,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            text = "${concert.venueName} · ${concert.cityCountry}",
+                            fontFamily = SFProDisplay,
+                            fontSize = 15.sp,
+                            color = Color.White.copy(alpha = 0.65f),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(100.dp),
+                                color = Color.White.copy(alpha = 0.12f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                                    .iosPressScale {
+                                        Vibrator.click(context)
+                                        val urlToOpen = concert.ticketUrl.ifBlank {
+                                            "https://www.google.com/search?q=${Uri.encode("$resolvedName ${concert.venueName} tickets")}"
+                                        }
+                                        runCatching {
+                                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(urlToOpen)))
+                                        }
+                                    }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = "Get Tickets",
+                                        fontFamily = SFProDisplay,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.5.sp,
+                                        color = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Icon(
+                                        imageVector = Icons.Rounded.ArrowOutward,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(17.dp)
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(100.dp),
+                                color = artistAccentColor,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                                    .iosPressScale(enabled = setListTracks.isNotEmpty()) {
+                                        Vibrator.click(context)
+                                        val first = setListTracks.firstOrNull() ?: return@iosPressScale
+                                        selectedConcert = null
+                                        scope.launch(Dispatchers.IO) {
+                                            MediaController.playOnlineTrack(
+                                                track = first,
+                                                contextTracks = setListTracks,
+                                                shuffleModeEnabled = false,
+                                                appendSimilar = true
+                                            )
+                                        }
+                                    }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.PlayArrow,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Play",
+                                        fontFamily = SFProDisplay,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.5.sp,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Date & Venue Info Cards
+                item(key = "concert_sheet_info_cards") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.White.copy(alpha = 0.08f),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.CalendarMonth,
+                                    contentDescription = null,
+                                    tint = artistAccentColor,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = concert.fullDateLine,
+                                    fontFamily = SFProDisplay,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.5.sp,
+                                    color = Color.White,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = concert.doorsLine,
+                                    fontFamily = SFProDisplay,
+                                    fontSize = 12.5.sp,
+                                    color = Color.White.copy(alpha = 0.6f)
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.White.copy(alpha = 0.08f),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.LocationOn,
+                                    contentDescription = null,
+                                    tint = artistAccentColor,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = concert.venueName,
+                                    fontFamily = SFProDisplay,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.5.sp,
+                                    color = Color.White,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = concert.cityCountry,
+                                    fontFamily = SFProDisplay,
+                                    fontSize = 12.5.sp,
+                                    color = Color.White.copy(alpha = 0.6f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Concert Set List
+                if (setListTracks.isNotEmpty()) {
+                    item(key = "concert_sheet_setlist_header") {
+                        Column(modifier = Modifier.padding(top = 6.dp)) {
+                            Text(
+                                text = "Concert Set List",
+                                fontFamily = SFProDisplay,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "Listen to songs from the tour",
+                                fontFamily = SFProDisplay,
+                                fontSize = 13.sp,
+                                color = Color.White.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+
+                    itemsIndexed(setListTracks, key = { idx, tr -> "concert_set_${tr.id}_$idx" }) { _, song ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    Vibrator.click(context)
+                                    selectedConcert = null
+                                    scope.launch(Dispatchers.IO) {
+                                        MediaController.playOnlineTrack(
+                                            track = song,
+                                            contextTracks = setListTracks,
+                                            shuffleModeEnabled = false,
+                                            appendSimilar = true
+                                        )
+                                    }
+                                }
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AsyncImage(
+                                model = song.artworkUrl,
+                                contentDescription = song.title,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color.White.copy(alpha = 0.08f))
+                            )
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = 14.dp)
+                            ) {
+                                Text(
+                                    text = song.title,
+                                    fontFamily = SFProDisplay,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 15.5.sp,
+                                    color = Color.White,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = song.album.ifBlank { resolvedName },
+                                    fontFamily = SFProDisplay,
+                                    fontSize = 13.sp,
+                                    color = Color.White.copy(alpha = 0.6f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Rounded.PlayArrow,
+                                contentDescription = "Play",
+                                tint = artistAccentColor,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+                }
             }
         }
     }

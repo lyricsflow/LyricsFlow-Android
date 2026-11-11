@@ -258,12 +258,12 @@ data class InterludeDotsVisualState(
 )
 
 object AmlAnimationCurves {
-    // ── Word Rise Curve (-3px peak, 2000ms duration, 64 frames) from `lyrics-animator.js` ──
-    const val WORD_RISE_PEAK_PX = -3f
+    // ── Word Rise Curve (-9f peak ~ -3.5dp, 2000ms duration, 64 frames) from `lyrics-animator.js` & `yourLyrics` ──
+    const val WORD_RISE_PEAK_PX = -9f
     private const val WORD_RISE_DURATION_MS = 2000f
     private const val WORD_RISE_FRAMES = 64
 
-    const val CHAR_LIFT_PX = 2.5f
+    const val CHAR_LIFT_PX = 6f
     const val CHAR_SPREAD_EM = 0.05f
     const val CHAR_SCALE = 0.10f
     const val CHAR_GLOW_PEAK = 0.45f

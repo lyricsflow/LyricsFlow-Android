@@ -10,11 +10,11 @@ import com.google.gson.stream.JsonWriter
 import com.tencent.mmkv.MMKV
 import com.lyricsflow.player.data.libraries.Folder
 import com.lyricsflow.player.data.libraries.PlayList
-import com.lyricsflow.player.data.libraries.YosMediaItem
-import com.lyricsflow.player.data.libraries.YosStringWrapper
+import com.lyricsflow.player.data.libraries.LyricsflowMediaItem
+import com.lyricsflow.player.data.libraries.LyricsflowStringWrapper
 import kotlin.system.exitProcess
 
-class YosBasicApplication : Application() {
+class LyricsflowBasicApplication : Application() {
     override fun onCreate() {
 
         Thread.setDefaultUncaughtExceptionHandler { _, e ->
@@ -61,12 +61,12 @@ class YosBasicApplication : Application() {
 
         registerTypeConverters(
             save = { bean -> gson.toJson(bean) },
-            restore = { str -> gson.fromJson(str, YosMediaItem::class.java) }
+            restore = { str -> gson.fromJson(str, LyricsflowMediaItem::class.java) }
         )
 
         registerTypeConverters(
             save = { bean -> gson.toJson(bean) },
-            restore = { str -> gson.fromJson(str, YosStringWrapper::class.java) }
+            restore = { str -> gson.fromJson(str, LyricsflowStringWrapper::class.java) }
         )
 
         super.onCreate()

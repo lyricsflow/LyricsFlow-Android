@@ -61,20 +61,21 @@ import com.lyricsflow.player.code.MediaController.mediaControl
 import com.lyricsflow.player.code.MediaController.mediaSession
 import com.lyricsflow.player.code.MediaController.musicPlaying
 import com.lyricsflow.player.code.MediaController.onServiceRunning
+import com.lyricsflow.player.code.rpc.DiscordRpcManager
 import com.lyricsflow.player.code.utils.lrc.LyricsFlowApi
-import com.lyricsflow.player.code.utils.lrc.YosLrcFactory
-import com.lyricsflow.player.code.utils.lrc.YosParsedLyricData
-import com.lyricsflow.player.code.utils.lrc.YosTtmlFactory
+import com.lyricsflow.player.code.utils.lrc.LyricsflowLrcFactory
+import com.lyricsflow.player.code.utils.lrc.LyricsflowParsedLyricData
+import com.lyricsflow.player.code.utils.lrc.LyricsflowTtmlFactory
 import com.lyricsflow.player.code.utils.player.FadeExo
 import com.lyricsflow.player.code.utils.player.FadeExo.fadePause
 import com.lyricsflow.player.code.utils.player.FadeExo.fadePlay
 import com.lyricsflow.player.data.libraries.MusicLibrary
 import com.lyricsflow.player.data.libraries.MusicLibrary.toMediaItem
-import com.lyricsflow.player.data.libraries.MusicLibrary.toYosMediaItem
+import com.lyricsflow.player.data.libraries.MusicLibrary.toLyricsflowMediaItem
 import com.lyricsflow.player.data.libraries.PlayListV1
 import com.lyricsflow.player.data.libraries.PlayStatus
 import com.lyricsflow.player.data.libraries.SettingsLibrary
-import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.LyricsflowMediaItem
 import com.lyricsflow.player.data.libraries.thumb
 import com.lyricsflow.player.data.libraries.uri
 import com.lyricsflow.player.data.objects.MainViewModelObject
@@ -86,20 +87,20 @@ object MediaController {
     private var controllerInitializationStarted = false
 
     @Stable
-    val mainMusicList: List<YosMediaItem>
+    val mainMusicList: List<LyricsflowMediaItem>
         get() = MusicLibrary.songs
 
     @Stable
-    var playingMusicList = mutableStateOf<List<YosMediaItem>?>(null)
+    var playingMusicList = mutableStateOf<List<LyricsflowMediaItem>?>(null)
 
     @Stable
-    var nextInQueueMusicList = mutableStateOf<List<YosMediaItem>>(emptyList())
+    var nextInQueueMusicList = mutableStateOf<List<LyricsflowMediaItem>>(emptyList())
 
     @Stable
-    var historyMusicList = mutableStateOf<List<YosMediaItem>>(emptyList())
+    var historyMusicList = mutableStateOf<List<LyricsflowMediaItem>>(emptyList())
 
     @Stable
-    var orderedPlayingMusicList = mutableStateOf<List<YosMediaItem>>(emptyList())
+    var orderedPlayingMusicList = mutableStateOf<List<LyricsflowMediaItem>>(emptyList())
 
     @Stable
     var queueShuffleEnabled = mutableStateOf(false)
@@ -108,7 +109,7 @@ object MediaController {
     var mediaControl: MediaController? = null
 
     @Stable
-    var musicPlaying = mutableStateOf<YosMediaItem?>(null)
+    var musicPlaying = mutableStateOf<LyricsflowMediaItem?>(null)
 
     @Stable
     var mediaSession: MediaSession? = null
@@ -124,7 +125,7 @@ object MediaController {
 
         controllerInitializationStarted = true
         val applicationContext = context.applicationContext
-        val sessionToken = SessionToken(applicationContext, ComponentName(applicationContext, YosPlaybackService::class.java))
+        val sessionToken = SessionToken(applicationContext, ComponentName(applicationContext, LyricsflowPlaybackService::class.java))
         val controllerFuture = androidx.media3.session.MediaController.Builder(applicationContext, sessionToken).buildAsync()
 
         controllerFuture.addListener(
@@ -189,7 +190,7 @@ object MediaController {
         val handler = Handler(Looper.getMainLooper())
         val lyricAPI by lazy { API() }
         var lastLyric = listOf<Pair<Float, String>>()
-        val base64 = Tools.drawableToBase64(getDrawable(R.drawable.flamingo_icon_notification)!!)
+        val base64 = Tools.drawableToBase64(getDrawable(R.drawable.lyricsflow_icon_notification)!!)
         var statusBarLyricEnabled: Boolean
         var hooked = false
 
@@ -257,7 +258,7 @@ object MediaController {
                                         )
                                     }
 
-                                    // YosPlaybackService().sendLyricTicker(lyricResult)
+                                    // LyricsflowPlaybackService().sendLyricTicker(lyricResult)
 
                                     lastLyric = line
                                 } catch (_: Exception) {
@@ -337,9 +338,9 @@ object MediaController {
         shuffleModeEnabled: Boolean = false,
         appendSimilar: Boolean = true
     ) {
-        val targetItem = with(LyricsFlowApi) { track.toYosMediaItem() }
+        val targetItem = with(LyricsFlowApi) { track.toLyricsflowMediaItem() }
         val baseList = if (contextTracks.isNotEmpty()) {
-            contextTracks.map { with(LyricsFlowApi) { it.toYosMediaItem() } }
+            contextTracks.map { with(LyricsFlowApi) { it.toLyricsflowMediaItem() } }
         } else {
             listOf(targetItem)
         }
@@ -357,7 +358,7 @@ object MediaController {
                     .filter { it.id != track.id }
                     .take(12)
                 if (similar.isNotEmpty()) {
-                    val similarItems = similar.map { with(LyricsFlowApi) { it.toYosMediaItem() } }
+                    val similarItems = similar.map { with(LyricsFlowApi) { it.toLyricsflowMediaItem() } }
                     addToQueue(similarItems)
                 }
             }
@@ -378,7 +379,7 @@ object MediaController {
         if (!pairedLyricContent.isNullOrBlank()) {
             customUploadedLyricsForMediaId = mediaId to pairedLyricContent
         }
-        val item = YosMediaItem(
+        val item = LyricsflowMediaItem(
             uri = audioUri,
             mediaId = mediaId,
             mimeType = "audio/*",
@@ -410,8 +411,8 @@ object MediaController {
     }
 
     suspend fun prepare(
-        music: YosMediaItem,
-        thisMusicList: List<YosMediaItem>,
+        music: LyricsflowMediaItem,
+        thisMusicList: List<LyricsflowMediaItem>,
         position: Long = 0L,
         shuffleModeEnabled: Boolean = false,
         repeatMode: Int? = null,
@@ -461,7 +462,7 @@ object MediaController {
             )
             mediaControl?.prepare()
             mediaControl?.repeatMode = resolvedRepeatMode
-            mediaControl?.let { YosPlaybackService().setCustomButtons(it) }
+            mediaControl?.let { LyricsflowPlaybackService().setCustomButtons(it) }
         }
 
         nextInQueueMusicList.value = emptyList()
@@ -478,11 +479,11 @@ object MediaController {
         saveQueueState()
     }
 
-    suspend fun addToQueue(music: YosMediaItem): Boolean {
+    suspend fun addToQueue(music: LyricsflowMediaItem): Boolean {
         return addToQueue(listOf(music))
     }
 
-    suspend fun addToQueue(musicList: List<YosMediaItem>): Boolean {
+    suspend fun addToQueue(musicList: List<LyricsflowMediaItem>): Boolean {
         if (musicList.isEmpty()) {
             return false
         }
@@ -522,7 +523,7 @@ object MediaController {
         return true
     }
 
-    suspend fun playNext(musicList: List<YosMediaItem>): Boolean {
+    suspend fun playNext(musicList: List<LyricsflowMediaItem>): Boolean {
         return addToQueue(musicList)
     }
 
@@ -534,7 +535,7 @@ object MediaController {
             queueShuffleEnabled.value = !queueShuffleEnabled.value
             withContext(Dispatchers.Main) {
                 controller.shuffleModeEnabled = false
-                YosPlaybackService().setCustomButtons(controller)
+                LyricsflowPlaybackService().setCustomButtons(controller)
             }
             saveQueueState()
             return true
@@ -568,7 +569,7 @@ object MediaController {
                     updatedQueue.drop(currentIndex + 1 + currentNextInQueue.size).map { it.toMediaItem() }
                 )
             }
-            YosPlaybackService().setCustomButtons(controller)
+            LyricsflowPlaybackService().setCustomButtons(controller)
         }
 
         orderedPlayingMusicList.value = updatedQueue
@@ -580,10 +581,10 @@ object MediaController {
     }
 
     suspend fun restoreQueueState(
-        music: YosMediaItem,
-        upcomingMusicList: List<YosMediaItem>,
-        nextInQueue: List<YosMediaItem>,
-        historyQueue: List<YosMediaItem>,
+        music: LyricsflowMediaItem,
+        upcomingMusicList: List<LyricsflowMediaItem>,
+        nextInQueue: List<LyricsflowMediaItem>,
+        historyQueue: List<LyricsflowMediaItem>,
         position: Long,
         shuffleModeEnabled: Boolean,
         repeatMode: Int,
@@ -611,7 +612,7 @@ object MediaController {
             mediaControl?.prepare()
             mediaControl?.repeatMode = repeatMode
             mediaControl?.shuffleModeEnabled = false
-            mediaControl?.let { YosPlaybackService().setCustomButtons(it) }
+            mediaControl?.let { LyricsflowPlaybackService().setCustomButtons(it) }
         }
 
         nextInQueueMusicList.value = nextInQueue
@@ -901,22 +902,22 @@ object MediaController {
         return true
     }
 
-    private suspend fun currentQueueSnapshot(controller: androidx.media3.session.MediaController): List<YosMediaItem> {
+    private suspend fun currentQueueSnapshot(controller: androidx.media3.session.MediaController): List<LyricsflowMediaItem> {
         orderedPlayingMusicList.value.takeIf { it.isNotEmpty() }?.let {
             return it
         }
 
         return withContext(Dispatchers.Main) {
             List(controller.mediaItemCount) { index ->
-                controller.getMediaItemAt(index).toYosMediaItem()
+                controller.getMediaItemAt(index).toLyricsflowMediaItem()
             }
         }
     }
 
     private fun syncQueueState(
-        orderedQueue: List<YosMediaItem>,
+        orderedQueue: List<LyricsflowMediaItem>,
         currentQueueIndex: Int,
-        currentMusic: YosMediaItem? = null,
+        currentMusic: LyricsflowMediaItem? = null,
         consumeNextInQueue: Boolean = true,
     ) {
         orderedPlayingMusicList.value = orderedQueue
@@ -949,7 +950,7 @@ object MediaController {
         MainViewModelObject.syncLyricIndex.intValue = -1
     }
 
-    fun syncQueueStateFromController(controller: Player, currentMusic: YosMediaItem? = null) {
+    fun syncQueueStateFromController(controller: Player, currentMusic: LyricsflowMediaItem? = null) {
         val orderedQueue = if (
             orderedPlayingMusicList.value.isNotEmpty() &&
             orderedPlayingMusicList.value.size == controller.mediaItemCount
@@ -957,7 +958,7 @@ object MediaController {
             orderedPlayingMusicList.value
         } else {
             List(controller.mediaItemCount) { index ->
-                controller.getMediaItemAt(index).toYosMediaItem()
+                controller.getMediaItemAt(index).toLyricsflowMediaItem()
             }
         }
 
@@ -976,7 +977,7 @@ object MediaController {
         )
     }
 
-    fun onCase(mediaItem: YosMediaItem) {
+    fun onCase(mediaItem: LyricsflowMediaItem) {
         CoroutineScope(Dispatchers.IO).launch {
             refresh(mediaItem)
         }
@@ -984,7 +985,7 @@ object MediaController {
 
     private var refreshJob: CompletableJob? = null
 
-    private fun refresh(music: YosMediaItem) {
+    private fun refresh(music: LyricsflowMediaItem) {
         refreshJob?.cancel()
         refreshJob = Job()
 
@@ -1005,16 +1006,16 @@ object MediaController {
         }
     }
 
-    private fun List<YosMediaItem>.moved(fromIndex: Int, toIndex: Int): List<YosMediaItem> {
+    private fun List<LyricsflowMediaItem>.moved(fromIndex: Int, toIndex: Int): List<LyricsflowMediaItem> {
         return toMutableList().also {
             val movedMusic = it.removeAt(fromIndex)
             it.add(toIndex, movedMusic)
         }
     }
 
-    private fun List<YosMediaItem>.matchingQueuePrefix(
-        candidateQueue: List<YosMediaItem>,
-    ): List<YosMediaItem> {
+    private fun List<LyricsflowMediaItem>.matchingQueuePrefix(
+        candidateQueue: List<LyricsflowMediaItem>,
+    ): List<LyricsflowMediaItem> {
         val maxPrefixSize = candidateQueue.size.coerceAtMost(size)
 
         for (prefixSize in maxPrefixSize downTo 0) {
@@ -1028,7 +1029,7 @@ object MediaController {
         return emptyList()
     }
 
-    private fun List<YosMediaItem>.queueMatches(candidateQueue: List<YosMediaItem>): Boolean {
+    private fun List<LyricsflowMediaItem>.queueMatches(candidateQueue: List<LyricsflowMediaItem>): Boolean {
         if (size != candidateQueue.size) {
             return false
         }
@@ -1038,14 +1039,14 @@ object MediaController {
         }
     }
 
-    private fun YosMediaItem.queueIdentityMatches(other: YosMediaItem): Boolean {
+    private fun LyricsflowMediaItem.queueIdentityMatches(other: LyricsflowMediaItem): Boolean {
         return uri == other.uri && mediaId == other.mediaId
     }
 }
 
-class YosPlaybackService : MediaSessionService() {
+class LyricsflowPlaybackService : MediaSessionService() {
     private val notificationID = 1145
-    private val channelID = "YosMediaControllerChannel"
+    private val channelID = "LyricsflowMediaControllerChannel"
 
     private val shuffleMode = "shuffle_mode"
     private val repeatMode = "repeat_mode"
@@ -1127,9 +1128,9 @@ class YosPlaybackService : MediaSessionService() {
     /*fun sendLyricTicker(lyric: String) {
         val notification = NotificationCompat.Builder(this, channelID).apply {
             setTicker(lyric)
-            setSmallIcon(R.drawable.flamingo_icon_notification)
+            setSmallIcon(R.drawable.lyricsflow_icon_notification)
         }.build().also {
-            it.extras.putInt("ticker_icon", R.drawable.flamingo_icon_notification)
+            it.extras.putInt("ticker_icon", R.drawable.lyricsflow_icon_notification)
             it.extras.putBoolean("ticker_icon_switch", true)
             it.flags = it.flags.or(FLAG_ALWAYS_SHOW_TICKER).or(FLAG_ONLY_UPDATE_TICKER)
         }
@@ -1198,20 +1199,20 @@ class YosPlaybackService : MediaSessionService() {
         }
     }
 
-    private fun loadParsedLyrics(localAudioPath: String?): YosParsedLyricData {
+    private fun loadParsedLyrics(localAudioPath: String?): LyricsflowParsedLyricData {
         val embeddedLyrics = if (localAudioPath != null) {
             AudioMetadataUtils.loadEmbeddedLyrics(localAudioPath)
         } else {
             null
         }
 
-        if (!embeddedLyrics.isNullOrBlank() && YosTtmlFactory.isTtmlText(embeddedLyrics)) {
+        if (!embeddedLyrics.isNullOrBlank() && LyricsflowTtmlFactory.isTtmlText(embeddedLyrics)) {
             parseTtmlLyrics(embeddedLyrics, "embedded TTML")?.let { return it }
         }
 
         loadSidecarTtmlLyrics(localAudioPath)?.let { return it }
 
-        val lrcContent = if (!embeddedLyrics.isNullOrBlank() && !YosTtmlFactory.isTtmlText(embeddedLyrics)) {
+        val lrcContent = if (!embeddedLyrics.isNullOrBlank() && !LyricsflowTtmlFactory.isTtmlText(embeddedLyrics)) {
             embeddedLyrics
         } else {
             loadSidecarLrcLyrics(localAudioPath)
@@ -1224,7 +1225,7 @@ class YosPlaybackService : MediaSessionService() {
         }
     }
 
-    private fun loadSidecarTtmlLyrics(localAudioPath: String?): YosParsedLyricData? {
+    private fun loadSidecarTtmlLyrics(localAudioPath: String?): LyricsflowParsedLyricData? {
         val sidecarBasePath = localAudioPath?.toSidecarBasePath() ?: return null
         val sidecarPaths = listOf(
             "$sidecarBasePath.ttml",
@@ -1233,8 +1234,8 @@ class YosPlaybackService : MediaSessionService() {
 
         sidecarPaths.forEach { sidecarPath ->
             val sidecarContent = AudioMetadataUtils.loadTtmlFile(this, sidecarPath) ?: return@forEach
-            if (!YosTtmlFactory.isTtmlText(sidecarContent)) {
-                Log.d("FlamingoLyrics", "Ignoring non-TTML sidecar lyric file: $sidecarPath")
+            if (!LyricsflowTtmlFactory.isTtmlText(sidecarContent)) {
+                Log.d("LyricsFlowLyrics", "Ignoring non-TTML sidecar lyric file: $sidecarPath")
                 return@forEach
             }
             parseTtmlLyrics(sidecarContent, sidecarPath)?.let { return it }
@@ -1246,31 +1247,31 @@ class YosPlaybackService : MediaSessionService() {
     private fun loadSidecarLrcLyrics(localAudioPath: String?): String? {
         val sidecarBasePath = localAudioPath?.toSidecarBasePath() ?: return null
         val lrcPath = "$sidecarBasePath.lrc"
-        Log.d("FlamingoLyrics", "Attempting sidecar LRC path: $lrcPath")
+        Log.d("LyricsFlowLyrics", "Attempting sidecar LRC path: $lrcPath")
         return AudioMetadataUtils.loadLrcFile(this, lrcPath)
     }
 
-    private fun parseTtmlLyrics(ttmlContent: String, sourceLabel: String): YosParsedLyricData? {
+    private fun parseTtmlLyrics(ttmlContent: String, sourceLabel: String): LyricsflowParsedLyricData? {
         val startTime = System.nanoTime()
-        val parsedLyrics = YosTtmlFactory().formatTtmlEntries(ttmlContent)
+        val parsedLyrics = LyricsflowTtmlFactory().formatTtmlEntries(ttmlContent)
         val elapsedMs = (System.nanoTime() - startTime) / 1_000_000f
         if (parsedLyrics == null) {
-            Log.d("FlamingoLyrics", "Failed parsing TTML lyrics from $sourceLabel")
+            Log.d("LyricsFlowLyrics", "Failed parsing TTML lyrics from $sourceLabel")
         } else {
             Log.d(
-                "FlamingoLyrics",
+                "LyricsFlowLyrics",
                 "Parsed TTML lyrics from $sourceLabel entries=${parsedLyrics.entries.size} elapsedMs=$elapsedMs"
             )
         }
         return parsedLyrics
     }
 
-    private fun parseLrcLyrics(lrcContent: String): YosParsedLyricData {
+    private fun parseLrcLyrics(lrcContent: String): LyricsflowParsedLyricData {
         return LyricsFlowApi.parseRawLyricText(lrcContent) ?: emptyParsedLyrics()
     }
 
-    private fun emptyParsedLyrics(): YosParsedLyricData {
-        return YosParsedLyricData(
+    private fun emptyParsedLyrics(): LyricsflowParsedLyricData {
+        return LyricsflowParsedLyricData(
             entries = emptyList(),
             endTimes = emptyList(),
             otherSideForLines = emptyList(),
@@ -1280,7 +1281,7 @@ class YosPlaybackService : MediaSessionService() {
         )
     }
 
-    private fun applyParsedLyrics(parsedLyrics: YosParsedLyricData) {
+    private fun applyParsedLyrics(parsedLyrics: LyricsflowParsedLyricData) {
         MediaViewModelObject.lrcEntries.value = parsedLyrics.entries
         MediaViewModelObject.otherSideForLines.clear()
         MediaViewModelObject.otherSideForLines.addAll(parsedLyrics.otherSideForLines)
@@ -1320,7 +1321,7 @@ class YosPlaybackService : MediaSessionService() {
 
         val path = targetItem.uri
         val thisPath = AudioMetadataUtils.resolveLocalAudioFilePath(
-            this@YosPlaybackService,
+            this@LyricsflowPlaybackService,
             path
         ) ?: path?.path
 
@@ -1349,8 +1350,8 @@ class YosPlaybackService : MediaSessionService() {
             return
         }
 
-        val currentYosItem = targetItem.toYosMediaItem()
-        val currentDurationMs = player.duration.coerceAtLeast(currentYosItem.duration).coerceAtLeast(0L)
+        val currentLyricsflowItem = targetItem.toLyricsflowMediaItem()
+        val currentDurationMs = player.duration.coerceAtLeast(currentLyricsflowItem.duration).coerceAtLeast(0L)
         if (parsedLyrics.entries.isEmpty()) {
             MediaViewModelObject.isLoadingLyrics.value = true
         }
@@ -1359,8 +1360,8 @@ class YosPlaybackService : MediaSessionService() {
         lyricFetchJob = CoroutineScope(Dispatchers.IO).launch {
             try {
                 val onlineLyrics = LyricsFlowApi.fetchAndParseLyrics(
-                    context = this@YosPlaybackService,
-                    music = currentYosItem,
+                    context = this@LyricsflowPlaybackService,
+                    music = currentLyricsflowItem,
                     durationMs = currentDurationMs
                 )
                 withContext(Dispatchers.Main) {
@@ -1370,7 +1371,7 @@ class YosPlaybackService : MediaSessionService() {
                             if (shouldUpgrade) {
                                 applyParsedLyrics(onlineLyrics)
                                 Log.d(
-                                    "FlamingoLyrics",
+                                    "LyricsFlowLyrics",
                                     "Applied online LyricsFlow lyrics entries=${onlineLyrics.entries.size} isTtml=${onlineLyrics.isTtml}"
                                 )
                             }
@@ -1397,7 +1398,7 @@ class YosPlaybackService : MediaSessionService() {
             .build()
         val player = ExoPlayer.Builder(
             this,
-            YosRenderFactory(this)
+            LyricsflowRenderFactory(this)
                 .setEnableAudioFloatOutput(
                     SettingsLibrary.AudioFloatOutput
                 )
@@ -1466,11 +1467,11 @@ class YosPlaybackService : MediaSessionService() {
                         }
 
                         val thisPath = AudioMetadataUtils.resolveLocalAudioFilePath(
-                            this@YosPlaybackService,
+                            this@LyricsflowPlaybackService,
                             path
                         ) ?: path?.path
                         Log.d(
-                            "FlamingoLyrics",
+                            "LyricsFlowLyrics",
                             "Track changed uri=$path resolvedPath=$thisPath mediaId=${player.currentMediaItem?.mediaId}"
                         )
 
@@ -1495,7 +1496,7 @@ class YosPlaybackService : MediaSessionService() {
                         MediaViewModelObject.bitrate.intValue = bitrate
 
                     }.onFailure { throwable ->
-                        Log.e("FlamingoLyrics", "onTracksChanged lyric processing failed", throwable)
+                        Log.e("LyricsFlowLyrics", "onTracksChanged lyric processing failed", throwable)
                     }
                 }
 
@@ -1505,14 +1506,23 @@ class YosPlaybackService : MediaSessionService() {
                     listenStatsTracker?.onTrackChanged()
 
                     mediaItem?.let {
+                        val lyricsflowItem = it.toLyricsflowMediaItem()
                         com.lyricsflow.player.code.MediaController.syncQueueStateFromController(
                             player,
-                            it.toYosMediaItem()
+                            lyricsflowItem
                         )
                         com.lyricsflow.player.code.MediaController.onCase(
-                            it.toYosMediaItem()
+                            lyricsflowItem
                         )
                         triggerLyricsLoadForMediaItem(player, it, forceRefresh = true)
+                        runCatching {
+                            DiscordRpcManager.updateNowPlayingActivity(
+                                song = lyricsflowItem,
+                                isPlaying = player.isPlaying,
+                                positionMs = player.currentPosition,
+                                durationMs = player.duration.coerceAtLeast(0L)
+                            )
+                        }
                     }
 
                     runCatching {
@@ -1546,12 +1556,12 @@ class YosPlaybackService : MediaSessionService() {
                             val fallbackUrl = LyricsFlowApi.resolveFallbackStreamUrl(songId, currentUri)
                             withContext(Dispatchers.Main) {
                                 if (fallbackUrl != null && player.currentMediaItem?.mediaId == songId) {
-                                    Log.w("FlamingoStream", "Stream failed ($currentUri), falling back to: $fallbackUrl")
-                                    val updatedYos = currentItem.toYosMediaItem().copy(
+                                    Log.w("LyricsFlowStream", "Stream failed ($currentUri), falling back to: $fallbackUrl")
+                                    val updatedLyricsflow = currentItem.toLyricsflowMediaItem().copy(
                                         uri = android.net.Uri.parse(fallbackUrl),
                                         mimeType = null
                                     )
-                                    player.replaceMediaItem(currentIndex, updatedYos.toMediaItem())
+                                    player.replaceMediaItem(currentIndex, updatedLyricsflow.toMediaItem())
                                     player.prepare()
                                     player.play()
                                 } else {
@@ -1589,6 +1599,14 @@ class YosPlaybackService : MediaSessionService() {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     super.onIsPlayingChanged(isPlaying)
                     MediaViewModelObject.isPlaying.value = isPlaying
+                    runCatching {
+                        DiscordRpcManager.updateNowPlayingActivity(
+                            song = player.currentMediaItem?.toLyricsflowMediaItem(),
+                            isPlaying = isPlaying,
+                            positionMs = player.currentPosition,
+                            durationMs = player.duration.coerceAtLeast(0L)
+                        )
+                    }
                 }
 
                 override fun onEvents(player: Player, events: Player.Events) {
@@ -1615,7 +1633,7 @@ class YosPlaybackService : MediaSessionService() {
             .build()*/
 
         @Suppress("DEPRECATION")
-        class YosMediaSessionCallback : MediaSession.Callback {
+        class LyricsflowMediaSessionCallback : MediaSession.Callback {
             override fun onConnect(
                 session: MediaSession,
                 controller: MediaSession.ControllerInfo
@@ -1701,7 +1719,7 @@ class YosPlaybackService : MediaSessionService() {
                     )
                 )
                 .setShowPlayButtonIfPlaybackIsSuppressed(true)
-                .setCallback(YosMediaSessionCallback())
+                .setCallback(LyricsflowMediaSessionCallback())
                 .build()
         /*
                 val mediaButtonReceiver = ComponentName(this, MediaButtonReceiver::class.java)
@@ -1712,8 +1730,8 @@ class YosPlaybackService : MediaSessionService() {
         */
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = "Flamingo Media Control"
-            val descriptionText = "Flamingo Media Control Notification Channel"
+            val name = "LyricsFlow Media Control"
+            val descriptionText = "LyricsFlow Media Control Notification Channel"
             val importance = NotificationManager.IMPORTANCE_NONE
             val channel = NotificationChannel(channelID, name, importance).apply {
                 description = descriptionText
@@ -1744,7 +1762,7 @@ class YosPlaybackService : MediaSessionService() {
             notificationID
         )*/
 
-        notificationProvider.setSmallIcon(R.drawable.flamingo_icon_notification)
+        notificationProvider.setSmallIcon(R.drawable.lyricsflow_icon_notification)
 
         this.setMediaNotificationProvider(notificationProvider)
 

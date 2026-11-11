@@ -57,11 +57,11 @@ data class Time(
 @Parcelize
 @Stable
 data class PlayListV1(
-    val mainMusicList: List<YosMediaItem>? = null,
-    val playingMusicList: List<YosMediaItem>? = null,
-    val nextInQueueMusicList: List<YosMediaItem>? = null,
-    val historyMusicList: List<YosMediaItem>? = null,
-    val musicPlaying: YosMediaItem? = null,
+    val mainMusicList: List<LyricsflowMediaItem>? = null,
+    val playingMusicList: List<LyricsflowMediaItem>? = null,
+    val nextInQueueMusicList: List<LyricsflowMediaItem>? = null,
+    val historyMusicList: List<LyricsflowMediaItem>? = null,
+    val musicPlaying: LyricsflowMediaItem? = null,
     val shuffleModeEnabled: Boolean = false,
     val playingMusicUris: List<String>? = null,
     val nextInQueueMusicUris: List<String>? = null,
@@ -72,7 +72,7 @@ data class PlayListV1(
 @Parcelize
 @Stable
 data class PlayStatus(
-    val music: YosMediaItem?,
+    val music: LyricsflowMediaItem?,
     val position: Long,
     val shuffleModeEnabled: Boolean,
     val repeatMode: Int
@@ -80,11 +80,11 @@ data class PlayStatus(
 
 @Parcelize
 @Stable
-data class Folder(val name: String, val path: String, val songs: List<YosMediaItem>) : Parcelable
+data class Folder(val name: String, val path: String, val songs: List<LyricsflowMediaItem>) : Parcelable
 
 @Parcelize
 @Stable
-data class YosMediaItem(
+data class LyricsflowMediaItem(
     val uri: Uri?,
     val mediaId: String?,
     val mimeType: String?,
@@ -117,29 +117,29 @@ data class YosMediaItem(
 
 @Stable
 @Parcelize
-data class YosStringWrapper(val value: String) : Parcelable
+data class LyricsflowStringWrapper(val value: String) : Parcelable
 
 @Stable
 object MusicLibrary {
-    // yos_player_core 负责歌曲列表 V1、播放状态记录
+    // lyricsflow_player_core 负责歌曲列表 V1、播放状态记录
 
-    private const val mmkvID = "yos_player_core"
-    private const val playListKey = "yos_play_list_v1"
-    private const val playStatusKey = "yos_player_play_status"
+    private const val mmkvID = "lyricsflow_player_core"
+    private const val playListKey = "lyricsflow_play_list_v1"
+    private const val playStatusKey = "lyricsflow_player_play_status"
 
     private val gson by lazy { GsonBuilder().registerTypeAdapter(Uri::class.java, UriTypeAdapter()).create() }
     private val mmkv by lazy { MMKV.mmkvWithID(mmkvID) }
 
-    private var cachedSongSource: List<YosMediaItem>? = null
-    private var cachedHiddenSongs: List<YosMediaItem>? = null
+    private var cachedSongSource: List<LyricsflowMediaItem>? = null
+    private var cachedHiddenSongs: List<LyricsflowMediaItem>? = null
     private var cachedFolders: List<Folder>? = null
-    private var cachedHiddenFolders: List<YosStringWrapper>? = null
-    private var cachedVisibleSongs: List<YosMediaItem>? = null
+    private var cachedHiddenFolders: List<LyricsflowStringWrapper>? = null
+    private var cachedVisibleSongs: List<LyricsflowMediaItem>? = null
 
     var hideSongs by mutableDataSaverListStateOf(
         dataSaverInterface = SongListSaver,
         key = "hide_songs",
-        initialValue = listOf<YosMediaItem>()
+        initialValue = listOf<LyricsflowMediaItem>()
     )
         private set
 
@@ -151,7 +151,7 @@ object MusicLibrary {
         private set
 
     private var hideFoldersSaver by mutableDataSaverListStateOf(
-        dataSaverInterface = NormalSaver, key = "hide_folders", initialValue = listOf<YosStringWrapper>()
+        dataSaverInterface = NormalSaver, key = "hide_folders", initialValue = listOf<LyricsflowStringWrapper>()
     )
 
     fun hasAudioPermission(context: Context): Boolean {
@@ -168,10 +168,10 @@ object MusicLibrary {
         get() = hideFoldersSaver.map { it.value }
 
     private var songSaver by mutableDataSaverListStateOf(
-        dataSaverInterface = SongListSaver, key = "songs", initialValue = listOf<YosMediaItem>()
+        dataSaverInterface = SongListSaver, key = "songs", initialValue = listOf<LyricsflowMediaItem>()
     )
 
-    val songs: List<YosMediaItem>
+    val songs: List<LyricsflowMediaItem>
         get() {
             if (
                 cachedSongSource === songSaver &&
@@ -233,8 +233,8 @@ object MusicLibrary {
         return loadedData
     }
 
-    fun MediaItem.toYosMediaItem(): YosMediaItem {
-        return YosMediaItem(
+    fun MediaItem.toLyricsflowMediaItem(): LyricsflowMediaItem {
+        return LyricsflowMediaItem(
             uri = this.localConfiguration?.uri,
             mediaId = this.mediaId,
             mimeType = this.localConfiguration?.mimeType,
@@ -266,7 +266,7 @@ object MusicLibrary {
         )
     }
 
-    fun YosMediaItem.toMediaItem(): MediaItem {
+    fun LyricsflowMediaItem.toMediaItem(): MediaItem {
         return MediaItem.Builder()
             .setUri(this.uri)
             .setMediaId(this.mediaId!!)
@@ -334,15 +334,15 @@ object MusicLibrary {
         updateFolderVisibility(folder, hide = false)
     }
 
-    fun hideSong(song: YosMediaItem) {
+    fun hideSong(song: LyricsflowMediaItem) {
         hideSongs = hideSongs + song
     }
 
-    fun unHideSong(song: YosMediaItem) {
+    fun unHideSong(song: LyricsflowMediaItem) {
         hideSongs = hideSongs - song
     }
 
-    /*fun removeSong(song: YosMediaItem) {
+    /*fun removeSong(song: LyricsflowMediaItem) {
         folders = folders.map {
             if (it.songs.contains(song)) {
                 return@map it.copy(
@@ -357,11 +357,11 @@ object MusicLibrary {
     private fun updateFolderVisibility(folder: Folder, hide: Boolean) {
         if (hide) {
             if (folders.any { it.path == folder.path }) {
-                hideFoldersSaver = hideFoldersSaver.plus(YosStringWrapper(folder.path))
+                hideFoldersSaver = hideFoldersSaver.plus(LyricsflowStringWrapper(folder.path))
             }
         } else {
             if (hideFolders.any { it == folder.path }) {
-                hideFoldersSaver = hideFoldersSaver.minus(YosStringWrapper(folder.path))
+                hideFoldersSaver = hideFoldersSaver.minus(LyricsflowStringWrapper(folder.path))
             }
         }
     }
@@ -448,7 +448,7 @@ object MusicLibrary {
             // val folderList = result.folderStructure.folderList
 
             val convertedSongs = result.songList.fastMap {
-                it.toYosMediaItem()
+                it.toLyricsflowMediaItem()
             }
             val songsByUri = convertedSongs.associateBy { it.uri }
 
@@ -458,7 +458,7 @@ object MusicLibrary {
                 val name = it.key
                 val path = it.value.songList.first().uri?.path?.substringBeforeLast("/")?:""
                 val songs = it.value.songList.fastMap { thisSong ->
-                    songsByUri[thisSong.uri] ?: thisSong.toYosMediaItem()
+                    songsByUri[thisSong.uri] ?: thisSong.toLyricsflowMediaItem()
                 }
                 Folder(name, path, songs)
             }.let {

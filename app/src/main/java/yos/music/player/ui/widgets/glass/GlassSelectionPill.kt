@@ -37,8 +37,9 @@ import kotlin.math.exp
 import kotlin.math.roundToInt
 import kotlin.math.sign
 
-/** How much taller than the bar the pill stands while it is lifted. */
-internal val PILL_GROW_HEIGHT = 9.dp
+/** How much taller than the bar the pill stands while it is lifted (~1.3x zoom). */
+internal val PILL_GROW_HEIGHT = 18.dp
+internal const val PILL_LIFT_SCALE = 1.3f
 
 @Stable
 internal class GlassPillMotion(

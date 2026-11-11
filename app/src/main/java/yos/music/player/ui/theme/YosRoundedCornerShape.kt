@@ -12,28 +12,28 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlin.math.sqrt
 
-// Yos-X tips: By Kyant
+// Lyricsflow-X tips: By Kyant
 
-fun YosRoundedCornerShape(
+fun LyricsflowRoundedCornerShape(
     roundSize: Dp,
     n: Float = 0.5f,
     mSize: Size? = null
-) = YosRoundedCornerShape(CornerSize(roundSize), n, mSize)
+) = LyricsflowRoundedCornerShape(CornerSize(roundSize), n, mSize)
 
-fun YosRoundedCornerShape(
+fun LyricsflowRoundedCornerShape(
     corner: CornerSize,
     n: Float = 0.5f,
     mSize: Size? = null
-) = YosRoundedCornerShape(corner, corner, corner, corner, n, mSize)
+) = LyricsflowRoundedCornerShape(corner, corner, corner, corner, n, mSize)
 
-fun YosRoundedCornerShape(
+fun LyricsflowRoundedCornerShape(
     topStart: Dp = 0.dp,
     topEnd: Dp = 0.dp,
     bottomEnd: Dp = 0.dp,
     bottomStart: Dp = 0.dp,
     n: Float = 0.5f,
     mSize: Size? = null
-) = YosRoundedCornerShape(
+) = LyricsflowRoundedCornerShape(
     topStart = CornerSize(topStart),
     topEnd = CornerSize(topEnd),
     bottomEnd = CornerSize(bottomEnd),
@@ -43,7 +43,7 @@ fun YosRoundedCornerShape(
 )
 
 @Stable
-class YosRoundedCornerShape(
+class LyricsflowRoundedCornerShape(
     topStart: CornerSize,
     topEnd: CornerSize,
     bottomEnd: CornerSize,
@@ -144,7 +144,7 @@ class YosRoundedCornerShape(
         topEnd: CornerSize,
         bottomEnd: CornerSize,
         bottomStart: CornerSize
-    ) = YosRoundedCornerShape(
+    ) = LyricsflowRoundedCornerShape(
         topStart = topStart,
         topEnd = topEnd,
         bottomStart = bottomStart,

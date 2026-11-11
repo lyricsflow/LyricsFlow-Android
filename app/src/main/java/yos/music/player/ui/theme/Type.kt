@@ -1,35 +1,126 @@
 package com.lyricsflow.player.ui.theme
 
 import androidx.compose.material3.Typography
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.lyricsflow.player.R
 
+@OptIn(ExperimentalTextApi::class)
 val SFProDisplay = FontFamily(
-    Font(R.font.sf_pro_display_regular, FontWeight.Normal),
-    Font(R.font.sf_pro_display_medium, FontWeight.Medium),
-    Font(R.font.sf_pro_display_semibold, FontWeight.SemiBold),
-    Font(R.font.sf_pro_display_bold, FontWeight.Bold),
-    Font(R.font.sf_pro_display_heavy, FontWeight.ExtraBold),
-    Font(R.font.sf_pro_display_heavy, FontWeight.Black)
+    Font(
+        resId = R.font.sf_pro_display_regular,
+        weight = FontWeight.Light,
+        variationSettings = FontVariation.Settings(FontVariation.weight(300))
+    ),
+    Font(
+        resId = R.font.sf_pro_display_regular,
+        weight = FontWeight.Normal,
+        variationSettings = FontVariation.Settings(FontVariation.weight(400))
+    ),
+    Font(
+        resId = R.font.sf_pro_display_medium,
+        weight = FontWeight.Medium,
+        variationSettings = FontVariation.Settings(FontVariation.weight(500))
+    ),
+    Font(
+        resId = R.font.sf_pro_display_semibold,
+        weight = FontWeight.SemiBold,
+        variationSettings = FontVariation.Settings(FontVariation.weight(600))
+    ),
+    Font(
+        resId = R.font.sf_pro_display_bold,
+        weight = FontWeight.Bold,
+        variationSettings = FontVariation.Settings(FontVariation.weight(700))
+    ),
+    Font(
+        resId = R.font.sf_pro_display_heavy,
+        weight = FontWeight.ExtraBold,
+        variationSettings = FontVariation.Settings(FontVariation.weight(800))
+    ),
+    Font(
+        resId = R.font.sf_pro_display_heavy,
+        weight = FontWeight.Black,
+        variationSettings = FontVariation.Settings(FontVariation.weight(900))
+    )
 )
 
 /**
- * Apple SF Arabic font family (`sfarabic.ttf` from `main/fonts/sfarabic.ttf`),
- * used for RTL (Arabic / Persian / Urdu) lyrics and UI text.
+ * Apple SF Arabic variable font family (`sfarabic.ttf` from `main/fonts/sfarabic.ttf`),
+ * containing all weights (100-900) and widths in one variable font file.
  */
+@OptIn(ExperimentalTextApi::class)
 val SFArabic = FontFamily(
-    Font(R.font.sfarabic, FontWeight.Light),
-    Font(R.font.sfarabic, FontWeight.Normal),
-    Font(R.font.sfarabic, FontWeight.Medium),
-    Font(R.font.sfarabic, FontWeight.SemiBold),
-    Font(R.font.sfarabic, FontWeight.Bold),
-    Font(R.font.sfarabic, FontWeight.ExtraBold),
-    Font(R.font.sfarabic, FontWeight.Black)
+    Font(
+        resId = R.font.sfarabic,
+        weight = FontWeight.Thin,
+        variationSettings = FontVariation.Settings(FontVariation.weight(100))
+    ),
+    Font(
+        resId = R.font.sfarabic,
+        weight = FontWeight.ExtraLight,
+        variationSettings = FontVariation.Settings(FontVariation.weight(200))
+    ),
+    Font(
+        resId = R.font.sfarabic,
+        weight = FontWeight.Light,
+        variationSettings = FontVariation.Settings(FontVariation.weight(300))
+    ),
+    Font(
+        resId = R.font.sfarabic,
+        weight = FontWeight.Normal,
+        variationSettings = FontVariation.Settings(FontVariation.weight(400))
+    ),
+    Font(
+        resId = R.font.sfarabic,
+        weight = FontWeight.Medium,
+        variationSettings = FontVariation.Settings(FontVariation.weight(500))
+    ),
+    Font(
+        resId = R.font.sfarabic,
+        weight = FontWeight.SemiBold,
+        variationSettings = FontVariation.Settings(FontVariation.weight(600))
+    ),
+    Font(
+        resId = R.font.sfarabic,
+        weight = FontWeight.Bold,
+        variationSettings = FontVariation.Settings(FontVariation.weight(700))
+    ),
+    Font(
+        resId = R.font.sfarabic,
+        weight = FontWeight.ExtraBold,
+        variationSettings = FontVariation.Settings(FontVariation.weight(800))
+    ),
+    Font(
+        resId = R.font.sfarabic,
+        weight = FontWeight.Black,
+        variationSettings = FontVariation.Settings(FontVariation.weight(900))
+    )
 )
+
+/**
+ * Creates a dynamic variable [FontFamily] for [SFArabic] at the exact numeric [weight] (300..900)
+ * and [width] percentage (75f..125f).
+ */
+@OptIn(ExperimentalTextApi::class)
+fun sfArabicDynamicFamily(weight: Int, width: Float = 100f): FontFamily {
+    val w = weight.coerceIn(100, 900)
+    val wdth = width.coerceIn(75f, 125f)
+    return FontFamily(
+        Font(
+            resId = R.font.sfarabic,
+            weight = FontWeight(w),
+            variationSettings = FontVariation.Settings(
+                FontVariation.weight(w),
+                FontVariation.width(wdth)
+            )
+        )
+    )
+}
 
 val SFProRounded = FontFamily(
     Font(R.font.sf_pro_rounded_semibold, FontWeight.SemiBold),

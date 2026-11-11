@@ -12,7 +12,7 @@ object SettingsLibrary {
     private var followedArtistsSaver by mutableDataSaverListStateOf(
         dataSaverInterface = SettingsSaver,
         key = "settings_library_followed_artists",
-        initialValue = listOf<YosStringWrapper>()
+        initialValue = listOf<LyricsflowStringWrapper>()
     )
 
     val FollowedArtists: List<String>
@@ -26,13 +26,13 @@ object SettingsLibrary {
     fun followArtist(artistName: String)
     {
         if (!isArtistFollowed(artistName)) {
-            followedArtistsSaver = followedArtistsSaver + YosStringWrapper(artistName)
+            followedArtistsSaver = followedArtistsSaver + LyricsflowStringWrapper(artistName)
         }
     }
 
     fun unfollowArtist(artistName: String)
     {
-        followedArtistsSaver = followedArtistsSaver - YosStringWrapper(artistName)
+        followedArtistsSaver = followedArtistsSaver - LyricsflowStringWrapper(artistName)
     }
 
     fun toggleArtistFollowed(artistName: String)
@@ -48,7 +48,7 @@ object SettingsLibrary {
     private var savedAlbumsSaver by mutableDataSaverListStateOf(
         dataSaverInterface = SettingsSaver,
         key = "settings_library_saved_albums",
-        initialValue = listOf<YosStringWrapper>()
+        initialValue = listOf<LyricsflowStringWrapper>()
     )
 
     val SavedAlbums: List<String>
@@ -62,14 +62,14 @@ object SettingsLibrary {
     fun saveAlbum(albumKey: String)
     {
         if (albumKey.isNotBlank() && !isAlbumSaved(albumKey)) {
-            savedAlbumsSaver = savedAlbumsSaver + YosStringWrapper(albumKey)
+            savedAlbumsSaver = savedAlbumsSaver + LyricsflowStringWrapper(albumKey)
         }
     }
 
     fun unsaveAlbum(albumKey: String)
     {
         if (albumKey.isNotBlank()) {
-            savedAlbumsSaver = savedAlbumsSaver - YosStringWrapper(albumKey)
+            savedAlbumsSaver = savedAlbumsSaver - LyricsflowStringWrapper(albumKey)
         }
     }
 
@@ -81,6 +81,65 @@ object SettingsLibrary {
             saveAlbum(albumKey)
         }
     }
+
+    /**
+     * Persistent Search History (max 5 recent queries, empty by default)
+     */
+    @Stable
+    private var searchHistorySaver by mutableDataSaverListStateOf(
+        dataSaverInterface = SettingsSaver,
+        key = "settings_library_search_history_v1",
+        initialValue = listOf<LyricsflowStringWrapper>()
+    )
+
+    val SearchHistory: List<String>
+        get() = searchHistorySaver.map { it.value }
+
+    fun addSearchHistoryQuery(query: String)
+    {
+        val clean = query.trim()
+        if (clean.isEmpty()) return
+        val filtered = searchHistorySaver.filterNot { it.value.equals(clean, ignoreCase = true) }
+        searchHistorySaver = (listOf(LyricsflowStringWrapper(clean)) + filtered).take(5)
+    }
+
+    fun removeSearchHistoryQuery(query: String)
+    {
+        val clean = query.trim()
+        searchHistorySaver = searchHistorySaver.filterNot { it.value.equals(clean, ignoreCase = true) }
+    }
+
+    fun clearSearchHistory()
+    {
+        searchHistorySaver = emptyList()
+    }
+
+    /**
+     * Online Streaming Audio Quality (Lossless ALAC & Dolby Atmos)
+     */
+    @Stable
+    var EnableLosslessStreaming by mutableDataSaverStateOf(
+        dataSaverInterface = SettingsSaver,
+        key = "settings_audio_enable_lossless_streaming",
+        initialValue = false
+    )
+
+    @Stable
+    var EnableDolbyAtmos by mutableDataSaverStateOf(
+        dataSaverInterface = SettingsSaver,
+        key = "settings_audio_enable_dolby_atmos",
+        initialValue = false
+    )
+
+    /**
+     * Skipped app update version tag
+     */
+    @Stable
+    var SkippedUpdateVersion by mutableDataSaverStateOf(
+        dataSaverInterface = SettingsSaver,
+        key = "settings_skipped_update_version",
+        initialValue = ""
+    )
 
     /**
      * 是否显示音量条
@@ -128,7 +187,7 @@ object SettingsLibrary {
     @Stable
     var SongSort by mutableDataSaverStateOf(
         dataSaverInterface = SettingsSaver,
-        key = "yos_player_song_sort",
+        key = "lyricsflow_player_song_sort",
         initialValue = SongSortEnum.MUSIC_TITLE.ordinal
     )
 
@@ -143,7 +202,7 @@ object SettingsLibrary {
     @Stable
     var EnableDescending by mutableDataSaverStateOf(
         dataSaverInterface = SettingsSaver,
-        key = "yos_player_enable_descending",
+        key = "lyricsflow_player_enable_descending",
         initialValue = false
     )
 
@@ -208,13 +267,64 @@ object SettingsLibrary {
     )
 
     /**
-     * 歌词字体字重
+     * 歌词字体字重 (default 800 / ExtraBold)
      */
     @Stable
     var LyricFontWeight by mutableDataSaverStateOf(
         dataSaverInterface = SettingsSaver,
-        key = "settings_performance_lyric_font_weight",
+        key = "settings_performance_lyric_font_weight_v2",
         initialValue = "ExtraBold"
+    )
+
+    /**
+     * Numeric lyric font weight (300..900, default 800)
+     */
+    @Stable
+    var LyricFontWeightNumeric by mutableDataSaverStateOf(
+        dataSaverInterface = SettingsSaver,
+        key = "settings_performance_lyric_font_weight_numeric",
+        initialValue = 800
+    )
+
+    /**
+     * Lyric font width percentage (75..125, default 100)
+     */
+    @Stable
+    var LyricFontWidth by mutableDataSaverStateOf(
+        dataSaverInterface = SettingsSaver,
+        key = "settings_performance_lyric_font_width",
+        initialValue = 100
+    )
+
+    /**
+     * Independent lyric display toggles (Translation / Pronunciation / Swap)
+     */
+    @Stable
+    var LyricShowTranslation by mutableDataSaverStateOf(
+        dataSaverInterface = SettingsSaver,
+        key = "settings_lyric_show_translation",
+        initialValue = true
+    )
+
+    @Stable
+    var LyricShowPronunciation by mutableDataSaverStateOf(
+        dataSaverInterface = SettingsSaver,
+        key = "settings_lyric_show_pronunciation",
+        initialValue = true
+    )
+
+    @Stable
+    var LyricSwapOriginalWithPronunciation by mutableDataSaverStateOf(
+        dataSaverInterface = SettingsSaver,
+        key = "settings_lyric_swap_original_with_pronunciation",
+        initialValue = false
+    )
+
+    @Stable
+    var LyricHideOriginalInPronunciationBar by mutableDataSaverStateOf(
+        dataSaverInterface = SettingsSaver,
+        key = "settings_lyric_hide_original_in_pronunciation_bar",
+        initialValue = false
     )
 
     /**

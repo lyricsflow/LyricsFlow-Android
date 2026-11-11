@@ -41,7 +41,7 @@ import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
 import com.lyricsflow.player.code.AnimatedArtworkLibrary
 import com.lyricsflow.player.data.libraries.SettingsLibrary
-import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.LyricsflowMediaItem
 import java.io.File
 import kotlin.math.max
 
@@ -56,7 +56,7 @@ class AnimatedAlbumCoverState internal constructor(
 
 @Composable
 fun rememberAnimatedAlbumCoverState(
-    music: YosMediaItem?,
+    music: LyricsflowMediaItem?,
     isPlaying: Boolean,
     active: Boolean
 ): AnimatedAlbumCoverState {

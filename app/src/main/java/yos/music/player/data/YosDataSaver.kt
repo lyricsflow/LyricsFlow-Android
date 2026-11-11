@@ -11,18 +11,18 @@ enum class DataType {
     NORMAL, SONG_LIST, SETTINGS, PLAY_LIST
 }
 
-val NormalSaver = YosDataSaver(DataType.NORMAL)
+val NormalSaver = LyricsflowDataSaver(DataType.NORMAL)
 // 通用数据存储，如隐藏的文件夹列表
-val SongListSaver = YosDataSaver(DataType.SONG_LIST)
+val SongListSaver = LyricsflowDataSaver(DataType.SONG_LIST)
 // 歌曲、隐藏的歌曲、所有文件夹
-val SettingsSaver = YosDataSaver(DataType.SETTINGS)
+val SettingsSaver = LyricsflowDataSaver(DataType.SETTINGS)
 // 存储设置数据
-val PlayListSaver = YosDataSaver(DataType.PLAY_LIST)
+val PlayListSaver = LyricsflowDataSaver(DataType.PLAY_LIST)
 // 歌曲列表 V2、喜爱的歌曲列表
-// 歌曲列表 V1 位于 YosPlayerCore
+// 歌曲列表 V1 位于 LyricsflowPlayerCore
 
 @Stable
-class YosDataSaver(dataType: DataType = DataType.NORMAL) : DataSaverInterface() {
+class LyricsflowDataSaver(dataType: DataType = DataType.NORMAL) : DataSaverInterface() {
     private val mmkv = MMKV.mmkvWithID(getKey(dataType))
 
     private fun notifyExternalDataChanged(key: String, value: Any?) {
@@ -31,10 +31,10 @@ class YosDataSaver(dataType: DataType = DataType.NORMAL) : DataSaverInterface() 
 
     private fun getKey(dataType: DataType): String {
         return when (dataType) {
-            DataType.NORMAL -> "yos_data_normal"
-            DataType.SONG_LIST -> "yos_data_song_list"
-            DataType.SETTINGS -> "yos_data_settings"
-            DataType.PLAY_LIST -> "yos_data_play_list"
+            DataType.NORMAL -> "lyricsflow_data_normal"
+            DataType.SONG_LIST -> "lyricsflow_data_song_list"
+            DataType.SETTINGS -> "lyricsflow_data_settings"
+            DataType.PLAY_LIST -> "lyricsflow_data_play_list"
         }
     }
     override fun <T> saveData(key: String, data: T) {
@@ -51,7 +51,7 @@ class YosDataSaver(dataType: DataType = DataType.NORMAL) : DataSaverInterface() 
                 is Boolean -> encode(key, data)
                 is Float -> encode(key, data)
                 is Double -> encode(key, data)
-                else -> throw IllegalArgumentException("YosDataSaver: Cannot save $data (${data!!::class.java})")
+                else -> throw IllegalArgumentException("LyricsflowDataSaver: Cannot save $data (${data!!::class.java})")
             }
             notifyExternalDataChanged(key, data)
         }
@@ -65,7 +65,7 @@ class YosDataSaver(dataType: DataType = DataType.NORMAL) : DataSaverInterface() 
             is Boolean -> decodeBool(key, default)
             is Float -> decodeFloat(key, default)
             is Double -> decodeDouble(key, default)
-            else -> throw IllegalArgumentException("YosDataSaver: Cannot read $default (${default!!::class.java})")
+            else -> throw IllegalArgumentException("LyricsflowDataSaver: Cannot read $default (${default!!::class.java})")
         }
         return@with res as T
     }

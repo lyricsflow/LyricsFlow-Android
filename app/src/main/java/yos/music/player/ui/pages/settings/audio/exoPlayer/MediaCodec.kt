@@ -12,7 +12,7 @@ import com.lyricsflow.player.R
 import com.lyricsflow.player.ui.pages.settings.DefaultItem
 import com.lyricsflow.player.ui.pages.settings.SettingBackground
 import com.lyricsflow.player.ui.widgets.basic.Title
-import com.lyricsflow.player.ui.widgets.basic.yosRoundColumn
+import com.lyricsflow.player.ui.widgets.basic.lyricsflowRoundColumn
 
 @Composable
 fun MediaCodec(navController: NavController) =
@@ -25,7 +25,7 @@ fun MediaCodec(navController: NavController) =
                 navController.popBackStack()
             },
             content = {
-                yosRoundColumn {
+                lyricsflowRoundColumn {
                     itemsIndexed(
                         codecInfos.value,
                         key = { _, codec -> codec.name }/*,

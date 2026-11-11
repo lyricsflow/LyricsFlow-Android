@@ -16,7 +16,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import com.lyricsflow.player.data.libraries.SettingsLibrary
-import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.LyricsflowMediaItem
 import com.lyricsflow.player.data.libraries.artistsName
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -61,7 +61,7 @@ object AnimatedArtworkLibrary
      * Resolves an animated cover art [Uri] (`file://` or `https://` HLS `.m3u8` / `.mp4`)
      * ported from `main/js/animated-art.js`.
      */
-    suspend fun resolveArtworkUri(context: Context, music: YosMediaItem): Uri? = withContext(Dispatchers.IO) {
+    suspend fun resolveArtworkUri(context: Context, music: LyricsflowMediaItem): Uri? = withContext(Dispatchers.IO) {
         if (!SettingsLibrary.AnimatedAlbumCovers) return@withContext null
 
         val albumName = music.album?.trim().orEmpty()
@@ -220,7 +220,7 @@ object AnimatedArtworkLibrary
         }.getOrNull()
     }
 
-    suspend fun resolveArtworkFile(context: Context, music: YosMediaItem): File? = withContext(Dispatchers.IO)
+    suspend fun resolveArtworkFile(context: Context, music: LyricsflowMediaItem): File? = withContext(Dispatchers.IO)
     {
         if (!SettingsLibrary.AnimatedAlbumCovers) {return@withContext null}
 
@@ -258,7 +258,7 @@ object AnimatedArtworkLibrary
         }
     }
 
-    private suspend fun resolveLyricsFlowArtworkMp4Url(music: YosMediaItem, albumName: String): String? {
+    private suspend fun resolveLyricsFlowArtworkMp4Url(music: LyricsflowMediaItem, albumName: String): String? {
         val artistName = music.albumArtists?.trim()?.takeIf { it.isNotEmpty() }
             ?: music.artistsName?.trim()?.takeIf { it.isNotEmpty() }
             ?: return null
@@ -432,7 +432,7 @@ object AnimatedArtworkLibrary
         cacheDirectory(context).listFiles()?.sumOf { it.length() } ?: 0L
     }
 
-    private fun localArtworkFile(music: YosMediaItem): File?
+    private fun localArtworkFile(music: LyricsflowMediaItem): File?
     {
         val albumName = music.album?.trim()?.takeIf { it.isNotEmpty() } ?: return null
         val songPath = music.uri?.path ?: return null
@@ -452,7 +452,7 @@ object AnimatedArtworkLibrary
         return File(context.cacheDir, AnimatedArtworkCacheDirectoryName)
     }
 
-    private fun cachedArtworkFile(context: Context, music: YosMediaItem, albumName: String): File
+    private fun cachedArtworkFile(context: Context, music: LyricsflowMediaItem, albumName: String): File
     {
         val artistName = music.albumArtists?.trim()?.takeIf { it.isNotEmpty() }
             ?: music.artistsName?.trim().orEmpty()
@@ -485,7 +485,7 @@ object AnimatedArtworkLibrary
         return File(File(songDirectory, AnimatedArtworkDirectoryName), animatedArtworkFileName(albumName))
     }
 
-    private fun buildSearchUrl(music: YosMediaItem, albumName: String): String?
+    private fun buildSearchUrl(music: LyricsflowMediaItem, albumName: String): String?
     {
         val artistName = music.albumArtists?.trim()?.takeIf { it.isNotEmpty() }
             ?: music.artistsName?.trim()?.takeIf { it.isNotEmpty() }

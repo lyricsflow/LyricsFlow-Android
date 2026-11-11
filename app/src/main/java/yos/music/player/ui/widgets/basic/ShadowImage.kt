@@ -20,7 +20,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.size.Precision
 import com.lyricsflow.player.R
-import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.theme.LyricsflowRoundedCornerShape
 import com.lyricsflow.player.ui.widgets.effects.ShadowType
 import com.lyricsflow.player.ui.widgets.effects.dropShadow
 
@@ -47,8 +47,8 @@ fun ShadowImage(
     shadowOverlay: Boolean = false,
     cornerRadius: Dp = 10.dp,
     imageQuality: ImageQuality
-) = YosWrapper {
-    val shape = YosRoundedCornerShape(cornerRadius)
+) = LyricsflowWrapper {
+    val shape = LyricsflowRoundedCornerShape(cornerRadius)
     val url = dataLambda()
     AsyncImage(
         model = ImageRequest.Builder(LocalContext.current).data(data = url).crossfade(true)
@@ -95,8 +95,8 @@ fun ShadowImageWithCache(
     cornerRadius: Dp = 8.dp,
     imageQuality: ImageQuality,
     overlayContent: (@Composable BoxScope.() -> Unit)? = null
-) = YosWrapper {
-    val shape = YosRoundedCornerShape(cornerRadius)
+) = LyricsflowWrapper {
+    val shape = LyricsflowRoundedCornerShape(cornerRadius)
     val url = dataLambda()
 
     Box(

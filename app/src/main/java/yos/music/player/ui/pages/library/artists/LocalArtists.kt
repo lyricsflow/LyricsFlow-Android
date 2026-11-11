@@ -63,7 +63,7 @@ import com.lyricsflow.player.ui.theme.withNight
 import com.lyricsflow.player.ui.toUI
 import com.lyricsflow.player.ui.widgets.basic.SearchTextField
 import com.lyricsflow.player.ui.widgets.basic.Title
-import com.lyricsflow.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.ui.widgets.basic.LyricsflowWrapper
 import com.lyricsflow.player.ui.widgets.glass.iosPressScale
 
 @Composable
@@ -112,20 +112,19 @@ fun LocalArtists(navController: NavController) {
             val useSearch = remember { derivedStateOf { searchText.value.isNotEmpty() } }
             val list = remember(artistsList) { mutableStateOf(artistsList) }
 
-            YosWrapper {
+            LyricsflowWrapper {
                 LaunchedEffect(searchText.value, artistsList) {
-                    withContext(Dispatchers.IO) {
-                        val filteredList = withContext(Dispatchers.IO) {
-                            if (useSearch.value) {
-                                ArtistLibrary.sortedArtists(MusicLibrary.artists).asSequence().filter { artist ->
-                                    artist.contains(searchText.value, ignoreCase = true)
-                                }.toList()
-                            } else {
-                                artistsList
-                            }
+                    val query = searchText.value
+                    val filteredList = withContext(Dispatchers.IO) {
+                        if (query.isNotEmpty()) {
+                            artistsList.asSequence().filter { artist ->
+                                artist.contains(query, ignoreCase = true)
+                            }.toList()
+                        } else {
+                            artistsList
                         }
-                        list.value = filteredList
                     }
+                    list.value = filteredList
                 }
             }
 
@@ -157,7 +156,7 @@ fun LocalArtists(navController: NavController) {
             ) {
                 itemsIndexed(
                     list.value,
-                    key = { _, artist -> artist }/*,
+                    key = { idx, artist -> "${artist}_$idx" }/*,
                     contentType = { _, _ -> "LocalArtists_item" }*/
                 ) { index, artist ->
                     ArtistItem(artistName = artist) {
@@ -199,7 +198,6 @@ private fun LazyItemScope.ArtistItem(
 ) =
     Row(
         modifier = Modifier
-            .animateItem(fadeInSpec = null, fadeOutSpec = null)
             .fillMaxWidth()
             .height(60.dp)
             .iosPressScale(pressedScale = 0.98f, onClick = onClick)
@@ -215,7 +213,7 @@ private fun LazyItemScope.ArtistItem(
             }
         }
         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp)) {
-            YosWrapper {
+            LyricsflowWrapper {
                 val shape = CircleShape
                 val density = LocalDensity.current
                 val imageData: Any? = realArtistAvatar.value.ifBlank { null } ?: songs.getOrNull(0)?.thumb

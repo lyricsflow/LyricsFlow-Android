@@ -3,7 +3,7 @@ package com.lyricsflow.player.code
 import android.os.Handler
 import android.os.Looper
 import androidx.media3.common.Player
-import com.lyricsflow.player.data.libraries.MusicLibrary.toYosMediaItem
+import com.lyricsflow.player.data.libraries.MusicLibrary.toLyricsflowMediaItem
 
 class ListenHistoryTracker(private val player: Player)
 {
@@ -55,7 +55,7 @@ class ListenHistoryTracker(private val player: Player)
         if (progressFraction >= 0.5)
         {
             alreadyRecordedForCurrentTrack = true
-            ListenHistoryManager.recordPlay(currentMediaItem.toYosMediaItem())
+            ListenHistoryManager.recordPlay(currentMediaItem.toLyricsflowMediaItem())
         }
     }
 }

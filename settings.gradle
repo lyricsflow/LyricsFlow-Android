@@ -18,6 +18,6 @@ dependencyResolutionManagement {
         maven { url 'https://maven.aliyun.com/repository/public' }
     }
 }
-rootProject.name = "Flamingo"
+rootProject.name = "LyricsFlow"
 include ':app'
 include ':overscroll_core'

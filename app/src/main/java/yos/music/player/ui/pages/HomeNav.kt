@@ -9,7 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavController
 import com.lyricsflow.player.data.models.ImageViewModel
 import com.lyricsflow.player.ui.pages.library.Library
-import com.lyricsflow.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.ui.widgets.basic.LyricsflowWrapper
 
 @Composable
 fun HomeNav(
@@ -18,14 +18,14 @@ fun HomeNav(
     imageViewModel: ImageViewModel,
     nowPageOnChanged: (String) -> Unit
 ) =
-    YosWrapper {
-        YosWrapper {
+    LyricsflowWrapper {
+        LyricsflowWrapper {
             LaunchedEffect(pagerState.currentPage) {
                 nowPageOnChanged(
                     when (pagerState.currentPage) {
                         0 -> "Home"
                         1 -> "New"
-                        2 -> "Radio"
+                        2 -> "Stats"
                         3 -> "Library"
                         4 -> "Search"
                         else -> "Home"

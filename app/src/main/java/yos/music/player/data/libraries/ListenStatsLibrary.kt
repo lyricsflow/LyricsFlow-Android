@@ -55,7 +55,7 @@ data class StatsTrackEntry(
     val albumName: String,
     val listenedMs: Long,
     val thumb: String?,
-    val libraryItem: YosMediaItem?
+    val libraryItem: LyricsflowMediaItem?
 )
 
 @Stable
@@ -70,9 +70,9 @@ data class StatsPeriodSnapshot(
 
 @Stable
 data class StatsLibraryIndex(
-    val firstSongByArtist: Map<String, YosMediaItem>,
-    val firstSongByAlbum: Map<String, YosMediaItem>,
-    val songByUri: Map<String, YosMediaItem>
+    val firstSongByArtist: Map<String, LyricsflowMediaItem>,
+    val firstSongByAlbum: Map<String, LyricsflowMediaItem>,
+    val songByUri: Map<String, LyricsflowMediaItem>
 )
 
 @Stable
@@ -89,9 +89,9 @@ object ListenStatsLibrary
 
     fun buildLibraryIndex(): StatsLibraryIndex
     {
-        val firstSongByArtist = LinkedHashMap<String, YosMediaItem>()
-        val firstSongByAlbum = LinkedHashMap<String, YosMediaItem>()
-        val songByUri = LinkedHashMap<String, YosMediaItem>()
+        val firstSongByArtist = LinkedHashMap<String, LyricsflowMediaItem>()
+        val firstSongByAlbum = LinkedHashMap<String, LyricsflowMediaItem>()
+        val songByUri = LinkedHashMap<String, LyricsflowMediaItem>()
 
         for (song in MusicLibrary.songs)
         {

@@ -65,12 +65,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.ripple
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -154,15 +159,18 @@ import com.lyricsflow.player.code.MediaController.playingMusicList
 import com.lyricsflow.player.code.MediaController.queueShuffleEnabled
 import com.lyricsflow.player.code.SystemMediaControlResolver
 import com.lyricsflow.player.code.VolumeChangeReceiver
-import com.lyricsflow.player.code.YosPlaybackService
-import com.lyricsflow.player.code.utils.lrc.YosMediaEvent
-import com.lyricsflow.player.code.utils.lrc.YosUIConfig
+import com.lyricsflow.player.code.LyricsflowPlaybackService
+import com.lyricsflow.player.code.utils.lrc.LyricsflowMediaEvent
+import com.lyricsflow.player.code.utils.lrc.LyricsflowUIConfig
 import com.lyricsflow.player.code.utils.others.Vibrator
 import com.lyricsflow.player.code.utils.player.FadeExo.fadePause
 import com.lyricsflow.player.code.utils.player.FadeExo.fadePlay
+import com.lyricsflow.player.code.utils.player.VocalAttenuationAudioProcessor
+import com.lyricsflow.player.ui.widgets.glass.liquidGlass
+import com.lyricsflow.player.ui.widgets.glass.liquidGlassCircle
 import com.lyricsflow.player.data.libraries.FavPlayListLibrary
 import com.lyricsflow.player.data.libraries.SettingsLibrary
-import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.LyricsflowMediaItem
 import com.lyricsflow.player.data.libraries.artistsList
 import com.lyricsflow.player.data.libraries.artistsName
 import com.lyricsflow.player.data.libraries.defaultArtistsName
@@ -174,12 +182,12 @@ import com.lyricsflow.player.data.objects.LibraryObject
 import com.lyricsflow.player.ui.pages.NowPlayingPage.Album
 import com.lyricsflow.player.ui.pages.NowPlayingPage.Lyric
 import com.lyricsflow.player.ui.pages.NowPlayingPage.PlayingList
-import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.theme.LyricsflowRoundedCornerShape
 import com.lyricsflow.player.ui.UI
 import com.lyricsflow.player.ui.markNextNavigationFromNowPlaying
 import com.lyricsflow.player.ui.toUI
-import com.lyricsflow.player.ui.widgets.YosLyricView
-import com.lyricsflow.player.ui.widgets.effects.YosFloatingLight
+import com.lyricsflow.player.ui.widgets.LyricsflowLyricView
+import com.lyricsflow.player.ui.widgets.effects.LyricsflowFloatingLight
 import com.lyricsflow.player.ui.widgets.audio.MusicQualityIndicator
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -191,14 +199,14 @@ import com.lyricsflow.player.ui.widgets.basic.ActionSheetBody
 import com.lyricsflow.player.ui.widgets.basic.AnimatedAlbumCoverState
 import com.lyricsflow.player.ui.widgets.basic.AnimatedAlbumCoverOverlay
 import com.lyricsflow.player.ui.widgets.basic.ImageQuality
-import com.lyricsflow.player.ui.widgets.basic.YosBottomSheetDialog
+import com.lyricsflow.player.ui.widgets.basic.LyricsflowBottomSheetDialog
 import com.lyricsflow.player.ui.widgets.basic.rememberAnimatedAlbumCoverState
 import com.lyricsflow.player.ui.widgets.playlist.PlayListPickerContent
 import com.lyricsflow.player.ui.widgets.sleeptimer.SleepTimerContent
 import com.lyricsflow.player.code.SleepTimer
 import com.lyricsflow.player.code.SleepTimerState
 import com.lyricsflow.player.ui.widgets.basic.ShadowImageWithCache
-import com.lyricsflow.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.ui.widgets.basic.LyricsflowWrapper
 import com.lyricsflow.player.ui.widgets.effects.ShadowType
 import com.lyricsflow.player.ui.widgets.effects.overlayEffect
 import sh.calvin.reorderable.ReorderableItem
@@ -252,9 +260,9 @@ private fun resolveQueueReorderTarget(
 
 private fun queueItemKey(
     sectionKey: String,
-    music: YosMediaItem,
+    music: LyricsflowMediaItem,
     index: Int,
-    sectionItems: List<YosMediaItem>,
+    sectionItems: List<LyricsflowMediaItem>,
 ): String {
     val duplicateOrdinal = sectionItems
         .take(index + 1)
@@ -347,7 +355,7 @@ fun NowPlaying(
         }*/
 
         // 触摸超时
-        YosWrapper {
+        LyricsflowWrapper {
             LaunchedEffect(showControl.value, nowPageLambda(), lastClickTime.longValue) {
                 if (nowPageLambda() != Lyric && !showControl.value) {
                     showControl.value = true
@@ -366,13 +374,13 @@ fun NowPlaying(
 
 
         // 背景流光
-        YosWrapper {
+        LyricsflowWrapper {
             /*BlendBackgroundView(
         bitmapLambda = { bitmap.value },
         isPlayingLambda = { isPlaying.value },
         nowPage = { nowPage.value }
     )*/
-            YosFloatingLight(
+            LyricsflowFloatingLight(
                 album = { bitmap.value },
                 isPlaying = isPlayingStatusLambda,
                 modifier = Modifier.fillMaxSize(),
@@ -394,7 +402,7 @@ fun NowPlaying(
 
 
         // 实际显示区
-        YosWrapper {
+        LyricsflowWrapper {
             /*
         val controlAlpha = animateFloatAsState(
             targetValue = if (showControl.value) 1f else 0f,
@@ -413,7 +421,7 @@ fun NowPlaying(
 
             val alphaAnim = remember { Animatable(0f) }
 
-            YosWrapper {
+            LyricsflowWrapper {
                 LaunchedEffect(nowPageLambda()) {
                     val targetAlpha = if (nowPageLambda() == Lyric) 1f else 0f
                     scope.launch {
@@ -440,7 +448,7 @@ fun NowPlaying(
             }
 
             // 歌词
-            YosWrapper {
+            LyricsflowWrapper {
 
                 Column(
                     Modifier
@@ -471,7 +479,7 @@ fun NowPlaying(
             }
 
             // 这是小把手
-            YosWrapper {
+            LyricsflowWrapper {
                 Column(Modifier.fillMaxWidth()) {
                     Box(
                         Modifier
@@ -494,7 +502,7 @@ fun NowPlaying(
             }
 
             // 主 View
-            YosWrapper {
+            LyricsflowWrapper {
                 SharedTransitionLayout {
                     Crossfade(
                         targetState = nowPageLambda(),
@@ -512,7 +520,7 @@ fun NowPlaying(
                                         .fillMaxSize()
                                         .clickable(enabled = false, onClick = {})
                                 ) {
-                                    YosWrapper {
+                                    LyricsflowWrapper {
                                         Column(Modifier.fillMaxHeight(0.595f)) {
                                             val isVisible = nowPageLambda() == Album
 
@@ -533,38 +541,164 @@ fun NowPlaying(
                                                     fadeIn() togetherWith fadeOut()
                                                 }, modifier = Modifier.padding(horizontal = 32.dp)
                                             ) {
+                                                val subtitleMenuExpanded = remember { mutableStateOf(false) }
+                                                val navScope = rememberCoroutineScope()
                                                 Row(
                                                     Modifier
                                                         .fillMaxWidth(),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    Column(
+                                                    Box(
                                                         Modifier
                                                             .fillMaxWidth()
                                                             .weight(1f)
                                                             .padding(end = 15.dp)
                                                     ) {
-                                                        Text(
-                                                            text = it?.title
-                                                                ?: defaultTitle,/*
-                                                        fontWeight = FontWeight.Bold,*/
-                                                            fontSize = 19.5.sp,
-                                                            maxLines = 1,
-                                                            overflow = TextOverflow.Ellipsis,
-                                                            fontWeight = FontWeight.Medium
-                                                        )
-                                                        Text(
-                                                            text = it?.artistsName
-                                                                ?: defaultArtistsName,
-                                                            fontSize = 18.5.sp,
-                                                            modifier = Modifier.overlayEffect(),
-                                                            maxLines = 1,
-                                                            overflow = TextOverflow.Ellipsis,
-                                                            color = Color.White.copy(alpha = 0.35f)
-                                                        )
+                                                        Column(Modifier.fillMaxWidth()) {
+                                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                                Text(
+                                                                    text = it?.title ?: defaultTitle,
+                                                                    fontSize = 19.5.sp,
+                                                                    maxLines = 1,
+                                                                    overflow = TextOverflow.Ellipsis,
+                                                                    fontWeight = FontWeight.SemiBold,
+                                                                    modifier = Modifier.weight(1f, fill = false)
+                                                                )
+                                                                val isExplicitTitle = remember(it) {
+                                                                    it?.title?.contains("(Explicit", ignoreCase = true) == true ||
+                                                                        it?.compilation == "explicit"
+                                                                }
+                                                                if (isExplicitTitle) {
+                                                                    Spacer(Modifier.width(6.dp))
+                                                                    Box(
+                                                                        modifier = Modifier
+                                                                            .size(16.dp)
+                                                                            .background(
+                                                                                Color.White.copy(alpha = 0.28f),
+                                                                                RoundedCornerShape(3.5.dp)
+                                                                            ),
+                                                                        contentAlignment = Alignment.Center
+                                                                    ) {
+                                                                        Text(
+                                                                            text = "E",
+                                                                            color = Color.Black.copy(alpha = 0.85f),
+                                                                            fontSize = 9.5.sp,
+                                                                            fontWeight = FontWeight.ExtraBold,
+                                                                            lineHeight = 10.sp
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                            val subtitleText = remember(it) {
+                                                                val artistStr = it?.artistsName ?: defaultArtistsName
+                                                                val albumStr = it?.album?.takeIf { alb -> alb.isNotBlank() && alb != artistStr }
+                                                                if (albumStr != null) "$artistStr — $albumStr" else artistStr
+                                                            }
+                                                            Text(
+                                                                text = subtitleText,
+                                                                fontSize = 17.sp,
+                                                                modifier = Modifier
+                                                                    .overlayEffect()
+                                                                    .clickable(
+                                                                        indication = null,
+                                                                        interactionSource = remember { MutableInteractionSource() }
+                                                                    ) {
+                                                                        Vibrator.click(context)
+                                                                        subtitleMenuExpanded.value = true
+                                                                    },
+                                                                maxLines = 1,
+                                                                overflow = TextOverflow.Ellipsis,
+                                                                color = Color.White.copy(alpha = 0.55f)
+                                                            )
+                                                        }
+
+                                                        DropdownMenu(
+                                                            expanded = subtitleMenuExpanded.value,
+                                                            onDismissRequest = { subtitleMenuExpanded.value = false },
+                                                            modifier = Modifier.background(Color(0xEE1C1C22))
+                                                        ) {
+                                                            DropdownMenuItem(
+                                                                text = {
+                                                                    Text(
+                                                                        text = "Go to Artist (${it?.artistsName ?: defaultArtistsName})",
+                                                                        color = Color.White,
+                                                                        fontSize = 14.sp,
+                                                                        fontWeight = FontWeight.Medium
+                                                                    )
+                                                                },
+                                                                leadingIcon = {
+                                                                    Icon(
+                                                                        painter = painterResource(id = R.drawable.ic_library_link_icon_artists),
+                                                                        contentDescription = null,
+                                                                        tint = Color(0xFFFA233B),
+                                                                        modifier = Modifier.size(20.dp)
+                                                                    )
+                                                                },
+                                                                onClick = {
+                                                                    subtitleMenuExpanded.value = false
+                                                                    val song = it ?: return@DropdownMenuItem
+                                                                    val artistName = song.artistsName ?: return@DropdownMenuItem
+                                                                    val isOnline = song.uri?.scheme == "http" || song.uri?.scheme == "https"
+                                                                    navScope.launch { onMinimizeNowPlaying() }
+                                                                    if (isOnline) {
+                                                                        LibraryObject.openOnlineArtist(
+                                                                            artistId = song.artistId?.toString() ?: artistName,
+                                                                            name = artistName,
+                                                                            artworkUrl = song.thumb?.toString().orEmpty()
+                                                                        )
+                                                                        navController.toUI(UI.OnlineArtistInfo)
+                                                                    } else {
+                                                                        LibraryObject.setTargetArtistName(artistName)
+                                                                        LibraryObject.setArtistSongsSearchOnOpen(false)
+                                                                        navController.markNextNavigationFromNowPlaying()
+                                                                        navController.toUI(UI.ArtistInfo)
+                                                                    }
+                                                                }
+                                                            )
+                                                            if (!it?.album.isNullOrBlank()) {
+                                                                DropdownMenuItem(
+                                                                    text = {
+                                                                        Text(
+                                                                            text = "Go to Album (${it?.album.orEmpty()})",
+                                                                            color = Color.White,
+                                                                            fontSize = 14.sp,
+                                                                            fontWeight = FontWeight.Medium
+                                                                        )
+                                                                    },
+                                                                    leadingIcon = {
+                                                                        Icon(
+                                                                            painter = painterResource(id = R.drawable.ic_library_link_icon_album),
+                                                                            contentDescription = null,
+                                                                            tint = Color(0xFFFA233B),
+                                                                            modifier = Modifier.size(20.dp)
+                                                                        )
+                                                                    },
+                                                                    onClick = {
+                                                                        subtitleMenuExpanded.value = false
+                                                                        val song = it ?: return@DropdownMenuItem
+                                                                        val albumName = song.album ?: return@DropdownMenuItem
+                                                                        val isOnline = song.uri?.scheme == "http" || song.uri?.scheme == "https"
+                                                                        navScope.launch { onMinimizeNowPlaying() }
+                                                                        if (isOnline && (song.albumId ?: 0L) > 0L) {
+                                                                            LibraryObject.openOnlineAlbum(
+                                                                                albumId = song.albumId.toString(),
+                                                                                title = albumName,
+                                                                                artist = song.artists.orEmpty(),
+                                                                                artworkUrl = song.thumb?.toString().orEmpty()
+                                                                            )
+                                                                            navController.toUI(UI.OnlineAlbumInfo)
+                                                                        } else {
+                                                                            LibraryObject.setTargetAlbumName(albumName)
+                                                                            navController.markNextNavigationFromNowPlaying()
+                                                                            navController.toUI(UI.AlbumInfo)
+                                                                        }
+                                                                    }
+                                                                )
+                                                            }
+                                                        }
                                                     }
 
-                                                    YosWrapper {
+                                                    LyricsflowWrapper {
                                                         ActionButtonsRow(navController, onMinimizeNowPlaying) {
                                                             it
                                                         }
@@ -577,7 +711,7 @@ fun NowPlaying(
 
                             Lyric ->
                                 Column(Modifier.fillMaxSize()) {
-                                    YosWrapper {
+                                    LyricsflowWrapper {
                                         val isVisible = nowPageLambda() == Lyric
                                         PlayingBar(
                                             modifier = Modifier.sharedElementWithCallerManagedVisibility(
@@ -598,7 +732,7 @@ fun NowPlaying(
                                 }
 
                             PlayingList ->
-                                YosWrapper {
+                                LyricsflowWrapper {
                                     Column(
                                         Modifier
                                             .fillMaxSize()
@@ -627,7 +761,7 @@ fun NowPlaying(
                 }
             }
 
-            YosWrapper {
+            LyricsflowWrapper {
                 AnimatedVisibility(
                     visible = nowPageLambda() == PlayingList,
                     enter = fadeIn(tween(AnimDurationMillis)),
@@ -658,7 +792,7 @@ fun NowPlaying(
             }
 
             // 音乐控制
-            YosWrapper {
+            LyricsflowWrapper {
                 Column(
                     Modifier
                         .fillMaxSize()
@@ -670,7 +804,7 @@ fun NowPlaying(
                             .fillMaxHeight(0.437f)
                             .fillMaxWidth()
                     ) {
-                        YosWrapper {
+                        LyricsflowWrapper {
                             if (showControl.value) {
                                 Box(
                                     modifier = Modifier
@@ -688,7 +822,7 @@ fun NowPlaying(
                             }
                         }
 
-                        YosWrapper {
+                        LyricsflowWrapper {
                             Column(
                                 Modifier.fillMaxSize(),
                                 verticalArrangement = Arrangement.Bottom
@@ -702,61 +836,274 @@ fun NowPlaying(
                                         shrinkTowards = Alignment.Top,
                                         targetHeight = { (it / 1.4).toInt() })
                                 ) {
-                                    YosWrapper {
+                                    LyricsflowWrapper {
+                                        val showTranslationDropdown = remember { mutableStateOf(false) }
+                                        val showSingSlider = remember { mutableStateOf(false) }
+                                        val singEnabledState = VocalAttenuationAudioProcessor.singEnabled
+                                        val singLevelState = VocalAttenuationAudioProcessor.attenuationLevel
+
                                         Row(
                                             Modifier
                                                 .fillMaxWidth()
-                                                .padding(horizontal = 32.dp)
+                                                .padding(horizontal = 30.dp)
                                                 .graphicsLayer {
                                                     compositingStrategy =
                                                         CompositingStrategy.ModulateAlpha
                                                     this.alpha = alphaAnim.value
                                                 },
-                                            horizontalArrangement = Arrangement.End
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.Bottom
                                         ) {
-                                            YosWrapper {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .overlayEffect()
-                                                        .alpha(0.4f)
-                                                        .clickable(
-                                                            enabled = translationButtonEnabled.value,
-                                                            onClick = {
-                                                                Vibrator.click(context)
-                                                                translation.value =
-                                                                    !translation.value
-                                                                showControl.value = true
-                                                                lastClickTime.longValue =
-                                                                    TimeUtils.getNowMills()
-                                                                SettingsLibrary.NowPlayingTranslation =
-                                                                    translation.value
-                                                            },
-                                                            indication = null,
-                                                            interactionSource = remember { MutableInteractionSource() }),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    AnimatedContent(
-                                                        targetState = translation.value,
-                                                        transitionSpec = {
-                                                            fadeIn() togetherWith fadeOut()
-                                                        }) {
-                                                        if (it) {
-                                                            Icon(
-                                                                painterResource(id = R.drawable.ic_nowplaying_translateon),
-                                                                contentDescription = null,
-                                                                tint = Color.Unspecified,
-                                                                modifier = Modifier
-                                                                    .size(30.dp)
+                                            // Left circular Translation & Pronunciation Dropdown Button
+                                            LyricsflowWrapper {
+                                                Box {
+                                                    val anySubActive = translation.value &&
+                                                        (SettingsLibrary.LyricShowTranslation || SettingsLibrary.LyricShowPronunciation)
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(40.dp)
+                                                            .liquidGlassCircle(
+                                                                surfaceTint = if (anySubActive) Color.White.copy(alpha = 0.26f)
+                                                                else Color.White.copy(alpha = 0.12f)
                                                             )
-                                                        } else {
-                                                            Icon(
-                                                                painterResource(id = R.drawable.ic_nowplaying_translate),
-                                                                contentDescription = null,
-                                                                tint = Color.Unspecified,
-                                                                modifier = Modifier
-                                                                    .size(30.dp)
+                                                            .clickable(
+                                                                enabled = showControl.value && alphaAnim.value != 0f,
+                                                                onClick = {
+                                                                    Vibrator.click(context)
+                                                                    showTranslationDropdown.value = true
+                                                                    showControl.value = true
+                                                                    lastClickTime.longValue = TimeUtils.getNowMills()
+                                                                },
+                                                                indication = null,
+                                                                interactionSource = remember { MutableInteractionSource() }
+                                                            ),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Icon(
+                                                            painterResource(
+                                                                id = if (anySubActive) R.drawable.ic_nowplaying_translateon
+                                                                else R.drawable.ic_nowplaying_translate
+                                                            ),
+                                                            contentDescription = "Translation & Pronunciation",
+                                                            tint = Color.Unspecified,
+                                                            modifier = Modifier.size(24.dp)
+                                                        )
+                                                    }
+
+                                                    DropdownMenu(
+                                                        expanded = showTranslationDropdown.value,
+                                                        onDismissRequest = { showTranslationDropdown.value = false },
+                                                        modifier = Modifier
+                                                            .width(265.dp)
+                                                            .background(Color(0xF21B1B20))
+                                                    ) {
+                                                        DropdownMenuItem(
+                                                            text = {
+                                                                Text(
+                                                                    "Show Translation",
+                                                                    color = Color.White,
+                                                                    fontSize = 14.sp,
+                                                                    fontWeight = FontWeight.Medium
+                                                                )
+                                                            },
+                                                            trailingIcon = {
+                                                                Switch(
+                                                                    checked = translation.value && SettingsLibrary.LyricShowTranslation,
+                                                                    onCheckedChange = { checked ->
+                                                                        Vibrator.click(context)
+                                                                        SettingsLibrary.LyricShowTranslation = checked
+                                                                        if (checked) {
+                                                                            translation.value = true
+                                                                            SettingsLibrary.NowPlayingTranslation = true
+                                                                        }
+                                                                    },
+                                                                    colors = SwitchDefaults.colors(
+                                                                        checkedThumbColor = Color.White,
+                                                                        checkedTrackColor = Color(0xFFFA233B)
+                                                                    )
+                                                                )
+                                                            },
+                                                            onClick = {
+                                                                val next = !(translation.value && SettingsLibrary.LyricShowTranslation)
+                                                                SettingsLibrary.LyricShowTranslation = next
+                                                                if (next) {
+                                                                    translation.value = true
+                                                                    SettingsLibrary.NowPlayingTranslation = true
+                                                                }
+                                                            }
+                                                        )
+                                                        DropdownMenuItem(
+                                                            text = {
+                                                                Text(
+                                                                    "Show Pronunciation",
+                                                                    color = Color.White,
+                                                                    fontSize = 14.sp,
+                                                                    fontWeight = FontWeight.Medium
+                                                                )
+                                                            },
+                                                            trailingIcon = {
+                                                                Switch(
+                                                                    checked = SettingsLibrary.LyricShowPronunciation,
+                                                                    onCheckedChange = { checked ->
+                                                                        Vibrator.click(context)
+                                                                        SettingsLibrary.LyricShowPronunciation = checked
+                                                                    },
+                                                                    colors = SwitchDefaults.colors(
+                                                                        checkedThumbColor = Color.White,
+                                                                        checkedTrackColor = Color(0xFFFA233B)
+                                                                    )
+                                                                )
+                                                            },
+                                                            onClick = {
+                                                                SettingsLibrary.LyricShowPronunciation = !SettingsLibrary.LyricShowPronunciation
+                                                            }
+                                                        )
+                                                        DropdownMenuItem(
+                                                            text = {
+                                                                Text(
+                                                                    "Replace Original with Pronunciation",
+                                                                    color = Color.White,
+                                                                    fontSize = 13.5.sp,
+                                                                    fontWeight = FontWeight.Medium
+                                                                )
+                                                            },
+                                                            trailingIcon = {
+                                                                Switch(
+                                                                    checked = SettingsLibrary.LyricSwapOriginalWithPronunciation,
+                                                                    onCheckedChange = { checked ->
+                                                                        Vibrator.click(context)
+                                                                        SettingsLibrary.LyricSwapOriginalWithPronunciation = checked
+                                                                    },
+                                                                    colors = SwitchDefaults.colors(
+                                                                        checkedThumbColor = Color.White,
+                                                                        checkedTrackColor = Color(0xFFFA233B)
+                                                                    )
+                                                                )
+                                                            },
+                                                            onClick = {
+                                                                SettingsLibrary.LyricSwapOriginalWithPronunciation =
+                                                                    !SettingsLibrary.LyricSwapOriginalWithPronunciation
+                                                            }
+                                                        )
+                                                        if (SettingsLibrary.LyricSwapOriginalWithPronunciation) {
+                                                            DropdownMenuItem(
+                                                                text = {
+                                                                    Text(
+                                                                        "Hide Original in Pronunciation Bar",
+                                                                        color = Color.White.copy(alpha = 0.85f),
+                                                                        fontSize = 13.sp,
+                                                                        fontWeight = FontWeight.Normal
+                                                                    )
+                                                                },
+                                                                trailingIcon = {
+                                                                    Switch(
+                                                                        checked = SettingsLibrary.LyricHideOriginalInPronunciationBar,
+                                                                        onCheckedChange = { checked ->
+                                                                            Vibrator.click(context)
+                                                                            SettingsLibrary.LyricHideOriginalInPronunciationBar = checked
+                                                                        },
+                                                                        colors = SwitchDefaults.colors(
+                                                                            checkedThumbColor = Color.White,
+                                                                            checkedTrackColor = Color(0xFFFA233B)
+                                                                        )
+                                                                    )
+                                                                },
+                                                                onClick = {
+                                                                    SettingsLibrary.LyricHideOriginalInPronunciationBar =
+                                                                        !SettingsLibrary.LyricHideOriginalInPronunciationBar
+                                                                }
                                                             )
                                                         }
+                                                    }
+                                                }
+                                            }
+
+                                            // Right circular Apple Music Sing Button & Expandable Vertical Vocal Attenuation Pill
+                                            LyricsflowWrapper {
+                                                Column(
+                                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    AnimatedVisibility(
+                                                        visible = showSingSlider.value && singEnabledState.value,
+                                                        enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
+                                                        exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)
+                                                    ) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .width(42.dp)
+                                                                .height(132.dp)
+                                                                .liquidGlass(
+                                                                    shape = RoundedCornerShape(21.dp),
+                                                                    surfaceTint = Color.White.copy(alpha = 0.18f)
+                                                                )
+                                                                .draggable(
+                                                                    orientation = Orientation.Vertical,
+                                                                    state = rememberDraggableState { deltaPx ->
+                                                                        val nextLevel = (singLevelState.floatValue - (deltaPx / 240f)).coerceIn(0.05f, 1f)
+                                                                        VocalAttenuationAudioProcessor.updateSingState(true, nextLevel)
+                                                                        showControl.value = true
+                                                                        lastClickTime.longValue = TimeUtils.getNowMills()
+                                                                    }
+                                                                )
+                                                                .padding(6.dp),
+                                                            contentAlignment = Alignment.BottomCenter
+                                                        ) {
+                                                            val fillFraction = singLevelState.floatValue.coerceIn(0.08f, 1f)
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .fillMaxWidth()
+                                                                    .fillMaxHeight(fillFraction)
+                                                                    .background(
+                                                                        Color.White.copy(alpha = 0.88f),
+                                                                        RoundedCornerShape(16.dp)
+                                                                    )
+                                                            )
+                                                            Icon(
+                                                                painter = painterResource(id = R.drawable.ic_vocal_sing),
+                                                                contentDescription = null,
+                                                                tint = if (fillFraction > 0.25f) Color.Black else Color.White,
+                                                                modifier = Modifier
+                                                                    .padding(bottom = 8.dp)
+                                                                    .size(18.dp)
+                                                            )
+                                                        }
+                                                    }
+
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(40.dp)
+                                                            .liquidGlassCircle(
+                                                                surfaceTint = if (singEnabledState.value) Color.White.copy(alpha = 0.88f)
+                                                                else Color.White.copy(alpha = 0.14f)
+                                                            )
+                                                            .clickable(
+                                                                enabled = showControl.value && alphaAnim.value != 0f,
+                                                                onClick = {
+                                                                    Vibrator.click(context)
+                                                                    if (!singEnabledState.value) {
+                                                                        VocalAttenuationAudioProcessor.updateSingState(true, singLevelState.floatValue)
+                                                                        showSingSlider.value = true
+                                                                    } else if (!showSingSlider.value) {
+                                                                        showSingSlider.value = true
+                                                                    } else {
+                                                                        VocalAttenuationAudioProcessor.updateSingState(false, singLevelState.floatValue)
+                                                                        showSingSlider.value = false
+                                                                    }
+                                                                    showControl.value = true
+                                                                    lastClickTime.longValue = TimeUtils.getNowMills()
+                                                                },
+                                                                indication = null,
+                                                                interactionSource = remember { MutableInteractionSource() }
+                                                            ),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Icon(
+                                                            painter = painterResource(id = R.drawable.ic_vocal_sing),
+                                                            contentDescription = "Apple Music Sing",
+                                                            tint = if (singEnabledState.value) Color.Black else Color.White,
+                                                            modifier = Modifier.size(21.dp)
+                                                        )
                                                     }
                                                 }
                                             }
@@ -835,7 +1182,7 @@ fun NowPlaying(
 @Composable
 private fun ColumnScope.Album(
     modifier: Modifier,
-    music: () -> YosMediaItem?,
+    music: () -> LyricsflowMediaItem?,
     animatedAlbumCoverState: AnimatedAlbumCoverState,
     isPlaying: () -> Boolean
 ) = Box(
@@ -866,7 +1213,7 @@ private fun ColumnScope.Album(
         label = "StaticCoverFadeOut"
     )
 
-    YosWrapper {
+    LyricsflowWrapper {
         val dp = (7 + (27 * scale.value)).dp
         ShadowImageWithCache(
             dataLambda = { music()?.thumb }, contentDescription = null, modifier = Modifier
@@ -893,7 +1240,7 @@ private fun PlayingList(
     shuffleModeOnChanged: (Boolean) -> Unit,
     repeatModeLambda: () -> Int,
     repeatModeOnChanged: (Int) -> Unit,
-    thisMusicPlayingLambda: () -> YosMediaItem?
+    thisMusicPlayingLambda: () -> LyricsflowMediaItem?
 ) {
     val context = LocalContext.current
 
@@ -907,7 +1254,7 @@ private fun PlayingList(
     }
     val scope = rememberCoroutineScope()
 
-    YosWrapper {
+    LyricsflowWrapper {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -957,7 +1304,7 @@ private fun PlayingList(
                         .alpha(0.6f)
                 ) {
                     val dp = 36.dp
-                    YosWrapper {
+                    LyricsflowWrapper {
                         val shuffleBackgroundAlpha =
                             animateFloatAsState(targetValue = if (shuffleModeEnabledLambda()) 0.9f else 0f)
                         Box(
@@ -975,11 +1322,11 @@ private fun PlayingList(
                                 .size(36.dp)
                                 .background(
                                     Color.White.copy(alpha = shuffleBackgroundAlpha.value),
-                                    shape = YosRoundedCornerShape(10.dp)
+                                    shape = LyricsflowRoundedCornerShape(10.dp)
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
-                            YosWrapper {
+                            LyricsflowWrapper {
                                 val shuffleIconTint =
                                     animateColorAsState(targetValue = if (shuffleModeEnabledLambda()) Color.Black else Color.White)
                                 Icon(
@@ -992,7 +1339,7 @@ private fun PlayingList(
                             }
                         }
                     }
-                    YosWrapper {
+                    LyricsflowWrapper {
                         val repeatHighlight =
                             repeatModeLambda() == REPEAT_MODE_ALL || repeatModeLambda() == REPEAT_MODE_ONE
                         val repeatBackgroundAlpha =
@@ -1016,7 +1363,7 @@ private fun PlayingList(
                                             }
                                         }
                                         mediaControl?.repeatMode = targetMode
-                                        mediaControl?.let { YosPlaybackService().setCustomButtons(it) }
+                                        mediaControl?.let { LyricsflowPlaybackService().setCustomButtons(it) }
                                         repeatModeOnChanged(targetMode)
                                     },
                                     indication = null,
@@ -1025,11 +1372,11 @@ private fun PlayingList(
                                 .size(36.dp)
                                 .background(
                                     Color.White.copy(alpha = repeatBackgroundAlpha.value),
-                                    shape = YosRoundedCornerShape(10.dp)
+                                    shape = LyricsflowRoundedCornerShape(10.dp)
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
-                            YosWrapper {
+                            LyricsflowWrapper {
                                 AnimatedContent(targetState = repeatModeLambda(), transitionSpec = {
                                     fadeIn() togetherWith fadeOut()
                                 }) {
@@ -1079,7 +1426,7 @@ private fun PlayingList(
                         color = Color.White,
                         modifier = Modifier.padding(top = 18.dp, bottom = 12.dp)
                     )
-                    YosWrapper {
+                    LyricsflowWrapper {
                         Text(
                             text = stringResource(id = R.string.playlist_unavailable_desc),
                             fontSize = 16.sp,
@@ -1124,7 +1471,7 @@ private fun PlayingList(
                     }
                 }
 
-                YosWrapper {
+                LyricsflowWrapper {
                     CompositionLocalProvider(LocalOverscrollConfiguration provides null) {
 
                         LazyColumn(state = state, modifier = Modifier
@@ -1312,7 +1659,7 @@ private fun QueueSectionHeader(
 
 @Composable
 private fun QueueMusicListItem(
-    music: YosMediaItem,
+    music: LyricsflowMediaItem,
     reorderEnabled: Boolean,
     isDragging: Boolean,
     reorderHandleModifier: Modifier,
@@ -1552,7 +1899,7 @@ private fun QueueMusicListItem(
 
 @Composable
 private fun SmallMusicListItem(
-    music: YosMediaItem,
+    music: LyricsflowMediaItem,
     reorderEnabled: Boolean,
     isDragging: Boolean,
     modifier: Modifier = Modifier,
@@ -1645,7 +1992,7 @@ private fun Lyric(
     mainViewModel: MainViewModel,
     mediaViewModel: MediaViewModel,
     onBackClick: () -> Unit
-) = YosWrapper {
+) = LyricsflowWrapper {
 
     val context = LocalContext.current
 
@@ -1653,10 +2000,10 @@ private fun Lyric(
         Modifier
             .fillMaxSize()
     ) {
-        YosWrapper {
+        LyricsflowWrapper {
             Spacer(modifier = Modifier.statusBarsHeight(110.dp))
 
-            YosLyricView(
+            LyricsflowLyricView(
                 //mediaViewModel = mediaViewModel,
                 lrcEntriesLambda = lrcEntries,
                 lineEndTimesLambda = lineEndTimes,
@@ -1666,7 +2013,7 @@ private fun Lyric(
                 liveTimeLambda = {
                     (mediaControl?.currentPosition ?: 0).toInt()
                 },
-                mediaEvent = object : YosMediaEvent {
+                mediaEvent = object : LyricsflowMediaEvent {
                     override fun onSeek(position: Int) {
                         mediaControl?.seekTo(position.toLong())
                     }
@@ -1675,7 +2022,7 @@ private fun Lyric(
                 blurLambda = {
                     SettingsLibrary.LyricBlurEffect
                 },
-                uiConfig = YosUIConfig(
+                uiConfig = LyricsflowUIConfig(
                     noLrcText = stringResource(id = R.string.tip_no_lyrics)
                 ),
                 weightLambda = weightLambda,
@@ -1761,7 +2108,7 @@ private fun Lyric(
 private fun ActionButtonsRow(
     navController: NavController,
     onMinimizeNowPlaying: suspend () -> Unit,
-    musicPlayingLambda: () -> YosMediaItem?,
+    musicPlayingLambda: () -> LyricsflowMediaItem?,
 ) {
     Row(
         modifier = Modifier
@@ -1777,7 +2124,7 @@ private fun ActionButtonsRow(
         val overflowSheetOpen = remember { mutableStateOf(false) }
         // Snapshot of the song that was playing when the sheet was opened
         // (PRD §5.3 FR-OM-8). All actions in the sheet refer to this item.
-        val snapshotSong = remember { mutableStateOf<YosMediaItem?>(null) }
+        val snapshotSong = remember { mutableStateOf<LyricsflowMediaItem?>(null) }
         val actionButtonScope = rememberCoroutineScope()
 
         NowPlayingOverflowSheet(
@@ -1916,7 +2263,7 @@ private fun ActionButtonsRow(
 @Composable
 private fun NowPlayingOverflowSheet(
     isOpen: MutableState<Boolean>,
-    song: YosMediaItem?,
+    song: LyricsflowMediaItem?,
     navController: NavController,
     onOpenLibraryTarget: (OverflowLibraryTarget) -> Unit,
 ) {
@@ -1940,7 +2287,7 @@ private fun NowPlayingOverflowSheet(
         navigationDirection.intValue = SheetNavigationForward
     }
 
-    YosBottomSheetDialog(
+    LyricsflowBottomSheetDialog(
         bottomSheetState = sheetState,
         blurred = true,
         onDismissRequest = onDismiss,
@@ -2000,7 +2347,7 @@ private enum class OverflowLibraryTarget(val route: String)
 
 @Composable
 private fun OverflowMenuBody(
-    song: YosMediaItem?,
+    song: LyricsflowMediaItem?,
     navController: NavController,
     onOpenLibraryTarget: (OverflowLibraryTarget) -> Unit,
     onDismiss: () -> Unit,
@@ -2058,13 +2405,13 @@ private fun OverflowMenuBody(
  */
 @Composable
 private fun NowPlayingOverflowHeader(
-    song: YosMediaItem,
+    song: LyricsflowMediaItem,
     navController: NavController,
     onOpenLibraryTarget: (OverflowLibraryTarget) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    val shape = YosRoundedCornerShape(8.dp)
+    val shape = LyricsflowRoundedCornerShape(8.dp)
     val targetArtistNames = remember(song) {
         song.artistsList.orEmpty().filter { it.isNotBlank() }
     }
@@ -2202,9 +2549,9 @@ private fun PlayingBar(
     navController: NavController,
     onMinimizeNowPlaying: suspend () -> Unit,
     albumUrlLambda: () -> Uri?,
-    musicPlayingLambda: () -> YosMediaItem?,
+    musicPlayingLambda: () -> LyricsflowMediaItem?,
     onAlbumClick: () -> Unit
-) = YosWrapper {
+) = LyricsflowWrapper {
     Row(
         Modifier
             .fillMaxWidth()
@@ -2225,33 +2572,160 @@ private fun PlayingBar(
             shadowType = ShadowType.Small,
             shadowOverlay = true
         )
-        Column(
+        val subtitleMenuExpanded = remember { mutableStateOf(false) }
+        val navScope = rememberCoroutineScope()
+        Box(
             Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .padding(start = 12.dp, end = 15.dp)
         ) {
-            Text(
-                text = musicPlayingLambda()?.title ?: defaultTitle,/*
-                fontWeight = FontWeight.Bold,*/
-                fontSize = 16.5.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                fontWeight = FontWeight.Medium,
-                lineHeight = 16.5.sp
-            )
-            Text(
-                text = musicPlayingLambda()?.artistsName
-                    ?: defaultArtistsName,
-                fontSize = 15.sp,
-                modifier = Modifier.overlayEffect(),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = Color.White.copy(alpha = 0.35f)
-            )
+            val item = musicPlayingLambda()
+            Column(Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = item?.title ?: defaultTitle,
+                        fontSize = 16.5.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontWeight = FontWeight.SemiBold,
+                        lineHeight = 16.5.sp,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    val isExplicitTitle = remember(item) {
+                        item?.title?.contains("(Explicit", ignoreCase = true) == true ||
+                            item?.compilation == "explicit"
+                    }
+                    if (isExplicitTitle) {
+                        Spacer(Modifier.width(5.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(14.dp)
+                                .background(
+                                    Color.White.copy(alpha = 0.28f),
+                                    RoundedCornerShape(3.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "E",
+                                color = Color.Black.copy(alpha = 0.85f),
+                                fontSize = 8.5.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                lineHeight = 9.sp
+                            )
+                        }
+                    }
+                }
+                val subtitleText = remember(item) {
+                    val artistStr = item?.artistsName ?: defaultArtistsName
+                    val albumStr = item?.album?.takeIf { alb -> alb.isNotBlank() && alb != artistStr }
+                    if (albumStr != null) "$artistStr — $albumStr" else artistStr
+                }
+                Text(
+                    text = subtitleText,
+                    fontSize = 14.5.sp,
+                    modifier = Modifier
+                        .overlayEffect()
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) {
+                            subtitleMenuExpanded.value = true
+                        },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = Color.White.copy(alpha = 0.55f)
+                )
+            }
+
+            DropdownMenu(
+                expanded = subtitleMenuExpanded.value,
+                onDismissRequest = { subtitleMenuExpanded.value = false },
+                modifier = Modifier.background(Color(0xEE1C1C22))
+            ) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = "Go to Artist (${item?.artistsName ?: defaultArtistsName})",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_library_link_icon_artists),
+                            contentDescription = null,
+                            tint = Color(0xFFFA233B),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    onClick = {
+                        subtitleMenuExpanded.value = false
+                        val song = item ?: return@DropdownMenuItem
+                        val artistName = song.artistsName ?: return@DropdownMenuItem
+                        val isOnline = song.uri?.scheme == "http" || song.uri?.scheme == "https"
+                        navScope.launch { onMinimizeNowPlaying() }
+                        if (isOnline) {
+                            LibraryObject.openOnlineArtist(
+                                artistId = song.artistId?.toString() ?: artistName,
+                                name = artistName,
+                                artworkUrl = song.thumb?.toString().orEmpty()
+                            )
+                            navController.toUI(UI.OnlineArtistInfo)
+                        } else {
+                            LibraryObject.setTargetArtistName(artistName)
+                            LibraryObject.setArtistSongsSearchOnOpen(false)
+                            navController.markNextNavigationFromNowPlaying()
+                            navController.toUI(UI.ArtistInfo)
+                        }
+                    }
+                )
+                if (!item?.album.isNullOrBlank()) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "Go to Album (${item?.album.orEmpty()})",
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_library_link_icon_album),
+                                contentDescription = null,
+                                tint = Color(0xFFFA233B),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        onClick = {
+                            subtitleMenuExpanded.value = false
+                            val song = item ?: return@DropdownMenuItem
+                            val albumName = song.album ?: return@DropdownMenuItem
+                            val isOnline = song.uri?.scheme == "http" || song.uri?.scheme == "https"
+                            navScope.launch { onMinimizeNowPlaying() }
+                            if (isOnline && (song.albumId ?: 0L) > 0L) {
+                                LibraryObject.openOnlineAlbum(
+                                    albumId = song.albumId.toString(),
+                                    title = albumName,
+                                    artist = song.artists.orEmpty(),
+                                    artworkUrl = song.thumb?.toString().orEmpty()
+                                )
+                                navController.toUI(UI.OnlineAlbumInfo)
+                            } else {
+                                LibraryObject.setTargetAlbumName(albumName)
+                                navController.markNextNavigationFromNowPlaying()
+                                navController.toUI(UI.AlbumInfo)
+                            }
+                        }
+                    )
+                }
+            }
         }
 
-        YosWrapper {
+        LyricsflowWrapper {
             ActionButtonsRow(navController, onMinimizeNowPlaying, musicPlayingLambda)
         }
     }
@@ -2267,7 +2741,7 @@ fun RowScope.AirPlay() {
     val audioDeviceName = remember("AirPlay_audioDeviceName") { mutableStateOf("") }
     val showName = remember("AirPlay_showName") { mutableStateOf(false) }
 
-    YosWrapper {
+    LyricsflowWrapper {
         DisposableEffect(Unit) {
             val filter = IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED).apply {
                 addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
@@ -2337,7 +2811,7 @@ fun RowScope.AirPlay() {
         }
     }
 
-    YosWrapper {
+    LyricsflowWrapper {
         val context = LocalContext.current
 
         val systemMediaControlResolver = SystemMediaControlResolver(context)
@@ -2355,30 +2829,21 @@ fun RowScope.AirPlay() {
                     interactionSource = remember { MutableInteractionSource() }),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(modifier = Modifier.height(36.dp), contentAlignment = Alignment.Center) {
-                AnimatedContent(targetState = showName.value, transitionSpec = {
-                    (scaleIn(initialScale = 0.3f) + fadeIn()).togetherWith(
-                        scaleOut(
-                            targetScale = 0.3f
-                        ) + fadeOut()
-                    )
-                }, contentAlignment = Alignment.Center) {
-                    if (it) {
-                        Icon(
-                            painterResource(id = R.drawable.ic_earphone),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(27.dp)
-                        )
-                    } else {
-                        Icon(
-                            painterResource(id = R.drawable.ic_nowplaying_airplay),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(21.5.dp)
-                        )
-                    }
-                }
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .liquidGlassCircle(
+                        surfaceTint = if (showName.value) Color.White.copy(alpha = 0.24f)
+                        else Color.White.copy(alpha = 0.10f)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painterResource(id = R.drawable.ic_nowplaying_airplay),
+                    contentDescription = "AirPlay & Audio Output",
+                    tint = Color.White,
+                    modifier = Modifier.size(21.5.dp)
+                )
             }
 
             AnimatedVisibility(showName.value, enter = scaleIn(initialScale = 0.3f) + fadeIn(), exit = scaleOut(
@@ -2438,7 +2903,7 @@ private fun PlayerControl(
         mutableStateOf(false)
     }
 
-    YosWrapper {
+    LyricsflowWrapper {
         Column(
             modifier = modifier
                 .fillMaxWidth()
@@ -2446,9 +2911,9 @@ private fun PlayerControl(
                 .padding(bottom = 15.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            YosWrapper {
+            LyricsflowWrapper {
                 // 启动作用
-                YosWrapper {
+                LyricsflowWrapper {
                     val lifecycleState =
                         LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
 
@@ -2485,7 +2950,7 @@ private fun PlayerControl(
                 }
 
                 // 进度条
-                YosWrapper {
+                LyricsflowWrapper {
                     //println("重组：控制区域内部 - 进度条")
                     Slider(
                         value = sliderPosition.floatValue,
@@ -2529,7 +2994,7 @@ private fun PlayerControl(
                 }
 
                 // 控制按钮&进度文本
-                YosWrapper {
+                LyricsflowWrapper {
                     //println("重组：控制区域内部 - 控制按钮&进度文本")
                     Box(
                         modifier = Modifier
@@ -2672,99 +3137,97 @@ private fun PlayerControl(
             }
 
             // 音量调节
-            YosWrapper {
+            LyricsflowWrapper {
                 if (SettingsLibrary.NowPlayingShowVolumeBar) {
                     VolumeSlider(context = context, onSlider)
                 }
             }
 
-            // 底部 歌词&播放列表
-            YosWrapper {
-                //println("重组：控制区域内部 - 底部栏")
+            // 底部 歌词&播放列表 (Circular Liquid Glass Buttons)
+            LyricsflowWrapper {
                 Row(
                     modifier = Modifier
-                        .overlayEffect()
                         .fillMaxWidth()
-                        .alpha(0.4f),
-                    horizontalArrangement = Arrangement.Center
+                        .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val dp = 32.dp
+                    val isLyricActive = nowPage() == Lyric
                     Box(
                         modifier = Modifier
-                            .height(36.dp)
-                            .weight(1f)
-                            .clickable(
-                                onClick = { onLyrics() },
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }),
+                            .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
-                        AnimatedContent(
-                            targetState = nowPage() == Lyric,
-                            transitionSpec = {
-                                fadeIn() togetherWith fadeOut()
-                            }) {
-                            if (it) {
-                                Icon(
-                                    painterResource(id = R.drawable.ic_nowplaying_lyricson),
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .size(dp)
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .liquidGlassCircle(
+                                    surfaceTint = if (isLyricActive) Color.White.copy(alpha = 0.88f)
+                                    else Color.White.copy(alpha = 0.12f)
                                 )
-                            } else {
-                                Icon(
-                                    painterResource(id = R.drawable.ic_nowplaying_lyrics),
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .size(dp)
-                                )
-                            }
+                                .clickable(
+                                    onClick = {
+                                        Vibrator.click(context)
+                                        onLyrics()
+                                    },
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painterResource(
+                                    id = if (isLyricActive) R.drawable.ic_nowplaying_lyricson
+                                    else R.drawable.ic_nowplaying_lyrics
+                                ),
+                                contentDescription = "Lyrics",
+                                tint = if (isLyricActive) Color.Black else Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                     }
 
-                    Spacer(modifier = Modifier.weight(0.1f))
-
                     AirPlay()
 
-                    Spacer(modifier = Modifier.weight(0.1f))
-
+                    val isQueueActive = nowPage() == PlayingList
                     Box(
                         modifier = Modifier
-                            .height(36.dp)
-                            .weight(1f)
-                            .clickable(
-                                onClick = { onPlaylist() },
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }),
+                            .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
-                        AnimatedContent(
-                            targetState = nowPage() == PlayingList,
-                            transitionSpec = {
-                                fadeIn() togetherWith fadeOut()
-                            }) {
-                            if (it) {
-                                Icon(
-                                    painterResource(id = R.drawable.ic_nowplaying_queueon),
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .size(dp)
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .liquidGlassCircle(
+                                    surfaceTint = if (isQueueActive) Color.White.copy(alpha = 0.88f)
+                                    else Color.White.copy(alpha = 0.12f)
                                 )
-                            } else {
-                                Icon(
-                                    painterResource(id = R.drawable.ic_nowplaying_queue),
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .size(dp)
-                                )
-                            }
+                                .clickable(
+                                    onClick = {
+                                        Vibrator.click(context)
+                                        onPlaylist()
+                                    },
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painterResource(
+                                    id = if (isQueueActive) R.drawable.ic_nowplaying_queueon
+                                    else R.drawable.ic_nowplaying_queue
+                                ),
+                                contentDescription = "Playing Next Queue",
+                                tint = if (isQueueActive) Color.Black else Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                     }
                 }
             }
 
             // 边距填充
-            /*YosWrapper {
+            /*LyricsflowWrapper {
                 Spacer(modifier = Modifier.navigationBarsHeight(5.dp))
             }*/
             // 为显示设备名称，迁移到 AirPlay 底部处理
@@ -2821,7 +3284,7 @@ private fun VolumeSlider(context: Context, onSlider: () -> Unit) {
             modifier = Modifier.size(20.dp)
         )
 
-        YosWrapper {
+        LyricsflowWrapper {
             val animatedProgress = if (sliding.value) {
                 sliderPosition
             } else {
@@ -2877,7 +3340,7 @@ private fun Track(
     sliderPositions: SliderPositions,
     modifier: Modifier = Modifier,
     height: Dp
-) = YosWrapper {
+) = LyricsflowWrapper {
     val inactiveTrackColor = Color.White.copy(alpha = 0.5f)
     val activeTrackColor = Color.White
     val inactiveTickColor = Color.White.copy(alpha = 0.5f)

@@ -20,7 +20,7 @@ import com.lyricsflow.player.data.libraries.StatsPeriodSnapshot
 @Stable
 object ListenStatsManager
 {
-    private const val MMKV_ID = "yos_listen_stats"
+    private const val MMKV_ID = "lyricsflow_listen_stats"
     private const val EVENTS_KEY = "listen_stats_events"
     private const val PENDING_KEY = "listen_stats_pending_events"
 

@@ -4,12 +4,12 @@ import androidx.compose.runtime.Stable
 
 data class ArtistRelease(
     val albumName: String,
-    val songs: List<YosMediaItem>,
+    val songs: List<LyricsflowMediaItem>,
     val releaseYear: Int?,
 )
 
 data class ArtistSections(
-    val songs: List<YosMediaItem>,
+    val songs: List<LyricsflowMediaItem>,
     val albums: List<ArtistRelease>,
     val singlesAndEps: List<ArtistRelease>,
     val featuredOn: List<ArtistRelease>,
@@ -46,22 +46,22 @@ object ArtistLibrary
         )
     }
 
-    fun songsForArtist(artistName: String): List<YosMediaItem>
+    fun songsForArtist(artistName: String): List<LyricsflowMediaItem>
     {
         return sectionsForArtist(artistName).songs
     }
 
-    private fun allSongsForArtist(artistName: String): List<YosMediaItem>
+    private fun allSongsForArtist(artistName: String): List<LyricsflowMediaItem>
     {
         return MusicLibrary.Artist[artistName].distinctBy { it.uri }
     }
 
-    private fun primarySongsForArtist(artistName: String): List<YosMediaItem>
+    private fun primarySongsForArtist(artistName: String): List<LyricsflowMediaItem>
     {
         return allSongsForArtist(artistName).filter { it.isPrimaryArtistMatch(artistName) }
     }
 
-    private fun buildReleases(songs: List<YosMediaItem>): List<ArtistRelease>
+    private fun buildReleases(songs: List<LyricsflowMediaItem>): List<ArtistRelease>
     {
         return songs.groupBy { it.album ?: defaultAlbum }
             .map { (albumName, albumSongs) ->
@@ -74,7 +74,7 @@ object ArtistLibrary
     }
 }
 
-private fun YosMediaItem.isPrimaryArtistMatch(artistName: String): Boolean
+private fun LyricsflowMediaItem.isPrimaryArtistMatch(artistName: String): Boolean
 {
     val albumArtistsList = this.albumArtists?.toMultipleArtists().orEmpty().filter { it.isNotBlank() }
     if (albumArtistsList.isNotEmpty()) {
@@ -113,11 +113,11 @@ private fun List<ArtistRelease>.sortedForDisplay(): List<ArtistRelease>
     )
 }
 
-private fun List<YosMediaItem>.sortedForPlayback(): List<YosMediaItem>
+private fun List<LyricsflowMediaItem>.sortedForPlayback(): List<LyricsflowMediaItem>
 {
     return this.distinctBy { it.uri }
         .sortedWith(
-            compareByDescending<YosMediaItem> { it.releaseYear ?: it.recordingYear ?: Int.MIN_VALUE }
+            compareByDescending<LyricsflowMediaItem> { it.releaseYear ?: it.recordingYear ?: Int.MIN_VALUE }
                 .thenBy { it.album ?: defaultAlbum }
                 .thenBy { it.discNumber ?: Int.MAX_VALUE }
                 .thenBy { it.trackNumber ?: Int.MAX_VALUE }

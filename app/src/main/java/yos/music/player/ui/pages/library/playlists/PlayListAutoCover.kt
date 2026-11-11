@@ -13,7 +13,7 @@ import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.lyricsflow.player.R
-import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.LyricsflowMediaItem
 
 /**
  * Auto-generated 2×2 collage of the playlist's first 4 unique album
@@ -27,7 +27,7 @@ import com.lyricsflow.player.data.libraries.YosMediaItem
  * playlist detail header and the Edit Playlist cover carousel.
  */
 @Composable
-fun PlayListAutoCover(songs: List<YosMediaItem>) {
+fun PlayListAutoCover(songs: List<LyricsflowMediaItem>) {
     val context = LocalContext.current
     val thumbs = remember(songs) {
         songs.mapNotNull { it.thumb }.distinct().take(4)

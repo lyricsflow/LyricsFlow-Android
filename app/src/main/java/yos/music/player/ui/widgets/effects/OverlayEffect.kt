@@ -12,7 +12,7 @@ import androidx.compose.ui.graphics.Paint
  *
  * 注意：如果要使用 .alpha() 设置透明度，则必须在该 Modifier 之后，或者使用 .graphicLayer { this.alpha = 0.5f } 类此。
  *
- * —— By Yos-X
+ * —— By Lyricsflow-X
  */
 @Composable
 fun Modifier.overlayEffect() = this.drawWithCache {

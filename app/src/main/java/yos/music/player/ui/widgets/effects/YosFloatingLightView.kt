@@ -44,7 +44,7 @@ import kotlinx.coroutines.withContext
 import com.lyricsflow.player.code.utils.others.BitmapResolver
 import com.lyricsflow.player.data.libraries.SettingsLibrary.NowplayingBackgroundEffect
 import com.lyricsflow.player.ui.pages.NowPlayingPage
-import com.lyricsflow.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.ui.widgets.basic.LyricsflowWrapper
 
 @Stable
 private enum class Option {
@@ -55,7 +55,7 @@ private enum class Option {
 }
 
 @Composable
-fun YosFloatingLight(
+fun LyricsflowFloatingLight(
     modifier: Modifier,
     album: () -> Uri?,
     isPlaying: () -> Boolean,
@@ -68,7 +68,7 @@ fun YosFloatingLight(
 
     val context = LocalContext.current
     val imageLoader = ImageLoader(context)
-    YosWrapper {
+    LyricsflowWrapper {
         LaunchedEffect(album()) {
             if (album() == null) return@LaunchedEffect
             withContext(Dispatchers.IO) {
@@ -89,24 +89,24 @@ fun YosFloatingLight(
         }
     }
 
-    YosWrapper {
-        val lossEffect = remember("YosFloatingLight_lossEffect") {
+    LyricsflowWrapper {
+        val lossEffect = remember("LyricsflowFloatingLight_lossEffect") {
             derivedStateOf {
                 nowPage() != NowPlayingPage.Lyric
             }
         }
 
-        val useBackground = remember("YosFloatingLight_useBackground") {
+        val useBackground = remember("LyricsflowFloatingLight_useBackground") {
             derivedStateOf {
                 album() == null
             }
         }
 
         if (NowplayingBackgroundEffect) {
-            val lastOption = remember("YosFloatingLight_lastOption") {
+            val lastOption = remember("LyricsflowFloatingLight_lastOption") {
                 mutableStateOf(Option.Init.name)
             }
-            YosWrapper {
+            LyricsflowWrapper {
                 val lifecycleState =
                     LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
                 val active = lifecycleState.value.isAtLeast(Lifecycle.State.RESUMED)&&!showMiniPlayer()
@@ -147,7 +147,7 @@ fun YosFloatingLight(
                 }
             }
         } else {
-            YosWrapper {
+            LyricsflowWrapper {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current).data(data = drawable.value)
                         .crossfade(true).build(),
@@ -168,7 +168,7 @@ fun YosFloatingLight(
             }
         }
 
-        YosWrapper {
+        LyricsflowWrapper {
             val alpha = animateFloatAsState(
                 targetValue = if (lossEffect.value) 0.618f else 0f, animationSpec = tween(
                     durationMillis = 300,

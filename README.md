@@ -1,8 +1,8 @@
-# Flamingo
+# LyricsFlow
 
 ![main_banner](docs/pics/main_banner.jpg)
 
-Flamingo is a local music player for Android, styled after Apple Music, and is currently in development.
+LyricsFlow is a local music player for Android, styled after Apple Music, and is currently in development.
 ## Interface
 
 <table width="100%">
@@ -39,9 +39,9 @@ Flamingo is a local music player for Android, styled after Apple Music, and is c
 ## Key Features
 
 ### Support for Multiple Lyric Formats (Parsing / Display)
-Flamingo supports parsing and display of `full TTML` and `various LRC formats` lyrics, with a built-in lyric formatting function to automatically standardize lyric layouts.
+LyricsFlow supports parsing and display of `full TTML` and `various LRC formats` lyrics, with a built-in lyric formatting function to automatically standardize lyric layouts.
 
-For the full list, see [Flamingo Lyric Format Support](docs/LyricFormatSupport_en.md).
+For the full list, see [LyricsFlow Lyric Format Support](docs/LyricFormatSupport_en.md).
 
 ### Multiple Extension Support
 

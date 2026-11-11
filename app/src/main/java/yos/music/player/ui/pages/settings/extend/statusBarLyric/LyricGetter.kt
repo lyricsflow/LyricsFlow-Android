@@ -22,11 +22,11 @@ import com.lyricsflow.player.ui.pages.settings.ListHeader
 import com.lyricsflow.player.ui.pages.settings.SwitchItem
 import com.lyricsflow.player.ui.widgets.basic.RoundColumn
 import com.lyricsflow.player.ui.widgets.basic.Title
-import com.lyricsflow.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.ui.widgets.basic.LyricsflowWrapper
 
 @Composable
 fun LyricGetter(navController: NavController) =
-    YosWrapper {
+    LyricsflowWrapper {
         val lyricAPI by lazy { API() }
         Column(
             Modifier
@@ -77,7 +77,7 @@ fun LyricGetter(navController: NavController) =
                                     // desc = stringResource(id = R.string.settings_others_statusbarlyric_debug_send_lyric_desc),
                                     superLink = true
                                 ) {
-                                    lyricAPI.sendLyric("[${(99999..9999999).random()}] Flamingo Lyric Debug")
+                                    lyricAPI.sendLyric("[${(99999..9999999).random()}] LyricsFlow Lyric Debug")
                                 }
                             }
                             ListHeader(content = stringResource(id = R.string.settings_others_statusbarlyric_debug_send_lyric_desc))

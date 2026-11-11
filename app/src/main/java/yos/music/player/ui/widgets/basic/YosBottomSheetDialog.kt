@@ -68,7 +68,7 @@ import androidx.compose.ui.unit.sp
 import com.lyricsflow.player.R
 import com.lyricsflow.player.code.utils.others.Vibrator
 import com.lyricsflow.player.data.libraries.SettingsLibrary
-import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.theme.LyricsflowRoundedCornerShape
 import com.lyricsflow.player.ui.theme.withNight
 
 internal const val SheetNavigationForward = 1
@@ -177,7 +177,7 @@ internal fun <T> SheetAnimatedContent(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun YosBottomSheetDialog(
+internal fun LyricsflowBottomSheetDialog(
     bottomSheetState: SheetState = rememberModalBottomSheetState(),
     properties: ModalBottomSheetProperties = ModalBottomSheetDefaults.properties(),
     cornerRadius: () -> Dp = { SettingsLibrary.ScreenCorner.toInt().dp },
@@ -185,7 +185,7 @@ internal fun YosBottomSheetDialog(
     onDismissRequest: () -> Unit,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val edgeToEdgeEnabled by remember("YosBottomSheetDialog_edgeToEdgeEnabled") {
+    val edgeToEdgeEnabled by remember("LyricsflowBottomSheetDialog_edgeToEdgeEnabled") {
         mutableStateOf(
             true
         )
@@ -195,13 +195,13 @@ internal fun YosBottomSheetDialog(
 
     val context = LocalContext.current
 
-    YosWrapper {
+    LyricsflowWrapper {
         LaunchedEffect(Unit) {
             Vibrator.click(context)
         }
     }
 
-    val shape = YosRoundedCornerShape(cornerRadius())
+    val shape = LyricsflowRoundedCornerShape(cornerRadius())
     val backgroundColor = Color.White withNight Color.Black
 
     ModalBottomSheet(
@@ -314,7 +314,7 @@ fun OptionDialog(
     onNegative: (() -> Unit)? = null,
     onDismissRequest: () -> Unit
 ) =
-    YosBottomSheetDialog(
+    LyricsflowBottomSheetDialog(
         bottomSheetState = bottomSheetState,
         properties = properties,
         onDismissRequest = onDismissRequest,
@@ -409,7 +409,7 @@ data class ActionItem(
 
 /**
  * A menu-style bottom sheet. Sibling of [OptionDialog]; shares the same
- * [YosBottomSheetDialog] internals (corner radius from settings, edge-to-edge,
+ * [LyricsflowBottomSheetDialog] internals (corner radius from settings, edge-to-edge,
  * scrim, vibration on open).
  *
  * Use this for any "list of actions" sheet (e.g. NowPlaying overflow menu).
@@ -434,7 +434,7 @@ fun ActionSheet(
 ) {
     if (!isOpen.value) return
 
-    YosBottomSheetDialog(
+    LyricsflowBottomSheetDialog(
         bottomSheetState = bottomSheetState,
         properties = properties,
         onDismissRequest = onDismiss,
@@ -446,7 +446,7 @@ fun ActionSheet(
 
 /**
  * Bare action-sheet body — the content of an [ActionSheet] without its
- * surrounding [YosBottomSheetDialog]. Use this when you want to render the
+ * surrounding [LyricsflowBottomSheetDialog]. Use this when you want to render the
  * action list inside another bottom sheet (e.g. the NowPlaying overflow
  * menu hosts its own sheet and swaps between this body and the
  * playlist-picker / sleep-timer content based on internal navigation, so

@@ -7,7 +7,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class YosTtmlFactoryTest {
+class LyricsflowTtmlFactoryTest {
     @Test
     fun formatTtmlEntries_parsesWordTimedAppleMusicLyrics() {
         val ttml = """
@@ -38,7 +38,7 @@ class YosTtmlFactoryTest {
             </tt>
         """.trimIndent()
 
-        val result = YosTtmlFactory().formatTtmlEntries(ttml)
+        val result = LyricsflowTtmlFactory().formatTtmlEntries(ttml)
 
         assertNotNull(result)
         result!!
@@ -66,7 +66,7 @@ class YosTtmlFactoryTest {
             </tt>
         """.trimIndent()
 
-        val result = YosTtmlFactory().formatTtmlEntries(ttml)
+        val result = LyricsflowTtmlFactory().formatTtmlEntries(ttml)
 
         assertNotNull(result)
         result!!
@@ -78,7 +78,7 @@ class YosTtmlFactoryTest {
 
     @Test
     fun formatTtmlEntries_rejectsNonTtmlText() {
-        val result = YosTtmlFactory().formatTtmlEntries("[00:01.00]Hello")
+        val result = LyricsflowTtmlFactory().formatTtmlEntries("[00:01.00]Hello")
 
         assertNull(result)
     }

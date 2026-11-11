@@ -1,4 +1,4 @@
-# Lyric Formats Supported by Flamingo
+# Lyric Formats Supported by LyricsFlow
 
 Last revised: June 19, 2026
 
@@ -9,9 +9,9 @@ Last revised: June 19, 2026
 
 > Its file extension is .lrc.
 
-Over time, LRC has lacked standardized specifications from any organization, leading to various variants. Flamingo only supports the common types listed below.
+Over time, LRC has lacked standardized specifications from any organization, leading to various variants. LyricsFlow only supports the common types listed below.
 
-Flamingo loads LRC lyrics from embedded audio metadata or from a sidecar `.lrc` file with the same base name as the audio file. Embedded LRC lyrics must still use an LRC-compatible text format.
+LyricsFlow loads LRC lyrics from embedded audio metadata or from a sidecar `.lrc` file with the same base name as the audio file. Embedded LRC lyrics must still use an LRC-compatible text format.
 
 
 ### Parsing Support
@@ -72,12 +72,12 @@ Supports marking singers via prefixes like `v1: `.
 
 Supports marking translations via the same timeline. Translations do not support word-by-word timing.
 
-For empty time-tag lines, Flamingo displays a countdown to the next lyric line when the gap is long enough.
+For empty time-tag lines, LyricsFlow displays a countdown to the next lyric line when the gap is long enough.
 
 
 #### Time Tags
 
-Flamingo supports the following time tag formats:
+LyricsFlow supports the following time tag formats:
 
 ```  
 [mm:ss]  
@@ -102,9 +102,9 @@ Note: `mm` can be any integer length. `ss` is parsed as a number, so decimal fra
 
 > TTML (Timed Text Markup Language) is an XML-based timed text markup language used for timed text and subtitles.
 
-> Flamingo supports embedded TTML lyrics and same-base-name sidecar `.ttml` or `.xml` files.
+> LyricsFlow supports embedded TTML lyrics and same-base-name sidecar `.ttml` or `.xml` files.
 
-If both TTML and LRC are available for the same track, Flamingo prefers TTML. If TTML parsing fails, Flamingo falls back to LRC when available.
+If both TTML and LRC are available for the same track, LyricsFlow prefers TTML. If TTML parsing fails, LyricsFlow falls back to LRC when available.
 
 
 ### Parsing Support
@@ -164,7 +164,7 @@ TTML lines with overlapping time ranges are displayed at the same time. All acti
 
 #### Time Tags
 
-Flamingo supports the following TTML time formats:
+LyricsFlow supports the following TTML time formats:
 
 ```xml
 begin="7.372"
@@ -176,7 +176,7 @@ begin="7.372s"
 
 #### Metadata
 
-Flamingo reads the lyric body, line timing, word timing, `ttm:agent`, subtitles, and transliterations. Other metadata such as song parts, songwriters, Composer groups, and Composer colors is ignored in the current version.
+LyricsFlow reads the lyric body, line timing, word timing, `ttm:agent`, subtitles, and transliterations. Other metadata such as song parts, songwriters, Composer groups, and Composer colors is ignored in the current version.
 
 
 ### Effect Support
@@ -196,4 +196,4 @@ Flamingo reads the lyric body, line timing, word timing, `ttm:agent`, subtitles,
 
 #### Lyric Formatting
 
-To ensure clean and neat display, Flamingo's lyric parser includes a built-in lyric formatting function. It merges repeated spaces and trims leading spaces from lyric segments. This may result in slight visual differences between the displayed lyrics and the original file content, so please note this.
+To ensure clean and neat display, LyricsFlow's lyric parser includes a built-in lyric formatting function. It merges repeated spaces and trims leading spaces from lyric segments. This may result in slight visual differences between the displayed lyrics and the original file content, so please note this.

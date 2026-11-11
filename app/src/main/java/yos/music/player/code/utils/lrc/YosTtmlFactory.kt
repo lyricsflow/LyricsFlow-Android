@@ -11,8 +11,8 @@ import kotlin.math.max
  * Full Apple Music / AMLL / LyricsFlow TTML Parser
  * Ported 1:1 from `main/js/ttml-parser.js` (`parseTTMLToLyrics`).
  */
-class YosTtmlFactory {
-    fun formatTtmlEntries(ttmlText: String): YosParsedLyricData? {
+class LyricsflowTtmlFactory {
+    fun formatTtmlEntries(ttmlText: String): LyricsflowParsedLyricData? {
         if (!isTtmlText(ttmlText)) {
             return null
         }
@@ -33,6 +33,8 @@ class YosTtmlFactory {
             }
 
             val bodyElement = rootElement.descendantsByLocalName("body").firstOrNull() ?: return null
+            val timingAttr = (rootElement.readAttribute("timing") ?: rootElement.readAttribute("itunes:timing"))?.trim()
+            val isExplicitLineTiming = timingAttr.equals("Line", ignoreCase = true)
             val subtitleByKey = rootElement.parseMetadataTextByKey("translations")
             val transliterationByKey = rootElement.parseMetadataTextByKey("transliterations")
             val songwriters = rootElement.parseSongwriters()
@@ -82,14 +84,22 @@ class YosTtmlFactory {
                     ?: leadSyllables.lastOrNull()?.endTimeMs
                     ?: (lineBegin + 3000f)
 
-                if (leadSyllables.isEmpty()) {
-                    val plainText = lineElement.extractDirectLeadText().normalizeMetadataText()
+                if (leadSyllables.isEmpty() || isExplicitLineTiming) {
+                    val plainText = if (leadSyllables.isEmpty()) {
+                        lineElement.extractDirectLeadText().normalizeMetadataText()
+                    } else {
+                        leadSyllables.joinToString(" ") { it.text }.normalizeMetadataText()
+                    }
                     if (plainText.isBlank()) {
                         return@forEach
                     }
-                    val splitSyllables = splitSingleTextIntoWordSyllables(plainText, lineBegin, lineEnd)
-                    val linePairs = buildLegacyLinePairs(lineBegin, splitSyllables)
-                    val lyricKey = lineElement.readAttribute("key")
+                    // Line-synced line: do NOT split into fake word syllables so it stays purely Line-Synced!
+                    val linePairs = listOf(
+                        lineBegin to "",
+                        lineBegin to plainText,
+                        lineBegin to ""
+                    )
+                    val lyricKey = lineElement.readAttribute("key") ?: lineElement.readAttribute("itunes:key")
                     val lineIndex = lyricEntries.size
                     if (!sectionName.isNullOrBlank()) {
                         sections[lineIndex] = sectionName
@@ -108,23 +118,15 @@ class YosTtmlFactory {
                         parsedLine.inlineTranslation
                             ?: lyricKey?.let { subtitleByKey[it] }
                     )
-                    syllablesForLines.add(splitSyllables)
+                    syllablesForLines.add(emptyList())
                     backgroundLines.add(parsedLine.backgroundLine)
                     return@forEach
                 }
 
-                val normalizedSyllables = if (leadSyllables.size == 1 && leadSyllables[0].text.trim().contains(' ')) {
-                    splitSingleTextIntoWordSyllables(
-                        leadSyllables[0].text.trim(),
-                        leadSyllables[0].startTimeMs,
-                        leadSyllables[0].endTimeMs
-                    )
-                } else {
-                    leadSyllables
-                }
+                val normalizedSyllables = leadSyllables
 
                 val linePairs = buildLegacyLinePairs(lineBegin, normalizedSyllables)
-                val lyricKey = lineElement.readAttribute("key")
+                val lyricKey = lineElement.readAttribute("key") ?: lineElement.readAttribute("itunes:key")
                 val lineIndex = lyricEntries.size
                 if (!sectionName.isNullOrBlank()) {
                     sections[lineIndex] = sectionName
@@ -181,13 +183,15 @@ class YosTtmlFactory {
                 }
             }
 
-            YosParsedLyricData(
+            val hasAnyWordSyllables = syllablesForLines.any { it.isNotEmpty() }
+
+            LyricsflowParsedLyricData(
                 entries = lyricEntries,
                 endTimes = endTimes,
                 otherSideForLines = otherSideForLines,
                 transliterations = transliterations,
                 subtitles = subtitles,
-                isTtml = true,
+                isTtml = hasAnyWordSyllables,
                 syllablesForLines = syllablesForLines,
                 backgroundLines = backgroundLines,
                 songwriters = songwriters,

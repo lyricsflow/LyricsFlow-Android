@@ -14,7 +14,7 @@ import java.io.File
 import java.nio.charset.Charset
 
 object AudioMetadataUtils {
-    private const val tag = "FlamingoLyrics"
+    private const val tag = "LyricsFlowLyrics"
 
     fun loadLrcFile(context: Context, filePath: String): String? {
         return loadLyricFile(filePath, "LRC")

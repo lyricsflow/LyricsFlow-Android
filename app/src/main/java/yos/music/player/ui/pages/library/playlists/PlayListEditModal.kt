@@ -79,10 +79,10 @@ import com.lyricsflow.player.data.libraries.PlayList
 import com.lyricsflow.player.data.libraries.PlayListLibrary
 import com.lyricsflow.player.data.libraries.PlayListLibrary.applyEdits
 import com.lyricsflow.player.data.libraries.PlayListLibrary.playList
-import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.LyricsflowMediaItem
 import com.lyricsflow.player.data.libraries.defaultTitle
 import com.lyricsflow.player.data.objects.LibraryObject
-import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.theme.LyricsflowRoundedCornerShape
 import com.lyricsflow.player.ui.theme.withNight
 
 private const val DescriptionMaxChars = 200
@@ -295,13 +295,13 @@ private fun EditPlaylistContent(
         mutableStateOf<String?>(null)
     }
 
-    // Resolve URIs → YosMediaItem for display. Falls back to a
+    // Resolve URIs → LyricsflowMediaItem for display. Falls back to a
     // synthetic placeholder if the song was removed from the library
     // since the playlist was saved (orphan URI).
     val resolvedSongs = remember(workingSongs.toList()) {
         workingSongs.map { uri ->
             songs.firstOrNull { it.uri == uri }
-                ?: YosMediaItem(
+                ?: LyricsflowMediaItem(
                     uri = uri, mediaId = null, mimeType = null,
                     title = null, writer = null, compilation = null,
                     composer = null, artists = null, album = null,
@@ -478,7 +478,7 @@ private fun EditHeader(onClose: () -> Unit, onDone: () -> Unit) {
 @Composable
 private fun CoverCarousel(
     coverUri: String?,
-    resolvedSongs: List<YosMediaItem>,
+    resolvedSongs: List<LyricsflowMediaItem>,
     onPickCustom: () -> Unit,
     onChooseAuto: () -> Unit,
 ) {
@@ -540,7 +540,7 @@ private fun CarouselSlot(
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
-    val shape = YosRoundedCornerShape(12.dp)
+    val shape = LyricsflowRoundedCornerShape(12.dp)
     val borderColor = if (selected) MaterialTheme.colorScheme.primary
         else (Color.LightGray withNight Color.DarkGray).copy(alpha = 0.35f)
     val borderWidth = if (selected) 3.dp else 1.dp
@@ -591,7 +591,7 @@ private fun CarouselSlot(
  * [PlayListAutoCover] for the layout matrix and fallbacks.
  */
 @Composable
-private fun AutoCollage(resolvedSongs: List<YosMediaItem>) {
+private fun AutoCollage(resolvedSongs: List<LyricsflowMediaItem>) {
     PlayListAutoCover(songs = resolvedSongs)
 }
 
@@ -670,7 +670,7 @@ private fun DescriptionField(description: String, onDescriptionChange: (String) 
 
 @Composable
 private fun EditSongRow(
-    song: YosMediaItem,
+    song: LyricsflowMediaItem,
     reorderEnabled: Boolean,
     isDragging: Boolean,
     isStaged: Boolean,
@@ -678,7 +678,7 @@ private fun EditSongRow(
     onToggleStaged: () -> Unit,
 ) {
     val context = LocalContext.current
-    val shape = YosRoundedCornerShape(4.dp)
+    val shape = LyricsflowRoundedCornerShape(4.dp)
     val destructive = MaterialTheme.colorScheme.error
     val rowAlpha = if (isStaged) 0.4f else 1f
     val draggedItemBackground by animateColorAsState(

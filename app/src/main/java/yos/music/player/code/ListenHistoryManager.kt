@@ -10,16 +10,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.lyricsflow.player.UriTypeAdapter
 import com.lyricsflow.player.data.libraries.SettingsLibrary
-import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.LyricsflowMediaItem
 
 @Stable
 object ListenHistoryManager
 {
-    private const val MMKV_ID = "yos_listen_history"
+    private const val MMKV_ID = "lyricsflow_listen_history"
     private const val HISTORY_KEY = "recently_played_list"
     private const val MAX_HISTORY_SIZE = 50
 
-    val recentlyPlayedSongs = mutableStateOf<List<YosMediaItem>>(emptyList())
+    val recentlyPlayedSongs = mutableStateOf<List<LyricsflowMediaItem>>(emptyList())
 
     private val gson by lazy {
         GsonBuilder().registerTypeAdapter(Uri::class.java, UriTypeAdapter()).create()
@@ -31,15 +31,15 @@ object ListenHistoryManager
     {
         val loadedHistory = withContext(Dispatchers.IO) {
             val json = mmkv.decodeString(HISTORY_KEY) ?: return@withContext null
-            val historyType = object : TypeToken<List<YosMediaItem>>() {}.type
+            val historyType = object : TypeToken<List<LyricsflowMediaItem>>() {}.type
             runCatching {
-                gson.fromJson<List<YosMediaItem>>(json, historyType)
+                gson.fromJson<List<LyricsflowMediaItem>>(json, historyType)
             }.getOrNull()
         }
         if (loadedHistory != null) {recentlyPlayedSongs.value = loadedHistory}
     }
 
-    fun recordPlay(song: YosMediaItem)
+    fun recordPlay(song: LyricsflowMediaItem)
     {
         if (!SettingsLibrary.ListenHistory) {return}
 
@@ -51,7 +51,7 @@ object ListenHistoryManager
         persistHistory(currentHistory)
     }
 
-    private fun persistHistory(historyList: List<YosMediaItem>)
+    private fun persistHistory(historyList: List<LyricsflowMediaItem>)
     {
         val json = gson.toJson(historyList)
         mmkv.encode(HISTORY_KEY, json)

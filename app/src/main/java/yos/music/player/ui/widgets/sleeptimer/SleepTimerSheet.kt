@@ -58,7 +58,7 @@ import com.lyricsflow.player.ui.theme.withNight
 import com.lyricsflow.player.ui.widgets.basic.SheetAnimatedContent
 import com.lyricsflow.player.ui.widgets.basic.SheetNavigationBackward
 import com.lyricsflow.player.ui.widgets.basic.SheetNavigationForward
-import com.lyricsflow.player.ui.widgets.basic.YosBottomSheetDialog
+import com.lyricsflow.player.ui.widgets.basic.LyricsflowBottomSheetDialog
 
 /**
  * Sleep timer bottom sheet. Three internal screens:
@@ -75,14 +75,14 @@ import com.lyricsflow.player.ui.widgets.basic.YosBottomSheetDialog
 fun SleepTimerSheet(isOpen: MutableState<Boolean>) {
     if (!isOpen.value) return
 
-    YosBottomSheetDialog(onDismissRequest = { isOpen.value = false }) {
+    LyricsflowBottomSheetDialog(onDismissRequest = { isOpen.value = false }) {
         SleepTimerContent(onDone = { isOpen.value = false })
     }
 }
 
 /**
  * Bare sleep-timer content — the body of [SleepTimerSheet] without its
- * surrounding [YosBottomSheetDialog]. Use this when you want to render the
+ * surrounding [LyricsflowBottomSheetDialog]. Use this when you want to render the
  * sleep timer inside another bottom sheet (e.g. the NowPlaying overflow
  * menu swaps its content to this composable when the user picks
  * "Sleep Timer", so the sub-screen appears without a close + reopen

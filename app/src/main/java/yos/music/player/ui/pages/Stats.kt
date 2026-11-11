@@ -65,8 +65,8 @@ import com.lyricsflow.player.ui.widgets.basic.ProfileButton
 import com.lyricsflow.player.ui.widgets.basic.RollingNumberText
 import com.lyricsflow.player.ui.widgets.basic.ShadowImageWithCache
 import com.lyricsflow.player.ui.widgets.basic.Title
-import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
-import com.lyricsflow.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.ui.theme.LyricsflowRoundedCornerShape
+import com.lyricsflow.player.ui.widgets.basic.LyricsflowWrapper
 
 private const val STATS_ROW_MAX_ITEMS = 10
 private const val STATS_LIVE_REFRESH_MS = 60_000L
@@ -124,7 +124,7 @@ fun Stats(navController: NavController) =
 @Composable
 private fun StatsContent(navController: NavController)
 {
-    YosWrapper {
+    LyricsflowWrapper {
         val selectedPeriod = selectedStatsPeriod()
         val statsSnapshot = rememberStatsSnapshot(selectedPeriod)
 
@@ -261,7 +261,7 @@ private fun StatsPeriodPills(
     ) {
         pillLabels.forEach { (period, pillLabel) ->
             val isSelected = period == selectedPeriod
-            val pillShape = YosRoundedCornerShape(50.dp)
+            val pillShape = LyricsflowRoundedCornerShape(50.dp)
             Box(
                 modifier = Modifier
                     .clip(pillShape)

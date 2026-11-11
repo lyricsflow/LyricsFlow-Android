@@ -13,7 +13,7 @@ private val artistSplitExceptions = listOf("Tyler, The Creator")
 val MediaItem.uri: Uri?
     get() = this.localConfiguration?.uri
 
-fun YosMediaItem.lazyListKey(index: Int): String
+fun LyricsflowMediaItem.lazyListKey(index: Int): String
 {
     return "$index:${uri ?: mediaId ?: title ?: hashCode()}"
 }

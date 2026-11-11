@@ -14,7 +14,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
-import com.lyricsflow.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.ui.widgets.basic.LyricsflowWrapper
 
 private val DarkColorScheme = darkColorScheme(
     primary = primaryDark,
@@ -37,8 +37,8 @@ private val LightColorScheme = lightColorScheme(
 )
 
 @Composable
-fun YosMusicTheme(
-    darkTheme: Boolean = isFlamingoInDarkMode(),
+fun LyricsflowMusicTheme(
+    darkTheme: Boolean = isLyricsFlowInDarkMode(),
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
@@ -53,7 +53,7 @@ fun YosMusicTheme(
     }
     val view = LocalView.current
     if (!view.isInEditMode) {
-        YosWrapper {
+        LyricsflowWrapper {
             SideEffect {
                 val window = (view.context as Activity).window
                 window.statusBarColor = Color.Transparent.toArgb()

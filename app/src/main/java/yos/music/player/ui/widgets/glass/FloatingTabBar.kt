@@ -78,6 +78,8 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.addPathNodes
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -86,6 +88,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -101,11 +104,11 @@ import com.lyricsflow.player.code.utils.others.Vibrator
 import com.lyricsflow.player.code.utils.player.FadeExo.fadePause
 import com.lyricsflow.player.code.utils.player.FadeExo.fadePlay
 import com.lyricsflow.player.data.libraries.SettingsLibrary
-import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.LyricsflowMediaItem
 import com.lyricsflow.player.data.libraries.defaultTitle
 import com.lyricsflow.player.data.objects.MediaViewModelObject
 import com.lyricsflow.player.ui.theme.SFProDisplay
-import com.lyricsflow.player.ui.theme.isFlamingoInDarkMode
+import com.lyricsflow.player.ui.theme.isLyricsFlowInDarkMode
 import com.lyricsflow.player.ui.theme.withNight
 import com.lyricsflow.player.ui.widgets.backdrop.backdrops.layerBackdrop
 import com.lyricsflow.player.ui.widgets.backdrop.backdrops.rememberLayerBackdrop
@@ -138,10 +141,62 @@ enum class AppleMusicTabIconType {
 val DefaultAppleMusicTabs = listOf(
     AppleMusicTabItem(0, "Home", AppleMusicTabIconType.HOME),
     AppleMusicTabItem(1, "New", AppleMusicTabIconType.NEW_GRID),
-    AppleMusicTabItem(2, "Radio", AppleMusicTabIconType.RADIO),
+    AppleMusicTabItem(2, "Stats", AppleMusicTabIconType.RADIO),
     AppleMusicTabItem(3, "Library", AppleMusicTabIconType.LIBRARY),
     AppleMusicTabItem(4, "Search", AppleMusicTabIconType.SEARCH)
 )
+
+/**
+ * Scroll connection ported from BitChord (`FloatingTabBarScrollConnection`)
+ * that collapses/shrinks the floating tab bar and miniplayer when scrolling down
+ * and expands them when scrolling up.
+ */
+class FloatingTabBarScrollConnection(
+    initialIsInline: Boolean = false,
+    private val scrollThresholdPx: Float
+) : NestedScrollConnection {
+    var isInline by mutableStateOf(initialIsInline)
+        private set
+
+    private var accumulatedScroll = 0f
+
+    fun expand() {
+        isInline = false
+        accumulatedScroll = 0f
+    }
+
+    fun inline() {
+        isInline = true
+        accumulatedScroll = 0f
+    }
+
+    override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+        val scrollDelta = available.y
+        if ((accumulatedScroll > 0 && scrollDelta < 0) || (accumulatedScroll < 0 && scrollDelta > 0)) {
+            accumulatedScroll = 0f
+        }
+        accumulatedScroll += scrollDelta
+        if (accumulatedScroll <= -scrollThresholdPx && !isInline) {
+            isInline = true
+            accumulatedScroll = 0f
+        } else if (accumulatedScroll >= scrollThresholdPx && isInline) {
+            isInline = false
+            accumulatedScroll = 0f
+        }
+        return Offset.Zero
+    }
+}
+
+@Composable
+fun rememberFloatingTabBarScrollConnection(
+    initialIsInline: Boolean = false,
+    scrollThreshold: Dp = 44.dp
+): FloatingTabBarScrollConnection = with(LocalDensity.current) {
+    val scrollThresholdPx = scrollThreshold.toPx()
+    remember(scrollThresholdPx, initialIsInline) {
+        FloatingTabBarScrollConnection(initialIsInline, scrollThresholdPx)
+    }
+}
 
 /**
  * Floating Tab Bar ported from BitChord (`GlassNavBar.kt`, `FloatingTabBar.kt`, `FloatingBottomBar.kt`, `GlassSelectionPill.kt`).
@@ -155,11 +210,23 @@ fun LyricsFlowFloatingTabBar(
     onTabSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
     hazeState: HazeState? = null,
+    scrollConnection: FloatingTabBarScrollConnection? = null,
     tabs: List<AppleMusicTabItem> = DefaultAppleMusicTabs
 ) {
     val selectedTabIndex = selectedIndex
+    val isInline = scrollConnection?.isInline == true
+    val inlineScale by animateFloatAsState(
+        targetValue = if (isInline) 0.92f else 1f,
+        animationSpec = spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow),
+        label = "tabBarInlineScale"
+    )
+    val inlineAlpha by animateFloatAsState(
+        targetValue = if (isInline) 0.88f else 1f,
+        animationSpec = spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow),
+        label = "tabBarInlineAlpha"
+    )
     val context = LocalContext.current
-    val isDark = isFlamingoInDarkMode()
+    val isDark = isLyricsFlowInDarkMode()
     // Liquid Glass strictly requires Android 13+ (API 33 / TIRAMISU)
     val glassSupported = isGlassSupported() && SettingsLibrary.BarBlurEffect
     val coroutineScope = rememberCoroutineScope()
@@ -194,9 +261,11 @@ fun LyricsFlowFloatingTabBar(
     val padBottomPx = with(density) { contentPadding.calculateBottomPadding().toPx() }
     val rowHeightPx = rowSize.height.toFloat()
     val restSize = Size(tabWidthPx, rowHeightPx)
-    val liftedHeightPx = rowHeightPx + padTopPx + padBottomPx + with(density) { PILL_GROW_HEIGHT.toPx() }
+    val liftedHeightPx = (rowHeightPx * PILL_LIFT_SCALE).coerceAtLeast(
+        rowHeightPx + padTopPx + padBottomPx + with(density) { PILL_GROW_HEIGHT.toPx() }
+    )
     val liftedSize = if (rowHeightPx > 0f) {
-        Size(liftedHeightPx * tabWidthPx / rowHeightPx, liftedHeightPx)
+        Size(tabWidthPx * PILL_LIFT_SCALE, liftedHeightPx)
     } else {
         restSize
     }
@@ -231,6 +300,11 @@ fun LyricsFlowFloatingTabBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = inlineScale
+                scaleY = inlineScale
+                alpha = inlineAlpha
+            }
             .padding(horizontal = BAR_GUTTER)
             .padding(bottom = (navBottomPadding - 2.dp).coerceAtLeast(8.dp))
     ) {
@@ -348,9 +422,10 @@ fun LyricsFlowFloatingTabBar(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     tabs.forEach { tab ->
-                        val isSelected = tab.index == selectedTabIndex
+                        val isHoveredByPill = kotlin.math.abs(pill.position - tab.index) < 0.5f
+                        val isSelected = tab.index == selectedTabIndex || isHoveredByPill
                         val iconScale by animateFloatAsState(
-                            targetValue = if (isSelected) 1.08f else 1f,
+                            targetValue = if (isHoveredByPill && !pill.isFlat) 1.15f else if (isSelected) 1.08f else 1f,
                             animationSpec = spring(
                                 dampingRatio = 0.7f,
                                 stiffness = 350f
@@ -371,6 +446,7 @@ fun LyricsFlowFloatingTabBar(
                                     indication = null
                                 ) {
                                     Vibrator.click(context)
+                                    scrollConnection?.expand()
                                     onTabSelected(tab.index)
                                 }
                                 .padding(vertical = TAB_VERTICAL_PADDING),
@@ -573,8 +649,9 @@ private fun AppleMusicTabIcon(
 @Composable
 fun LyricsFlowFloatingMiniPlayer(
     hazeState: HazeState? = null,
+    scrollConnection: FloatingTabBarScrollConnection? = null,
     onExpandClick: () -> Unit = {},
-    track: YosMediaItem? = MediaController.musicPlaying.value,
+    track: LyricsflowMediaItem? = MediaController.musicPlaying.value,
     defaultTitle: String = com.lyricsflow.player.data.libraries.defaultTitle,
     isPlaying: Boolean = MediaViewModelObject.isPlaying.value,
     onTogglePlay: () -> Unit = {
@@ -593,14 +670,20 @@ fun LyricsFlowFloatingMiniPlayer(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val isDark = isFlamingoInDarkMode()
+    val isDark = isLyricsFlowInDarkMode()
     val glassSupported = isGlassSupported() && SettingsLibrary.BarBlurEffect
     val pillShape = RoundedCornerShape(percent = 50)
+    val isInline = scrollConnection?.isInline == true
+    val inlineScale by animateFloatAsState(
+        targetValue = if (isInline) 0.92f else 1f,
+        animationSpec = spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow),
+        label = "miniPlayerInlineScale"
+    )
 
     val pressSource = remember { MutableInteractionSource() }
     val isPressed by pressSource.collectIsPressedAsState()
     val pressScale by animateFloatAsState(
-        targetValue = if (isPressed) 1.04f else 1f,
+        targetValue = (if (isPressed) 1.04f else 1f) * inlineScale,
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
         label = "accessoryPressScale"
     )

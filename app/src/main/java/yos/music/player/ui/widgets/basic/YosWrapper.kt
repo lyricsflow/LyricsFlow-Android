@@ -5,7 +5,7 @@ import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.key
 
 @Composable
-fun YosWrapper(content: @Composable () -> Unit) =
+fun LyricsflowWrapper(content: @Composable () -> Unit) =
     key(content.hashCode()) {
         content()
     }

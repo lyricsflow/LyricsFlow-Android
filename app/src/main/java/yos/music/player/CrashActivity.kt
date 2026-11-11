@@ -41,9 +41,9 @@ import com.blankj.utilcode.util.DeviceUtils
 import com.google.accompanist.insets.ProvideWindowInsets
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.lyricsflow.player.code.utils.others.subStringX
-import com.lyricsflow.player.ui.theme.YosMusicTheme
-import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
-import com.lyricsflow.player.ui.theme.isFlamingoInDarkMode
+import com.lyricsflow.player.ui.theme.LyricsflowMusicTheme
+import com.lyricsflow.player.ui.theme.LyricsflowRoundedCornerShape
+import com.lyricsflow.player.ui.theme.isLyricsFlowInDarkMode
 import com.lyricsflow.player.ui.theme.withNight
 import com.lyricsflow.player.ui.widgets.basic.Title
 import java.text.DateFormat
@@ -69,7 +69,7 @@ class CrashActivity : ComponentActivity() {
         //enableEdgeToEdge()
         val crashInfo = getCrashInfo(true, intent)
         setContent {
-            YosMusicTheme {
+            LyricsflowMusicTheme {
                 ProvideWindowInsets {
 
                 Surface(
@@ -77,7 +77,7 @@ class CrashActivity : ComponentActivity() {
                     color = Color.White withNight Color.Black,
                     contentColor = Color.Black withNight Color.White
                 ) {
-                        val isNight = isFlamingoInDarkMode()
+                        val isNight = isLyricsFlowInDarkMode()
 
                         rememberSystemUiController().run {
                             setNavigationBarColor(Color.Transparent, darkIcons = !isNight)
@@ -153,7 +153,7 @@ class CrashActivity : ComponentActivity() {
                 verticalArrangement = Arrangement.Bottom,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                val shape = YosRoundedCornerShape(12.dp)
+                val shape = LyricsflowRoundedCornerShape(12.dp)
 
                 Box(
                     modifier = Modifier

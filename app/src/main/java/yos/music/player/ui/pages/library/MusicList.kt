@@ -91,7 +91,7 @@ import com.lyricsflow.player.data.libraries.PlayList
 import com.lyricsflow.player.data.libraries.PlayListLibrary
 import com.lyricsflow.player.data.libraries.PlayListLibrary.addMusic
 import com.lyricsflow.player.data.libraries.PlayListLibrary.playList
-import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.LyricsflowMediaItem
 import com.lyricsflow.player.data.libraries.artistsList
 import com.lyricsflow.player.data.libraries.artistsName
 import com.lyricsflow.player.data.libraries.defaultAlbum
@@ -108,7 +108,7 @@ private val SongContextMenuEstimatedHeight = 278.dp
 
 @Composable
 fun /*LazyItemScope.*/MusicList(
-    music: YosMediaItem,
+    music: LyricsflowMediaItem,
     modifier: Modifier = Modifier,
     titleText: String = music.title ?: defaultTitle,
     subtitleText: String? = music.artistsName ?: defaultArtistsName,
@@ -290,7 +290,7 @@ fun /*LazyItemScope.*/MusicList(
 
 @Composable
 private fun SongContextMenu(
-    music: YosMediaItem,
+    music: LyricsflowMediaItem,
     visible: Boolean,
     anchorPosition: Offset,
     visibleState: MutableState<Boolean>,
@@ -382,7 +382,7 @@ private fun SongContextMenu(
 
 @Composable
 private fun SongContextMenuPopup(
-    music: YosMediaItem,
+    music: LyricsflowMediaItem,
     visible: Boolean,
     anchorPosition: Offset,
     artistNames: List<String>,
@@ -498,7 +498,7 @@ private fun SongContextMenuPopup(
 
 @Composable
 private fun SongContextMenuCard(
-    music: YosMediaItem,
+    music: LyricsflowMediaItem,
     maxHeight: Dp,
     artistNames: List<String>,
     isFavorite: Boolean,
@@ -640,7 +640,7 @@ private fun SongContextMenuCard(
 
 @Composable
 private fun SongContextMenuHeader(
-    music: YosMediaItem,
+    music: LyricsflowMediaItem,
     artistNames: List<String>,
     onArtistClick: (String) -> Unit,
     onAlbumClick: () -> Unit,
@@ -688,7 +688,7 @@ private fun SongContextMenuHeader(
 
 @Composable
 private fun SongContextPlaylistDropDown(
-    music: YosMediaItem,
+    music: LyricsflowMediaItem,
     onAddToPlaylist: (PlayList) -> Unit,
     onCreatePlaylist: (String) -> Unit,
 )
@@ -1131,7 +1131,7 @@ private fun SongContextMenuDivider(color: Color)
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MusicListRow(
-    music: YosMediaItem,
+    music: LyricsflowMediaItem,
     modifier: Modifier = Modifier,
     titleText: String,
     subtitleText: String?,

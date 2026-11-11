@@ -61,12 +61,17 @@ import com.cormor.overscroll.core.rememberOverscrollFlingBehavior
 import com.google.accompanist.insets.navigationBarsHeight
 import com.lyricsflow.player.R
 import com.lyricsflow.player.code.utils.others.Vibrator
-import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.theme.LyricsflowRoundedCornerShape
 import com.lyricsflow.player.ui.theme.withNight
+import com.lyricsflow.player.ui.widgets.backdrop.Backdrop
+import com.lyricsflow.player.ui.widgets.backdrop.backdrops.layerBackdrop
+import com.lyricsflow.player.ui.widgets.backdrop.backdrops.rememberLayerBackdrop
 import com.lyricsflow.player.ui.widgets.basic.SearchTextField
+import com.lyricsflow.player.ui.widgets.glass.LocalAppBackdrop
 import com.lyricsflow.player.ui.widgets.glass.iosPressScale
 import com.lyricsflow.player.ui.widgets.glass.liquidGlass
 import com.lyricsflow.player.ui.widgets.glass.liquidGlassCircle
+import com.lyricsflow.player.ui.widgets.glass.rememberLiquidGlassBackdrop
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -123,6 +128,9 @@ fun MusicDetailPage(
         }
     }
 
+    val pageBackdrop = rememberLiquidGlassBackdrop()
+    val heroArtBackdrop = rememberLayerBackdrop()
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -132,6 +140,7 @@ fun MusicDetailPage(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
+                .layerBackdrop(pageBackdrop)
                 .then(if (searchModeActive) Modifier else Modifier.overScrollVertical()),
             flingBehavior = rememberOverscrollFlingBehavior { listState },
             contentPadding = PaddingValues(bottom = 0.dp),
@@ -146,6 +155,7 @@ fun MusicDetailPage(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
+                                .layerBackdrop(heroArtBackdrop)
                         ) {
                             artwork()
                         }
@@ -181,7 +191,11 @@ fun MusicDetailPage(
                             )
 
                             Spacer(modifier = Modifier.height(28.dp))
-                            actionContent()
+                            androidx.compose.runtime.CompositionLocalProvider(
+                                LocalAppBackdrop provides heroArtBackdrop
+                            ) {
+                                actionContent()
+                            }
                         }
                     }
                 }
@@ -220,34 +234,38 @@ fun MusicDetailPage(
             }
         }
 
-        MusicDetailTopBar(
-            title = title,
-            collapseProgress = collapseProgress,
-            showSortButton = showSortButton,
-            showSearchButton = showSearchButton,
-            searchModeActive = searchModeActive,
-            onBack = if (searchModeActive) {
-                onSearchDismiss
-            } else {
-                onBack
-            },
-            onSort = onSort,
-            onSearchClick = if (searchModeActive) {
-                onSearchDismiss
-            } else {
-                onSearchClick
-            },
-            topBarFirstActionIconRes = topBarFirstActionIconRes,
-            topBarFirstActionContentDescription = topBarFirstActionContentDescription,
-            topBarFirstActionSelected = topBarFirstActionSelected,
-            onTopBarFirstActionClick = onTopBarFirstActionClick,
-            onTopBarFirstActionPositioned = onTopBarFirstActionPositioned,
-            topBarSecondActionIconRes = topBarSecondActionIconRes,
-            topBarSecondActionContentDescription = topBarSecondActionContentDescription,
-            topBarSecondActionSelected = topBarSecondActionSelected,
-            onTopBarSecondActionClick = onTopBarSecondActionClick,
-            onTopBarSecondActionPositioned = onTopBarSecondActionPositioned,
-        )
+        androidx.compose.runtime.CompositionLocalProvider(
+            LocalAppBackdrop provides pageBackdrop
+        ) {
+            MusicDetailTopBar(
+                title = title,
+                collapseProgress = collapseProgress,
+                showSortButton = showSortButton,
+                showSearchButton = showSearchButton,
+                searchModeActive = searchModeActive,
+                onBack = if (searchModeActive) {
+                    onSearchDismiss
+                } else {
+                    onBack
+                },
+                onSort = onSort,
+                onSearchClick = if (searchModeActive) {
+                    onSearchDismiss
+                } else {
+                    onSearchClick
+                },
+                topBarFirstActionIconRes = topBarFirstActionIconRes,
+                topBarFirstActionContentDescription = topBarFirstActionContentDescription,
+                topBarFirstActionSelected = topBarFirstActionSelected,
+                onTopBarFirstActionClick = onTopBarFirstActionClick,
+                onTopBarFirstActionPositioned = onTopBarFirstActionPositioned,
+                topBarSecondActionIconRes = topBarSecondActionIconRes,
+                topBarSecondActionContentDescription = topBarSecondActionContentDescription,
+                topBarSecondActionSelected = topBarSecondActionSelected,
+                onTopBarSecondActionClick = onTopBarSecondActionClick,
+                onTopBarSecondActionPositioned = onTopBarSecondActionPositioned,
+            )
+        }
     }
 }
 
@@ -352,7 +370,7 @@ fun RowScope.MusicDetailPillButton(
             .then(modifier)
             .alpha(if (enabled) 1f else 0.42f)
             .fillMaxSize()
-            .clip(YosRoundedCornerShape(14.dp))
+            .clip(LyricsflowRoundedCornerShape(14.dp))
             .clickable(
                 enabled = enabled,
                 interactionSource = remember { MutableInteractionSource() },

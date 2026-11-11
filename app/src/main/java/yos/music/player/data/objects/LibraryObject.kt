@@ -4,7 +4,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableStateOf
 import com.lyricsflow.player.data.libraries.Folder
-import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.LyricsflowMediaItem
 
 @Stable
 object LibraryObject {
@@ -43,7 +43,7 @@ object LibraryObject {
     }
 
     @Stable
-    private val targetList: MutableState<List<YosMediaItem>> = mutableStateOf(emptyList())
+    private val targetList: MutableState<List<LyricsflowMediaItem>> = mutableStateOf(emptyList())
     @Stable
     private val targetListTitle = mutableStateOf("")
 
@@ -60,12 +60,12 @@ object LibraryObject {
     @Stable
     val targetPlayListId: MutableState<String?> = mutableStateOf(null)
 
-    fun setTargetListWithTitle(title: String, list: List<YosMediaItem>, playListId: String? = null) {
+    fun setTargetListWithTitle(title: String, list: List<LyricsflowMediaItem>, playListId: String? = null) {
         targetListTitle.value = title
         targetList.value = list
         targetPlayListId.value = playListId
     }
-    fun getTargetListWithTitle(): Pair<String, List<YosMediaItem>> {
+    fun getTargetListWithTitle(): Pair<String, List<LyricsflowMediaItem>> {
         return Pair(targetListTitle.value, targetList.value)
     }
 

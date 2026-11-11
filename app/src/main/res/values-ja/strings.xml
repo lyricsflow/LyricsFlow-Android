@@ -44,8 +44,8 @@
     <string name="settings_extend_statusbarlyric">ステータスバーの歌詞</string>
     <string name="settings_extend_statusbarlyric_desc">Lyric Getter API のステータスバー歌詞を使用します。</string>
     <string name="settings_others">その他</string>
-    <string name="settings_others_about">Flamingo について</string>
-    <string name="settings_others_about_desc">Flamingo について。</string>
+    <string name="settings_others_about">LyricsFlow について</string>
+    <string name="settings_others_about_desc">LyricsFlow について。</string>
     <string name="settings_audio_fade_in_out_desc">再生 / 一時停止時に音量をフェードイン / フェードアウトします。</string>
     <string name="tip_no_lyrics">歌詞が準備できていません</string>
     <string name="settings_others_statusbarlyric_basic_switch">全体のスイッチ</string>
@@ -56,8 +56,8 @@
     <string name="settings_others_statusbarlyric_debug_clear_lyric">現在の歌詞をクリア</string>
     <string name="settings_others_statusbarlyric_debug_clear_lyric_desc">現在の歌詞を手動でクリアします。</string>
     <string name="settings_others_statusbarlyric_basic_status">Hook 状態</string>
-    <string name="settings_others_statusbarlyric_basic_status_enabled">Flamingo は Hook 状態です。</string>
-    <string name="settings_others_statusbarlyric_basic_status_disabled">Flamingo は未 Hook 状態です。</string>
+    <string name="settings_others_statusbarlyric_basic_status_enabled">LyricsFlow は Hook 状態です。</string>
+    <string name="settings_others_statusbarlyric_basic_status_disabled">LyricsFlow は未 Hook 状態です。</string>
     <string name="tip_scan_finished">スキャン完了、合計 %d 曲。</string>
     <string name="settings_performance">外観</string>
     <string name="settings_audio_exoplayer_decode_hardware_audio_track_playback_params">ハードウェアレベルの音声速度調整</string>
@@ -71,7 +71,7 @@
     <string name="tip_intent_resolve_failed">該当する操作を実行できるアプリが見つかりませんでした。</string>
     <string name="settings_others_about_info">ソフトウェア情報</string>
     <string name="settings_others_about_developers">開発者</string>
-    <string name="settings_others_about_developers_yos_x">主要な開発者。</string>
+    <string name="settings_others_about_developers_lyricsflow_x">主要な開発者。</string>
     <string name="settings_audio_exoplayer_support_mediacodec">デバイスのメディアデコードサポート</string>
     <string name="settings_audio_exoplayer_sub">一部の設定は、アプリを完全に再起動する必要があります</string>
     <string name="tip_copied">コピー済み</string>

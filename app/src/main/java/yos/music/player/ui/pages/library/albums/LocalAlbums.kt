@@ -37,7 +37,7 @@ import com.lyricsflow.player.ui.widgets.basic.SearchTextField
 import com.lyricsflow.player.ui.widgets.basic.ShadowImage
 import com.lyricsflow.player.ui.widgets.basic.Title
 import com.lyricsflow.player.ui.widgets.basic.TitleWithLazyVerticalGrid
-import com.lyricsflow.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.ui.widgets.basic.LyricsflowWrapper
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -88,20 +88,19 @@ fun LocalAlbums(
             val useSearch = remember { derivedStateOf { searchText.value.isNotEmpty() } }
             val list = remember { mutableStateOf(albumsList) }
 
-            YosWrapper {
-                LaunchedEffect(searchText.value) {
-                    withContext(Dispatchers.IO) {
-                        val filteredList = withContext(Dispatchers.IO) {
-                            if (useSearch.value) {
-                                MusicLibrary.albums.asSequence().filter { album ->
-                                    album.contains(searchText.value, ignoreCase = true)
-                                }.toList()
-                            } else {
-                                albumsList
-                            }
+            LyricsflowWrapper {
+                LaunchedEffect(searchText.value, albumsList) {
+                    val query = searchText.value
+                    val filteredList = withContext(Dispatchers.IO) {
+                        if (query.isNotEmpty()) {
+                            MusicLibrary.albums.asSequence().filter { album ->
+                                album.contains(query, ignoreCase = true)
+                            }.toList()
+                        } else {
+                            albumsList
                         }
-                        list.value = filteredList
                     }
+                    list.value = filteredList
                 }
             }
 
@@ -133,7 +132,7 @@ fun LocalAlbums(
             ) {
                 itemsIndexed(
                     list.value,
-                    key = { _, album -> album }/*,
+                    key = { idx, album -> "${album}_$idx" }/*,
                     contentType = { _, _ -> "LocalAlbums_item" }*/
                 ) { _, album ->
                     AlbumItems(
@@ -161,7 +160,6 @@ private fun LazyGridItemScope.AlbumItems(
     val songs = MusicLibrary.Album[albumName]
     Column(
         Modifier
-            .animateItem(fadeInSpec = null, fadeOutSpec = null)
             .fillMaxWidth()
             .clickable(
                 indication = null,

@@ -1,7 +1,7 @@
 package com.lyricsflow.player.ui.pages.library.playlists
 
 import androidx.compose.runtime.Stable
-import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.LyricsflowMediaItem
 import com.lyricsflow.player.data.libraries.artistsName
 import kotlin.math.max
 import kotlin.math.min
@@ -10,7 +10,7 @@ import kotlin.math.min
  * Fuzzy search for the in-playlist search bar (PRD §5.1).
  *
  * **Scope (FR-S-05):** every human-readable text metadata field
- * present on [YosMediaItem] is matched against the query — title,
+ * present on [LyricsflowMediaItem] is matched against the query — title,
  * artists, album, album artist, genre, composer, writer, author,
  * year. Non-text metadata (bitrate, sample rate, IDs, dates) is
  * intentionally excluded.
@@ -38,7 +38,7 @@ import kotlin.math.min
 @Stable
 object PlayListSearch {
 
-    fun matchAndRank(items: List<YosMediaItem>, query: String): List<YosMediaItem> {
+    fun matchAndRank(items: List<LyricsflowMediaItem>, query: String): List<LyricsflowMediaItem> {
         val q = query.trim().lowercase()
         if (q.isEmpty()) return items
         val threshold = fuzzyThreshold(q.length)
@@ -63,7 +63,7 @@ object PlayListSearch {
     /**
      * Lower is better. Null means "no match within the threshold".
      */
-    private fun score(item: YosMediaItem, q: String, threshold: Int): Int? {
+    private fun score(item: LyricsflowMediaItem, q: String, threshold: Int): Int? {
         val title = item.title?.lowercase()
         val artists = item.artistsName?.lowercase()
         val album = item.album?.lowercase()

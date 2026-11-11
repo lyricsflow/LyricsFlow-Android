@@ -63,12 +63,12 @@ import com.lyricsflow.player.data.libraries.PlayList
 import com.lyricsflow.player.data.libraries.PlayListLibrary
 import com.lyricsflow.player.data.libraries.PlayListLibrary.addMusic
 import com.lyricsflow.player.data.libraries.PlayListLibrary.playList
-import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.LyricsflowMediaItem
 import com.lyricsflow.player.ui.theme.withNight
 import com.lyricsflow.player.ui.widgets.basic.SheetAnimatedContent
 import com.lyricsflow.player.ui.widgets.basic.SheetNavigationBackward
 import com.lyricsflow.player.ui.widgets.basic.SheetNavigationForward
-import com.lyricsflow.player.ui.widgets.basic.YosBottomSheetDialog
+import com.lyricsflow.player.ui.widgets.basic.LyricsflowBottomSheetDialog
 
 /**
  * Reusable bottom sheet for picking an existing playlist to add a song to,
@@ -95,7 +95,7 @@ import com.lyricsflow.player.ui.widgets.basic.YosBottomSheetDialog
 @Composable
 fun PlayListPickerSheet(
     isOpen: MutableState<Boolean>,
-    songToAdd: YosMediaItem?,
+    songToAdd: LyricsflowMediaItem?,
     onCreated: ((PlayList) -> Unit)? = null,
     centered: Boolean = false,
 ) {
@@ -128,7 +128,7 @@ fun PlayListPickerSheet(
         return
     }
 
-    YosBottomSheetDialog(onDismissRequest = { isOpen.value = false }) {
+    LyricsflowBottomSheetDialog(onDismissRequest = { isOpen.value = false }) {
         PlayListPickerContent(
             songToAdd = songToAdd,
             onDone = { isOpen.value = false },
@@ -139,7 +139,7 @@ fun PlayListPickerSheet(
 
 /**
  * Bare picker content — the body of [PlayListPickerSheet] without its
- * surrounding [YosBottomSheetDialog]. Use this when you want to render the
+ * surrounding [LyricsflowBottomSheetDialog]. Use this when you want to render the
  * picker INSIDE another bottom sheet (e.g. the NowPlaying overflow menu
  * swaps its content to this composable when the user picks "Add to a
  * Playlist", so the sub-screen appears without a close + reopen animation).
@@ -162,7 +162,7 @@ fun PlayListPickerSheet(
  */
 @Composable
 fun PlayListPickerContent(
-    songToAdd: YosMediaItem?,
+    songToAdd: LyricsflowMediaItem?,
     onDone: () -> Unit,
     onBack: (() -> Unit)? = null,
     onCreated: ((PlayList) -> Unit)? = null,
@@ -401,7 +401,7 @@ private fun CreatePlaylistBody(
     }
 
     // Text field — borrows the styling used by SearchTextField in
-    // widgets/basic/YosTextField.kt for visual consistency.
+    // widgets/basic/LyricsflowTextField.kt for visual consistency.
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -545,7 +545,7 @@ private fun CreateNewRow(onClick: () -> Unit) {
 
 @Composable
 private fun ExistingPlayListList(
-    songToAdd: YosMediaItem?,
+    songToAdd: LyricsflowMediaItem?,
     excludeId: String?,
     onAdd: (PlayList) -> Unit,
 ) {

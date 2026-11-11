@@ -76,9 +76,10 @@ import com.lyricsflow.player.code.MediaController
 import com.lyricsflow.player.code.utils.lrc.LyricsFlowApi
 import com.lyricsflow.player.code.utils.lrc.LyricsFlowCatalogItem
 import com.lyricsflow.player.code.utils.lrc.LyricsFlowCatalogSearchResponse
-import com.lyricsflow.player.code.utils.lrc.YosParsedLyricData
+import com.lyricsflow.player.code.utils.lrc.LyricsflowParsedLyricData
 import com.lyricsflow.player.code.utils.others.Vibrator
 import com.lyricsflow.player.data.libraries.MusicLibrary
+import com.lyricsflow.player.data.libraries.SettingsLibrary
 import com.lyricsflow.player.data.libraries.artistsName
 import com.lyricsflow.player.data.libraries.defaultAlbum
 import com.lyricsflow.player.data.libraries.defaultArtistsName
@@ -91,9 +92,14 @@ import com.lyricsflow.player.ui.toUI
 import com.lyricsflow.player.ui.widgets.basic.ImageQuality
 import com.lyricsflow.player.ui.widgets.basic.ProfileButton
 import com.lyricsflow.player.ui.widgets.basic.ShadowImageWithCache
+import com.lyricsflow.player.ui.widgets.glass.LocalFloatingTabBarScrollConnection
+import com.lyricsflow.player.ui.widgets.glass.liquidGlassCapsule
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private data class BrowseCategoryItem(
     val title: String,
@@ -196,15 +202,20 @@ fun Search(navController: NavController) {
 
     var query by rememberSaveable { mutableStateOf("") }
     var selectedFilter by rememberSaveable { mutableStateOf(SearchFilterTab.ALL) }
-    val recentSearches = remember {
-        mutableStateListOf("SZA", "The Weeknd", "Billie Eilish", "Daft Punk", "Kendrick Lamar", "Travis Scott")
-    }
+    val recentSearches = SettingsLibrary.SearchHistory
 
+    var searchRecommendations by remember { mutableStateOf<List<LyricsFlowApi.CatalogTrackResult>>(emptyList()) }
     var isSearchingOnline by remember { mutableStateOf(false) }
     var catalogResponse by remember { mutableStateOf(LyricsFlowCatalogSearchResponse()) }
     var previewTrack by remember { mutableStateOf<LyricsFlowApi.CatalogTrackResult?>(null) }
-    var previewLyrics by remember { mutableStateOf<YosParsedLyricData?>(null) }
+    var previewLyrics by remember { mutableStateOf<LyricsflowParsedLyricData?>(null) }
     var isLoadingPreviewLyrics by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            searchRecommendations = LyricsFlowApi.fetchTrendingTracks(limit = 8)
+        }
+    }
 
     val allLocalSongs = remember(MusicLibrary.songs.size) { MusicLibrary.songs }
     val allLocalArtists = remember(allLocalSongs.size) { MusicLibrary.artists }
@@ -269,6 +280,9 @@ fun Search(navController: NavController) {
 
     fun handleCatalogItemClick(item: LyricsFlowCatalogItem) {
         Vibrator.click(context)
+        if (query.trim().isNotEmpty()) {
+            SettingsLibrary.addSearchHistoryQuery(query.trim())
+        }
         when (item.type) {
             "artists" -> {
                 LibraryObject.openOnlineArtist(
@@ -320,307 +334,264 @@ fun Search(navController: NavController) {
         }
     }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding(),
-        contentPadding = PaddingValues(bottom = 175.dp)
-    ) {
-        // Apple Music Search Header
-        item(key = "search_header") {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 20.dp, end = 20.dp, top = 26.dp, bottom = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Search",
-                    fontFamily = SFProDisplay,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 34.sp,
-                    lineHeight = 38.sp,
-                    color = textColor
-                )
-                ProfileButton { navController.toUI(UI.Settings.Main) }
-            }
-        }
+    val scrollConnection = LocalFloatingTabBarScrollConnection.current
 
-        // Apple Music Search Input Bar
-        item(key = "search_input_bar") {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 6.dp)
-                    .height(44.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(searchBarBg)
-                    .padding(horizontal = 12.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .let { mod -> if (scrollConnection != null) mod.nestedScroll(scrollConnection) else mod },
+            contentPadding = PaddingValues(bottom = 240.dp)
+        ) {
+            // Apple Music Search Header
+            item(key = "search_header") {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Search,
-                        contentDescription = "Search",
-                        tint = secondaryTextColor,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(modifier = Modifier.weight(1f)) {
-                        if (query.isEmpty()) {
-                            Text(
-                                text = "Artists, Songs, Albums, Lyrics, and More",
-                                fontFamily = SFProDisplay,
-                                fontSize = 16.sp,
-                                color = secondaryTextColor
-                            )
-                        }
-                        BasicTextField(
-                            value = query,
-                            onValueChange = { query = it },
-                            singleLine = true,
-                            textStyle = TextStyle(
-                                fontFamily = SFProDisplay,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Normal,
-                                color = textColor
-                            ),
-                            cursorBrush = SolidColor(appleAccent),
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                            keyboardActions = KeyboardActions(
-                                onSearch = {
-                                    val trimmed = query.trim()
-                                    if (trimmed.isNotEmpty() && !recentSearches.contains(trimmed)) {
-                                        recentSearches.add(0, trimmed)
-                                    }
-                                    focusManager.clearFocus()
-                                }
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                    AnimatedVisibility(
-                        visible = query.isNotEmpty(),
-                        enter = fadeIn(),
-                        exit = fadeOut()
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(22.dp)
-                                .clip(CircleShape)
-                                .background(secondaryTextColor.copy(alpha = 0.25f))
-                                .clickable {
-                                    query = ""
-                                    focusManager.clearFocus()
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Clear,
-                                contentDescription = "Clear",
-                                tint = textColor,
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        if (query.trim().isEmpty()) {
-            // Quick Studio Banner (Upload Audio + .TTML & TTML Downloader)
-            item(key = "search_studio_banner") {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = searchBarBg,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp)
-                        .clickable {
-                            Vibrator.click(context)
-                            navController.toUI(UI.LocalUploadTools)
-                        }
+                        .padding(start = 20.dp, end = 20.dp, top = 26.dp, bottom = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                            Box(
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(appleAccent.copy(alpha = 0.16f)),
-                                contentAlignment = Alignment.Center
+                    Text(
+                        text = "Search",
+                        fontFamily = SFProDisplay,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 34.sp,
+                        lineHeight = 38.sp,
+                        color = textColor
+                    )
+                    ProfileButton { navController.toUI(UI.Settings.Main) }
+                }
+            }
+
+            if (query.trim().isEmpty()) {
+                // Real Persistent Recently Searched History (Max 5 items, empty by default)
+                if (recentSearches.isNotEmpty()) {
+                    item(key = "recent_searches_section") {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Rounded.UploadFile, null, tint = appleAccent, modifier = Modifier.size(20.dp))
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
                                 Text(
-                                    text = "LyricsFlow Studio & TTML Downloader",
+                                    text = "Recently Searched",
                                     fontFamily = SFProDisplay,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp,
+                                    fontSize = 20.sp,
                                     color = textColor
                                 )
                                 Text(
-                                    text = "Pair local audio with .ttml or download Apple Music TTML",
+                                    text = "Clear",
                                     fontFamily = SFProDisplay,
-                                    fontSize = 12.sp,
-                                    color = secondaryTextColor
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 15.sp,
+                                    color = appleAccent,
+                                    modifier = Modifier.clickable {
+                                        Vibrator.click(context)
+                                        SettingsLibrary.clearSearchHistory()
+                                    }
                                 )
                             }
+                            Spacer(modifier = Modifier.height(10.dp))
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                recentSearches.forEach { term ->
+                                    Surface(
+                                        shape = RoundedCornerShape(50),
+                                        color = searchBarBg,
+                                        modifier = Modifier.clickable {
+                                            Vibrator.click(context)
+                                            query = term
+                                        }
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(start = 14.dp, end = 10.dp, top = 8.dp, bottom = 8.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Search,
+                                                contentDescription = null,
+                                                tint = appleAccent,
+                                                modifier = Modifier.size(15.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = term,
+                                                fontFamily = SFProDisplay,
+                                                fontWeight = FontWeight.Medium,
+                                                fontSize = 14.sp,
+                                                color = textColor
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Icon(
+                                                imageVector = Icons.Rounded.Clear,
+                                                contentDescription = "Remove",
+                                                tint = secondaryTextColor,
+                                                modifier = Modifier
+                                                    .size(14.dp)
+                                                    .clickable {
+                                                        Vibrator.click(context)
+                                                        SettingsLibrary.removeSearchHistoryQuery(term)
+                                                    }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                            contentDescription = null,
-                            tint = secondaryTextColor
-                        )
                     }
                 }
-            }
 
-            // Recently Searched Chips
-            if (recentSearches.isNotEmpty()) {
-                item(key = "recent_searches_section") {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                // Real Online Search Recommendations / Trending Suggestions
+                if (searchRecommendations.isNotEmpty()) {
+                    item(key = "search_trending_recommendations") {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 10.dp)
                         ) {
                             Text(
-                                text = "Recently Searched",
+                                text = "Trending Searches",
                                 fontFamily = SFProDisplay,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 20.sp,
-                                color = textColor
+                                color = textColor,
+                                modifier = Modifier.padding(bottom = 8.dp)
                             )
-                            Text(
-                                text = "Clear",
-                                fontFamily = SFProDisplay,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 15.sp,
-                                color = appleAccent,
-                                modifier = Modifier.clickable { recentSearches.clear() }
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(10.dp))
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            recentSearches.forEach { term ->
-                                Surface(
-                                    shape = RoundedCornerShape(50),
-                                    color = searchBarBg,
-                                    modifier = Modifier.clickable {
-                                        Vibrator.click(context)
-                                        query = term
-                                    }
+                            searchRecommendations.take(5).forEach { sugTrack ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            Vibrator.click(context)
+                                            SettingsLibrary.addSearchHistoryQuery(sugTrack.title)
+                                            scope.launch(Dispatchers.IO) {
+                                                MediaController.playOnlineTrack(
+                                                    track = sugTrack,
+                                                    contextTracks = searchRecommendations,
+                                                    shuffleModeEnabled = false,
+                                                    appendSimilar = true
+                                                )
+                                            }
+                                        }
+                                        .padding(vertical = 7.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                                    AsyncImage(
+                                        model = sugTrack.artworkUrl,
+                                        contentDescription = sugTrack.title,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .size(44.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(searchBarBg)
+                                    )
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(horizontal = 12.dp)
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Search,
-                                            contentDescription = null,
-                                            tint = appleAccent,
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
                                         Text(
-                                            text = term,
+                                            text = sugTrack.title,
                                             fontFamily = SFProDisplay,
-                                            fontWeight = FontWeight.Medium,
-                                            fontSize = 14.sp,
-                                            color = textColor
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 15.sp,
+                                            color = textColor,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = "Song · ${sugTrack.artist}",
+                                            fontFamily = SFProDisplay,
+                                            fontSize = 12.5.sp,
+                                            color = secondaryTextColor,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                     }
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                                        contentDescription = null,
+                                        tint = secondaryTextColor
+                                    )
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            // Browse Categories 2-Column Apple Music Gradient Grid
-            item(key = "browse_categories_title") {
-                Text(
-                    text = "Browse Categories",
-                    fontFamily = SFProDisplay,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
-                    color = textColor,
-                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 10.dp)
-                )
-            }
+                // Browse Categories 2-Column Apple Music Gradient Grid
+                item(key = "browse_categories_title") {
+                    Text(
+                        text = "Browse Categories",
+                        fontFamily = SFProDisplay,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        color = textColor,
+                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 10.dp)
+                    )
+                }
 
-            val chunkedCategories = AppleMusicBrowseCategories.chunked(2)
-            items(chunkedCategories, key = { it.first().title }) { rowCategories ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    rowCategories.forEach { cat ->
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(104.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(Brush.linearGradient(cat.colors))
-                                .clickable {
-                                    Vibrator.click(context)
-                                    if (!recentSearches.contains(cat.title)) {
-                                        recentSearches.add(0, cat.title)
+                val chunkedCategories = AppleMusicBrowseCategories.chunked(2)
+                items(chunkedCategories, key = { it.first().title }) { rowCategories ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        rowCategories.forEach { cat ->
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(104.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(Brush.linearGradient(cat.colors))
+                                    .clickable {
+                                        Vibrator.click(context)
+                                        SettingsLibrary.addSearchHistoryQuery(cat.title)
+                                        query = cat.query
                                     }
-                                    query = cat.query
-                                }
-                                .padding(14.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier.align(Alignment.BottomStart)
+                                    .padding(14.dp)
                             ) {
-                                Text(
-                                    text = cat.title,
-                                    fontFamily = SFProDisplay,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 17.sp,
-                                    color = Color.White,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = cat.subtitle,
-                                    fontFamily = SFProDisplay,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 12.sp,
-                                    color = Color.White.copy(alpha = 0.8f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                Column(
+                                    modifier = Modifier.align(Alignment.BottomStart)
+                                ) {
+                                    Text(
+                                        text = cat.title,
+                                        fontFamily = SFProDisplay,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 17.sp,
+                                        color = Color.White,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = cat.subtitle,
+                                        fontFamily = SFProDisplay,
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 12.sp,
+                                        color = Color.White.copy(alpha = 0.8f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
                         }
-                    }
-                    if (rowCategories.size == 1) {
-                        Spacer(modifier = Modifier.weight(1f))
+                        if (rowCategories.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
                     }
                 }
-            }
-        } else {
+            } else {
             // Active Search Filter Pills
             item(key = "search_filter_pills") {
                 Row(
@@ -1020,7 +991,7 @@ fun Search(navController: NavController) {
                                 previewLyrics = null
                                 isLoadingPreviewLyrics = true
                                 scope.launch(Dispatchers.IO) {
-                                    val dummyItem = with(LyricsFlowApi) { item.toYosMediaItem() }
+                                    val dummyItem = with(LyricsFlowApi) { item.toLyricsflowMediaItem() }
                                     val fetchedLyrics = LyricsFlowApi.fetchAndParseLyrics(
                                         context = context,
                                         music = dummyItem,
@@ -1281,6 +1252,90 @@ fun Search(navController: NavController) {
                             contentDescription = "Play",
                             tint = appleAccent,
                             modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+        }
+        }
+
+        // Bottom Floating Liquid Glass Search Bar (iOS 27 style above the tab bar / miniplayer)
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(start = 18.dp, end = 18.dp, bottom = 150.dp)
+                .height(48.dp)
+                .liquidGlassCapsule()
+                .padding(horizontal = 16.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Search,
+                    contentDescription = "Search",
+                    tint = secondaryTextColor,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Box(modifier = Modifier.weight(1f)) {
+                    if (query.isEmpty()) {
+                        Text(
+                            text = "Artists, Songs, Lyrics and more",
+                            fontFamily = SFProDisplay,
+                            fontSize = 15.5.sp,
+                            color = secondaryTextColor
+                        )
+                    }
+                    BasicTextField(
+                        value = query,
+                        onValueChange = { query = it },
+                        singleLine = true,
+                        textStyle = TextStyle(
+                            fontFamily = SFProDisplay,
+                            fontSize = 15.5.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = textColor
+                        ),
+                        cursorBrush = SolidColor(appleAccent),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(
+                            onSearch = {
+                                val trimmed = query.trim()
+                                if (trimmed.isNotEmpty()) {
+                                    SettingsLibrary.addSearchHistoryQuery(trimmed)
+                                }
+                                focusManager.clearFocus()
+                            }
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                AnimatedVisibility(
+                    visible = query.isNotEmpty(),
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(22.dp)
+                            .clip(CircleShape)
+                            .background(secondaryTextColor.copy(alpha = 0.25f))
+                            .clickable {
+                                query = ""
+                                focusManager.clearFocus()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Clear,
+                            contentDescription = "Clear",
+                            tint = textColor,
+                            modifier = Modifier.size(14.dp)
                         )
                     }
                 }

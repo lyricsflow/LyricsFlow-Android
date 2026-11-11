@@ -40,7 +40,7 @@ import kotlinx.coroutines.launch
 import com.lyricsflow.player.R
 import com.lyricsflow.player.code.utils.others.Vibrator
 import com.lyricsflow.player.data.libraries.PlayListLibrary
-import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.ui.theme.LyricsflowRoundedCornerShape
 import com.lyricsflow.player.ui.theme.withNight
 
 /**
@@ -143,7 +143,7 @@ private fun UndoSnackbarSurface(
             }
             .background(
                 color = surfaceColor,
-                shape = YosRoundedCornerShape(14.dp),
+                shape = LyricsflowRoundedCornerShape(14.dp),
             )
             .padding(start = 18.dp, end = 12.dp, top = 14.dp, bottom = 14.dp),
         verticalAlignment = Alignment.CenterVertically,

@@ -63,7 +63,7 @@ import com.lyricsflow.player.ui.theme.withNight
 import com.lyricsflow.player.ui.toUI
 import com.lyricsflow.player.ui.widgets.basic.ProfileButton
 import com.lyricsflow.player.ui.widgets.basic.Title
-import com.lyricsflow.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.ui.widgets.basic.LyricsflowWrapper
 import com.lyricsflow.player.ui.widgets.glass.LiquidGlassCircleButton
 import com.lyricsflow.player.ui.widgets.glass.iosPressScale
 import kotlinx.coroutines.Dispatchers
@@ -524,7 +524,7 @@ fun Library(navController: NavController) {
                     }
                     LibraryDivider()
 
-                    YosWrapper {
+                    LyricsflowWrapper {
                         val targetTitle = stringResource(id = R.string.page_library_songs)
                         val targetList = songs
                         SmallLabelItem(
@@ -619,9 +619,63 @@ fun Library(navController: NavController) {
                                     }
                                 }
                             }
-                            if (pair.size == 1) {
+                    if (pair.size == 1) {
                                 Spacer(modifier = Modifier.weight(1f))
                             }
+                        }
+                    }
+                }
+            }
+
+            // 4. Dedicated LyricsFlow Studio & TTML Creator Section (at the bottom of Library)
+            item("library_studio_ttml_section") {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 16.dp)
+                ) {
+                    Text(
+                        text = "LyricsFlow Studio",
+                        fontFamily = SFProDisplay,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 22.sp,
+                        color = textColor,
+                        modifier = Modifier.padding(bottom = 10.dp)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(placeholderBg)
+                            .iosPressScale(pressedScale = 0.97f) {
+                                Vibrator.click(context)
+                                navController.toUI(UI.LocalUploadTools)
+                            }
+                            .padding(horizontal = 18.dp, vertical = 16.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "LYRICSFLOW STUDIO & TTML CREATOR",
+                                fontFamily = SFProDisplay,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                letterSpacing = 0.8.sp,
+                                color = Color(0xFFFA233B)
+                            )
+                            Text(
+                                text = "Pair Local Audio + .TTML & Download Apple Music TTML",
+                                fontFamily = SFProDisplay,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.5.sp,
+                                color = textColor
+                            )
+                            Text(
+                                text = "Import custom audio files (.flac, .m4a, .mp3) with word-by-word .ttml lyrics or fetch raw TTML XML from Apple Music.",
+                                fontFamily = SFProDisplay,
+                                fontSize = 13.sp,
+                                lineHeight = 18.sp,
+                                color = secondaryColor
+                            )
                         }
                     }
                 }

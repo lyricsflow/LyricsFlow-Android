@@ -28,13 +28,13 @@ android {
             }
         }
         release {
-            def releaseStoreFile = localProperties.getProperty("flamingo.release.storeFile")
+            def releaseStoreFile = localProperties.getProperty("lyricsflow.release.storeFile")
 
             if (releaseStoreFile != null) {
                 storeFile rootProject.file(releaseStoreFile)
-                storePassword localProperties.getProperty("flamingo.release.storePassword")
-                keyAlias localProperties.getProperty("flamingo.release.keyAlias")
-                keyPassword localProperties.getProperty("flamingo.release.keyPassword")
+                storePassword localProperties.getProperty("lyricsflow.release.storePassword")
+                keyAlias localProperties.getProperty("lyricsflow.release.keyAlias")
+                keyPassword localProperties.getProperty("lyricsflow.release.keyPassword")
             }
         }
     }
@@ -69,7 +69,7 @@ android {
             applicationVariants.all { variant ->
                 if (variant.buildType.name == 'release') {
                     variant.outputs.all {
-                        def appName = "Flamingo"
+                        def appName = "LyricsFlow"
                         def versionName = variant.versionName
                         def date = new Date().format('yyMMddHHmm')
                         outputFileName = "${appName}_${versionName}_${date}.ApK"

@@ -64,7 +64,7 @@ import com.lyricsflow.player.data.libraries.PlayList
 import com.lyricsflow.player.data.libraries.PlayListLibrary
 import com.lyricsflow.player.data.libraries.PlayListLibrary.addMusic
 import com.lyricsflow.player.data.libraries.PlayListLibrary.playList
-import com.lyricsflow.player.data.libraries.YosMediaItem
+import com.lyricsflow.player.data.libraries.LyricsflowMediaItem
 import com.lyricsflow.player.data.libraries.artistsList
 import com.lyricsflow.player.data.libraries.artistsName
 import com.lyricsflow.player.data.libraries.defaultArtists
@@ -90,7 +90,7 @@ import com.lyricsflow.player.ui.toUI
 import com.lyricsflow.player.ui.widgets.basic.ActionItem
 import com.lyricsflow.player.ui.widgets.basic.ActionSheetBody
 import com.lyricsflow.player.ui.widgets.basic.Title
-import com.lyricsflow.player.ui.widgets.basic.YosBottomSheetDialog
+import com.lyricsflow.player.ui.widgets.basic.LyricsflowBottomSheetDialog
 
 private enum class AlbumSortOption {
     TrackNumber,
@@ -237,13 +237,17 @@ fun AlbumInfo(
             delay(150)
         }
 
-        withContext(Dispatchers.Default) {
-            displayedSongs.value = if (searchText.value.isBlank()) {
-                albumSongs.sortForAlbum(sortOption.value, descending.value)
+        val query = searchText.value
+        val currentSort = sortOption.value
+        val isDesc = descending.value
+        val result = withContext(Dispatchers.Default) {
+            if (query.isBlank()) {
+                albumSongs.sortForAlbum(currentSort, isDesc)
             } else {
-                PlayListSearch.matchAndRank(albumSongs, searchText.value)
+                PlayListSearch.matchAndRank(albumSongs, query)
             }
         }
+        displayedSongs.value = result
     }
 
     AlbumSortSheet(
@@ -560,7 +564,7 @@ fun AlbumInfo(
 }
 
 @Composable
-private fun AlbumHeroArtwork(songs: List<YosMediaItem>) {
+private fun AlbumHeroArtwork(songs: List<LyricsflowMediaItem>) {
     val context = LocalContext.current
     val heroArtwork = songs.firstOrNull()?.thumb
 
@@ -598,7 +602,7 @@ private fun AlbumSortSheet(
 
     val accent = MaterialTheme.colorScheme.primary
 
-    YosBottomSheetDialog(
+    LyricsflowBottomSheetDialog(
         blurred = true,
         onDismissRequest = { isOpen.value = false },
     ) {
@@ -665,11 +669,11 @@ private fun AlbumSortSheet(
 private fun AlbumAddToPlaylistSheet(
     isOpen: MutableState<Boolean>,
     albumName: String,
-    songs: List<YosMediaItem>,
+    songs: List<LyricsflowMediaItem>,
 ) {
     if (!isOpen.value) return
 
-    YosBottomSheetDialog(
+    LyricsflowBottomSheetDialog(
         blurred = true,
         onDismissRequest = { isOpen.value = false },
     ) {
@@ -684,7 +688,7 @@ private fun AlbumAddToPlaylistSheet(
 @Composable
 private fun AlbumAddToPlaylistContent(
     albumName: String,
-    songs: List<YosMediaItem>,
+    songs: List<LyricsflowMediaItem>,
     showHeader: Boolean = true,
     onDone: () -> Unit,
     onBack: (() -> Unit)? = null,
@@ -728,14 +732,14 @@ private fun AlbumAddToPlaylistContent(
     )
 }
 
-private fun List<YosMediaItem>.sortForAlbum(
+private fun List<LyricsflowMediaItem>.sortForAlbum(
     sortOption: AlbumSortOption,
     descending: Boolean,
-): List<YosMediaItem> {
+): List<LyricsflowMediaItem> {
     val sorted = when (sortOption) {
         AlbumSortOption.TrackNumber -> {
             sortedWith(
-                compareBy<YosMediaItem> { it.trackNumber ?: Int.MAX_VALUE }
+                compareBy<LyricsflowMediaItem> { it.trackNumber ?: Int.MAX_VALUE }
                     .thenBy { it.title ?: defaultTitle },
             )
         }
@@ -754,7 +758,7 @@ private fun List<YosMediaItem>.sortForAlbum(
     }
 }
 
-private fun uriStubMedia(uri: Uri) = YosMediaItem(
+private fun uriStubMedia(uri: Uri) = LyricsflowMediaItem(
     uri = uri,
     mediaId = null,
     mimeType = null,

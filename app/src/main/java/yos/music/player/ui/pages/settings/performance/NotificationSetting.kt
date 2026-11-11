@@ -9,7 +9,7 @@ import androidx.navigation.NavController
 import com.lyricsflow.player.R
 import com.lyricsflow.player.code.MediaController
 import com.lyricsflow.player.code.MediaController.mediaControl
-import com.lyricsflow.player.code.YosPlaybackService
+import com.lyricsflow.player.code.LyricsflowPlaybackService
 import com.lyricsflow.player.data.libraries.SettingsLibrary
 import com.lyricsflow.player.ui.pages.settings.GroupSpacer
 import com.lyricsflow.player.ui.pages.settings.ListHeader
@@ -38,7 +38,7 @@ fun NotificationSetting(navController: NavController) =
                                     SettingsLibrary.NotificationEnableIcon =
                                         !SettingsLibrary.NotificationEnableIcon
                                     MediaController.mediaControl?.let {
-                                        YosPlaybackService().setCustomButtons(
+                                        LyricsflowPlaybackService().setCustomButtons(
                                             it
                                         )
                                     }
@@ -58,7 +58,7 @@ fun NotificationSetting(navController: NavController) =
                                 onClick = {
                                     SettingsLibrary.NotificationSmallerIcon =
                                         !SettingsLibrary.NotificationSmallerIcon
-                                    mediaControl?.let { YosPlaybackService().setCustomButtons(it) }
+                                    mediaControl?.let { LyricsflowPlaybackService().setCustomButtons(it) }
                                 },
                                 checkedLambda = { SettingsLibrary.NotificationSmallerIcon }
                             )

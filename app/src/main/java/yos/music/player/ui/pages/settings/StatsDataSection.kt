@@ -30,7 +30,7 @@ import kotlinx.coroutines.withContext
 import com.lyricsflow.player.R
 import com.lyricsflow.player.code.ListenStatsManager
 import com.lyricsflow.player.ui.widgets.basic.RoundColumn
-import com.lyricsflow.player.ui.widgets.basic.YosBottomSheetDialog
+import com.lyricsflow.player.ui.widgets.basic.LyricsflowBottomSheetDialog
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -77,7 +77,7 @@ fun StatsDataSection()
             superLink = true
         ) {
             val fileTimestamp = SimpleDateFormat("yyyyMMdd_HHmm", Locale.US).format(Date())
-            exportLauncher.launch("flamingo_stats_$fileTimestamp.json")
+            exportLauncher.launch("lyricsflow_stats_$fileTimestamp.json")
         }
         Divider()
         LabelItem(
@@ -112,7 +112,7 @@ private fun StatsClearConfirmDialog(showDialog: MutableState<Boolean>)
 {
     val context = LocalContext.current
 
-    YosBottomSheetDialog(onDismissRequest = { showDialog.value = false }) {
+    LyricsflowBottomSheetDialog(onDismissRequest = { showDialog.value = false }) {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -190,7 +190,7 @@ private fun StatsImportModeDialog(pendingImportUri: MutableState<Uri?>)
         }
     }
 
-    YosBottomSheetDialog(onDismissRequest = { pendingImportUri.value = null }) {
+    LyricsflowBottomSheetDialog(onDismissRequest = { pendingImportUri.value = null }) {
         Column(
             Modifier
                 .fillMaxWidth()

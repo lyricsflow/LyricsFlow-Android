@@ -82,6 +82,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -158,9 +159,9 @@ import com.lyricsflow.player.ui.pages.settings.performance.userinterface.Animate
 import com.lyricsflow.player.ui.pages.settings.performance.userinterface.AnimatedAlbumCoversSetting
 import com.lyricsflow.player.ui.pages.settings.performance.userinterface.ScreenCornerSetDialog
 import com.lyricsflow.player.ui.pages.settings.performance.userinterface.UserInterfaceSetting
-import com.lyricsflow.player.ui.theme.YosMusicTheme
-import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
-import com.lyricsflow.player.ui.theme.isFlamingoInDarkMode
+import com.lyricsflow.player.ui.theme.LyricsflowMusicTheme
+import com.lyricsflow.player.ui.theme.LyricsflowRoundedCornerShape
+import com.lyricsflow.player.ui.theme.isLyricsFlowInDarkMode
 import com.lyricsflow.player.ui.theme.withNight
 import androidx.compose.runtime.CompositionLocalProvider
 import com.lyricsflow.player.ui.widgets.backdrop.backdrops.layerBackdrop
@@ -168,10 +169,12 @@ import com.lyricsflow.player.ui.widgets.basic.BottomNavigator
 import com.lyricsflow.player.ui.widgets.basic.ImageQuality
 import com.lyricsflow.player.ui.widgets.basic.NavItem
 import com.lyricsflow.player.ui.widgets.basic.ShadowImageWithCache
-import com.lyricsflow.player.ui.widgets.basic.YosWrapper
+import com.lyricsflow.player.ui.widgets.basic.LyricsflowWrapper
 import com.lyricsflow.player.ui.widgets.glass.LocalAppBackdrop
+import com.lyricsflow.player.ui.widgets.glass.LocalInsideAppBackdrop
 import com.lyricsflow.player.ui.widgets.glass.LyricsFlowFloatingMiniPlayer
 import com.lyricsflow.player.ui.widgets.glass.LyricsFlowFloatingTabBar
+import com.lyricsflow.player.ui.widgets.glass.rememberFloatingTabBarScrollConnection
 import com.lyricsflow.player.ui.widgets.glass.rememberLiquidGlassBackdrop
 import java.io.File
 import kotlin.math.abs
@@ -196,7 +199,7 @@ class MainActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            YosMusicTheme {
+            LyricsflowMusicTheme {
                 ProvideWindowInsets {
                     val context = LocalContext.current
                     val density = LocalDensity.current
@@ -251,7 +254,7 @@ class MainActivity : BaseActivity() {
                         }
                         // 记录当前路线
 
-                        YosWrapper {
+                        LyricsflowWrapper {
                             val backstackEntry =
                                 navController.currentBackStackEntryAsState()
                             route.value =
@@ -259,7 +262,7 @@ class MainActivity : BaseActivity() {
                         }
 
                         // 显示控制区域
-                        val yosBottomSheetConfig = object {
+                        val lyricsflowBottomSheetConfig = object {
                             val progress
                                 get() = if (parentHeight.intValue == 0) 0f else abs(offsetY.value / parentHeight.intValue).coerceIn(
                                     0f,
@@ -286,7 +289,7 @@ class MainActivity : BaseActivity() {
 
                         val showNowPlaying = remember("MainActivity_showNowPlaying") {
                             derivedStateOf {
-                                yosBottomSheetConfig.menuAlpha < 0.3f
+                                lyricsflowBottomSheetConfig.menuAlpha < 0.3f
                             }
                         }
 
@@ -296,8 +299,8 @@ class MainActivity : BaseActivity() {
                             }
 
                         val hazeState = remember { HazeState() }
-                        YosWrapper {
-                            val isNight = isFlamingoInDarkMode()
+                        LyricsflowWrapper {
+                            val isNight = isLyricsFlowInDarkMode()
                             if (showNowPlaying.value) {
                                 rememberSystemUiController().run {
                                     setNavigationBarColor(
@@ -337,18 +340,20 @@ class MainActivity : BaseActivity() {
 
                         val pagerState = rememberPagerState(pageCount = { 5 })
                         val appBackdrop = rememberLiquidGlassBackdrop()
+                        val tabBarScrollConnection = rememberFloatingTabBarScrollConnection()
 
                         // 以下为实际显示
 
                         // 主界面
                         CompositionLocalProvider(LocalAppBackdrop provides appBackdrop) {
-                        YosWrapper {
+                        LyricsflowWrapper {
                             Surface(
                                 modifier = Modifier
                                     .fillMaxSize()
+                                    .nestedScroll(tabBarScrollConnection)
                                     .graphicsLayer {
                                         val thisMainContainerCardScale =
-                                            yosBottomSheetConfig.mainContainerCardScale
+                                            lyricsflowBottomSheetConfig.mainContainerCardScale
                                         scaleX = thisMainContainerCardScale
                                         scaleY = thisMainContainerCardScale
                                     }
@@ -356,16 +361,16 @@ class MainActivity : BaseActivity() {
                                         //compositingStrategy = CompositingStrategy.Offscreen
                                         //transformOrigin = TransformOrigin(0.5f, 1f)
 
-                                        if (yosBottomSheetConfig.thisShowCorner && !yosBottomSheetConfig.RTCorner) {
+                                        if (lyricsflowBottomSheetConfig.thisShowCorner && !lyricsflowBottomSheetConfig.RTCorner) {
                                             compositingStrategy = CompositingStrategy.Offscreen
                                             clip = true
-                                            shape = YosRoundedCornerShape(screenCorner.dp)
+                                            shape = LyricsflowRoundedCornerShape(screenCorner.dp)
                                         } else {
                                             compositingStrategy = CompositingStrategy.ModulateAlpha
                                             clip = false
                                         }
 
-                                        if (!yosBottomSheetConfig.barShowCorner) {
+                                        if (!lyricsflowBottomSheetConfig.barShowCorner) {
                                             alpha = 0f
                                         }
                                     }
@@ -376,7 +381,7 @@ class MainActivity : BaseActivity() {
                             ) {
                                 // 主界面本体
                                 SharedTransitionLayout {
-                                    YosWrapper {
+                                    LyricsflowWrapper {
                                         BackHandler(showNowPlaying.value) {
                                             // println("isVisible: ${showNowPlaying.value}, nowPageNowPlaying.value: ${nowPageNowPlaying.value}")
                                             if (nowPageNowPlaying.value != Album) {
@@ -391,7 +396,7 @@ class MainActivity : BaseActivity() {
                                         }
                                     }
 
-                                    YosWrapper {
+                                    LyricsflowWrapper {
                                         val animateSpeed = 340
                                         val animationSpec: FiniteAnimationSpec<IntSize> =
                                             tween(
@@ -403,6 +408,7 @@ class MainActivity : BaseActivity() {
                                                 durationMillis = animateSpeed - 160,
                                                 easing = EaseOutQuart
                                             )
+                                        CompositionLocalProvider(LocalInsideAppBackdrop provides true) {
                                         AnimatedNavHost(
                                             modifier = Modifier
                                                 .layerBackdrop(appBackdrop)
@@ -563,13 +569,14 @@ class MainActivity : BaseActivity() {
                                                 NotificationSetting(navController)
                                             }
                                         }
+                                        }
 
 
                                     }
                                 }
 
                                 // Bottom gradient behind floating tab bar
-                                YosWrapper {
+                                LyricsflowWrapper {
                                     val color =
                                         Color(0xFFF5F5F5) withNight Color.Black
                                     Box(
@@ -595,7 +602,7 @@ class MainActivity : BaseActivity() {
                             }
 
                             // 弹窗
-                            YosWrapper {
+                            LyricsflowWrapper {
                                 val showCornerSetDialog =
                                     remember("MainActivity_showCornerSetDialog") {
                                         mutableStateOf(!SettingsLibrary.ScreenCornerSet)
@@ -612,8 +619,8 @@ class MainActivity : BaseActivity() {
                         }
 
                         // 播放条&播放界面
-                        YosWrapper {
-                            if (height.intValue == 0) return@YosWrapper
+                        LyricsflowWrapper {
+                            if (height.intValue == 0) return@LyricsflowWrapper
 
                             Box(
                                 modifier = Modifier
@@ -625,12 +632,12 @@ class MainActivity : BaseActivity() {
                                         this.scaleX = 1f
                                         this.scaleY = 1f
                                         this.translationY =
-                                            -(height.intValue + 6) * (yosBottomSheetConfig.menuAlpha)
+                                            -(height.intValue + 6) * (lyricsflowBottomSheetConfig.menuAlpha)
                                         this.transformOrigin = TransformOrigin(0.5f, 1f)
                                     },
                                 contentAlignment = Alignment.BottomCenter
                             ) {
-                                YosWrapper {
+                                LyricsflowWrapper {
                                     val miniPlayerHeightPx = remember("MainActivity_miniPlayerHeightPx") {
                                         with(density) {
                                             miniPlayerHeight.toPx()
@@ -652,18 +659,18 @@ class MainActivity : BaseActivity() {
                                     Surface(
                                         modifier = Modifier
                                             .graphicsLayer {
-                                                translationY = if (yosBottomSheetConfig.progress <= 0.01f) {
+                                                translationY = if (lyricsflowBottomSheetConfig.progress <= 0.01f) {
                                                     0f
                                                 } else {
-                                                    ((parentHeight.intValue - miniPlayerHeightPx) * (1 - yosBottomSheetConfig.progress))
+                                                    ((parentHeight.intValue - miniPlayerHeightPx) * (1 - lyricsflowBottomSheetConfig.progress))
                                                 }
 
-                                                if (yosBottomSheetConfig.barShowCorner && yosBottomSheetConfig.progress > 0.04f) {
-                                                    shape = YosRoundedCornerShape(
-                                                        roundSize = yosBottomSheetConfig.barShapeValue.dp,
+                                                if (lyricsflowBottomSheetConfig.barShowCorner && lyricsflowBottomSheetConfig.progress > 0.04f) {
+                                                    shape = LyricsflowRoundedCornerShape(
+                                                        roundSize = lyricsflowBottomSheetConfig.barShapeValue.dp,
                                                         mSize = Size(
                                                             width = size.width,
-                                                            height = (miniPlayerHeightPx + (parentHeight.intValue - miniPlayerHeightPx) * yosBottomSheetConfig.progress)
+                                                            height = (miniPlayerHeightPx + (parentHeight.intValue - miniPlayerHeightPx) * lyricsflowBottomSheetConfig.progress)
                                                         )
                                                     )
                                                     shadowElevation = miniPlayerShadow
@@ -671,14 +678,14 @@ class MainActivity : BaseActivity() {
                                                 }
                                             }
                                             .graphicsLayer {
-                                                if (yosBottomSheetConfig.barShowCorner && yosBottomSheetConfig.progress > 0.04f) {
+                                                if (lyricsflowBottomSheetConfig.barShowCorner && lyricsflowBottomSheetConfig.progress > 0.04f) {
                                                     compositingStrategy = CompositingStrategy.Offscreen
                                                     clip = true
-                                                    shape = YosRoundedCornerShape(
-                                                        roundSize = yosBottomSheetConfig.barShapeValue.dp,
+                                                    shape = LyricsflowRoundedCornerShape(
+                                                        roundSize = lyricsflowBottomSheetConfig.barShapeValue.dp,
                                                         mSize = Size(
                                                             width = size.width,
-                                                            height = (miniPlayerHeightPx + (parentHeight.intValue - miniPlayerHeightPx) * yosBottomSheetConfig.progress)
+                                                            height = (miniPlayerHeightPx + (parentHeight.intValue - miniPlayerHeightPx) * lyricsflowBottomSheetConfig.progress)
                                                         )
                                                     )
                                                 } else {
@@ -711,7 +718,7 @@ class MainActivity : BaseActivity() {
                                                 }
                                             )
                                             .layout { measurable, constraints ->
-                                                val targetH = if (yosBottomSheetConfig.progress <= 0.01f) {
+                                                val targetH = if (lyricsflowBottomSheetConfig.progress <= 0.01f) {
                                                     miniPlayerHeightPx.toInt().coerceAtLeast(1)
                                                 } else {
                                                     parentHeight.intValue
@@ -737,13 +744,13 @@ class MainActivity : BaseActivity() {
                                             }
 
                                         // NowPlaying (only composed when expanding/expanded so it never intercepts touches when minimized)
-                                        YosWrapper {
-                                            if (yosBottomSheetConfig.progress > 0.01f) {
+                                        LyricsflowWrapper {
+                                            if (lyricsflowBottomSheetConfig.progress > 0.01f) {
                                                 Box(
                                                     modifier = Modifier
                                                         .fillMaxSize()
                                                         .graphicsLayer {
-                                                            alpha = yosBottomSheetConfig.progress.coerceIn(0f, 1f)
+                                                            alpha = lyricsflowBottomSheetConfig.progress.coerceIn(0f, 1f)
                                                         }
                                                 ) {
                                                     NowPlaying(
@@ -760,7 +767,7 @@ class MainActivity : BaseActivity() {
                                                         },
                                                         nowPageLambda = { nowPageNowPlaying.value },
                                                         showNowPlaying = { showNowPlaying.value },
-                                                        showMiniPlayer = { yosBottomSheetConfig.showMenu }
+                                                        showMiniPlayer = { lyricsflowBottomSheetConfig.showMenu }
                                                     ) {
                                                         nowPageNowPlaying.value = it
                                                     }
@@ -769,8 +776,8 @@ class MainActivity : BaseActivity() {
                                         }
 
                                         // iOS 26 / BitChord Floating Liquid Glass MiniPlayer (Android 13+ Liquid Glass, Android < 13 normal bar)
-                                        YosWrapper {
-                                            if (yosBottomSheetConfig.showMenu) {
+                                        LyricsflowWrapper {
+                                            if (lyricsflowBottomSheetConfig.showMenu) {
                                                 Column(
                                                     Modifier
                                                         .fillMaxSize()
@@ -778,11 +785,12 @@ class MainActivity : BaseActivity() {
                                                             compositingStrategy =
                                                                 CompositingStrategy.ModulateAlpha
                                                             this.alpha =
-                                                                yosBottomSheetConfig.menuAlpha
+                                                                lyricsflowBottomSheetConfig.menuAlpha
                                                         }
                                                 ) {
                                                     LyricsFlowFloatingMiniPlayer(
                                                         hazeState = hazeState,
+                                                        scrollConnection = tabBarScrollConnection,
                                                         onExpandClick = {
                                                             scope.launch {
                                                                 offsetY.animateTo(
@@ -801,13 +809,13 @@ class MainActivity : BaseActivity() {
                         }
 
                         // 底部导航栏 (iOS 26 / BitChord Liquid Glass Floating Tab Bar on Android 13+, normal bar on Android < 13)
-                        if (yosBottomSheetConfig.menuAlpha > 0.01f) {
+                        if (lyricsflowBottomSheetConfig.menuAlpha > 0.01f) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .graphicsLayer {
-                                        alpha = yosBottomSheetConfig.menuAlpha
-                                        translationY = height.intValue * yosBottomSheetConfig.progress
+                                        alpha = lyricsflowBottomSheetConfig.menuAlpha
+                                        translationY = height.intValue * lyricsflowBottomSheetConfig.progress
                                     },
                                 contentAlignment = Alignment.BottomCenter
                             ) {
@@ -817,7 +825,7 @@ class MainActivity : BaseActivity() {
                                         nowLabel.value = when (selectedIdx) {
                                             0 -> "Home"
                                             1 -> "New"
-                                            2 -> "Radio"
+                                            2 -> "Stats"
                                             3 -> "Library"
                                             4 -> "Search"
                                             else -> "Home"
@@ -833,6 +841,7 @@ class MainActivity : BaseActivity() {
                                         }
                                     },
                                     hazeState = hazeState,
+                                    scrollConnection = tabBarScrollConnection,
                                     modifier = Modifier.onSizeChanged {
                                         height.intValue = it.height
                                     }
@@ -943,7 +952,7 @@ private fun BluetoothDevice.isConnected(): Boolean
             }
         }
 
-        YosWrapper {
+        LyricsflowWrapper {
             LaunchedEffect(Unit) {
 
                 var permissions = emptyArray<String>()
@@ -1008,7 +1017,7 @@ private fun BluetoothDevice.isConnected(): Boolean
             val bottomSheetState = rememberModalBottomSheetState()
             val scope = rememberCoroutineScope()
 
-            YosWrapper {
+            LyricsflowWrapper {
                 OptionDialog(
                     title = stringResource(id = R.string.permission_grant_title),
                     subTitle = stringResource(id = R.string.permission_grant_subtitle),

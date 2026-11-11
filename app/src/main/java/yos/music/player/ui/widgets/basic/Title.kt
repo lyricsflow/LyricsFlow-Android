@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,6 +28,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -320,7 +323,8 @@ private fun BaseTitleGrid(
         ) {
             item(key = "title", span = { GridItemSpan(columns()) }) {
                 Column {
-                    Spacer(modifier = Modifier.statusBarsHeight())
+                    val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding().coerceAtLeast(32.dp)
+                    Spacer(modifier = Modifier.height(statusTop))
                     TitleItem(
                         title,
                         subTitle,
@@ -409,7 +413,8 @@ private fun BaseTitleList(
         ) {
             item("title") {
                 Column {
-                    Spacer(modifier = Modifier.statusBarsHeight())
+                    val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding().coerceAtLeast(32.dp)
+                    Spacer(modifier = Modifier.height(statusTop))
                     TitleItem(
                         title,
                         subTitle,
@@ -513,7 +518,6 @@ fun TitleBarIcon(modifier: Modifier = Modifier, icon: ImageVector? = null, onBac
     if (icon != null) {
         Box(
             modifier = Modifier
-                .statusBarsPadding()
                 .padding(end = 10.dp)
                 .size(28.dp)
                 .background((Color.LightGray withNight Color.DarkGray).copy(alpha = 0.25f), shape = CircleShape)
@@ -547,10 +551,11 @@ private fun TitleBar(
     showDivider: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
+    val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding().coerceAtLeast(32.dp)
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .statusBarsHeight(54.dp)
+            .height(statusTop + 54.dp)
             .clickable(enabled = false, onClick = {})
     ) {
         AnimatedVisibility(
@@ -583,15 +588,14 @@ private fun TitleBar(
         Column(
             Modifier
                 .fillMaxWidth()
-                .padding(top = 5.dp)
+                .padding(top = statusTop + 5.dp)
         ) {
-            Box(Modifier.statusBarsHeight(48.dp), contentAlignment = Alignment.CenterStart) {
+            Box(Modifier.height(48.dp), contentAlignment = Alignment.CenterStart) {
                 if (onBack != null) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_back),
                         contentDescription = null,
                         modifier = Modifier
-                            .statusBarsPadding()
                             .padding(horizontal = 10.dp)
                             .size(17.5.dp)
                             .clickable(
@@ -606,7 +610,6 @@ private fun TitleBar(
                 Column(
                     Modifier
                         .fillMaxWidth()
-                        .statusBarsPadding()
                         .height(48.dp)
                         .padding(horizontal = 70.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,

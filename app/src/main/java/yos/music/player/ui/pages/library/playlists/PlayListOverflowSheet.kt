@@ -50,12 +50,12 @@ import com.lyricsflow.player.code.utils.others.Vibrator
 import com.lyricsflow.player.data.libraries.PlayList
 import com.lyricsflow.player.data.libraries.PlayListLibrary
 import com.lyricsflow.player.data.libraries.PlayListLibrary.playList
-import com.lyricsflow.player.data.libraries.YosMediaItem
-import com.lyricsflow.player.ui.theme.YosRoundedCornerShape
+import com.lyricsflow.player.data.libraries.LyricsflowMediaItem
+import com.lyricsflow.player.ui.theme.LyricsflowRoundedCornerShape
 import com.lyricsflow.player.ui.theme.withNight
 import com.lyricsflow.player.ui.widgets.basic.ActionItem
 import com.lyricsflow.player.ui.widgets.basic.ActionSheetBody
-import com.lyricsflow.player.ui.widgets.basic.YosBottomSheetDialog
+import com.lyricsflow.player.ui.widgets.basic.LyricsflowBottomSheetDialog
 import com.lyricsflow.player.ui.widgets.playlist.PlayListPickerContent
 
 /**
@@ -108,7 +108,7 @@ fun PlayListOverflowSheet(
         screen = OverflowScreen.Menu
     }
 
-    YosBottomSheetDialog(
+    LyricsflowBottomSheetDialog(
         bottomSheetState = sheetState,
         blurred = true,
         onDismissRequest = onDismiss,
@@ -152,7 +152,7 @@ fun PlayListSortSheet(isOpen: MutableState<Boolean>) {
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    YosBottomSheetDialog(
+    LyricsflowBottomSheetDialog(
         bottomSheetState = sheetState,
         onDismissRequest = { isOpen.value = false },
     ) {
@@ -230,7 +230,7 @@ private fun OverflowMenuBody(
 @Composable
 private fun PlayListOverflowHeader(playList: PlayList) {
     val context = LocalContext.current
-    val shape = YosRoundedCornerShape(8.dp)
+    val shape = LyricsflowRoundedCornerShape(8.dp)
     val songsInPlaylist = androidx.compose.runtime.remember(playList.songDataList) {
         playList.songDataList.mapNotNull { uri ->
             com.lyricsflow.player.data.libraries.MusicLibrary.songs.firstOrNull { it.uri == uri }
@@ -441,11 +441,11 @@ internal fun BulkAddToPlaylistBody(
 }
 
 /**
- * Build a minimal [YosMediaItem] holding only the URI. [PlayList]
+ * Build a minimal [LyricsflowMediaItem] holding only the URI. [PlayList]
  * stores raw URIs so this stub is sufficient for the data layer.
  * Metadata fields are nullable on the model so we leave them null.
  */
-private fun uriStubMedia(uri: android.net.Uri) = YosMediaItem(
+private fun uriStubMedia(uri: android.net.Uri) = LyricsflowMediaItem(
     uri = uri,
     mediaId = null, mimeType = null,
     title = null, writer = null, compilation = null, composer = null,

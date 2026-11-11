@@ -24,9 +24,9 @@ import java.util.UUID
 @Stable
 @Parcelize
 data class PlayList(
-    val listID: String,
-    val name: String,
-    val songDataList: List<Uri>,
+    val listID: String = UUID.randomUUID().toString(),
+    val name: String = "",
+    val songDataList: List<Uri> = emptyList(),
     val description: String? = null,
     /** Custom cover image URI (content:// or file://) chosen by the user.
      *  When null the playlist falls back to the auto-generated collage
@@ -39,7 +39,14 @@ data class PlayList(
      *  Only meaningful when [isPinned] is true. Gaps are tolerated;
      *  unpin clears the value (PRD FR-P-06/07). */
     val pinOrder: Int? = null,
-) : Parcelable
+) : Parcelable {
+    val safeId: String
+        get() = runCatching { listID as String? }.getOrNull()?.takeIf { it.isNotBlank() } ?: name.ifBlank { "playlist" }
+    val safeName: String
+        get() = runCatching { name as String? }.getOrNull() ?: ""
+    val safeSongs: List<Uri>
+        get() = runCatching { songDataList as List<Uri>? }.getOrNull()?.filterNotNull() ?: emptyList()
+}
 
 @Stable
 object PlayListLibrary {
@@ -47,7 +54,7 @@ object PlayListLibrary {
     @Stable
     var playList by mutableDataSaverListStateOf(
         dataSaverInterface = PlayListSaver,
-        key = "yos_play_list",
+        key = "lyricsflow_play_list",
         initialValue = listOf<PlayList>()
     )
         private set
@@ -70,7 +77,7 @@ object PlayListLibrary {
         }
     }
 
-    fun PlayList.addMusic(music: YosMediaItem) {
+    fun PlayList.addMusic(music: LyricsflowMediaItem) {
         // PRD FR-E-13: duplicates allowed at the data layer; callers
         // that want dedupe must check before invoking.
         val uri = music.uri ?: return
@@ -82,7 +89,7 @@ object PlayListLibrary {
      * does its own index-based bulk removal via [replaceSongs] — this
      * helper exists for single-song flows (e.g. NowPlaying overflow).
      */
-    fun PlayList.removeMusic(music: YosMediaItem) {
+    fun PlayList.removeMusic(music: LyricsflowMediaItem) {
         val idx = songDataList.indexOfFirst { it == music.uri }
         if (idx < 0) return
         replace(this, copy(songDataList = songDataList.toMutableList().also { it.removeAt(idx) }))
@@ -164,20 +171,20 @@ object FavPlayListLibrary {
     @Stable
     var favPlayList by mutableDataSaverListStateOf(
         dataSaverInterface = PlayListSaver,
-        key = "yos_fav_play_list",
-        initialValue = listOf<YosMediaItem>()
+        key = "lyricsflow_fav_play_list",
+        initialValue = listOf<LyricsflowMediaItem>()
     )
         private set
 
-    fun addMusic(music: YosMediaItem) {
+    fun addMusic(music: LyricsflowMediaItem) {
         if (!favPlayList.any { it.uri == music.uri }) {
             favPlayList += music
         }
     }
 
-    fun removeMusic(music: YosMediaItem) {
+    fun removeMusic(music: LyricsflowMediaItem) {
         favPlayList -= music
     }
 
-    fun isFavorite(music: YosMediaItem): Boolean = favPlayList.any { it.uri == music.uri }
+    fun isFavorite(music: LyricsflowMediaItem): Boolean = favPlayList.any { it.uri == music.uri }
 }

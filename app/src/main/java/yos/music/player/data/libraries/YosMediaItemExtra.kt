@@ -1,7 +1,7 @@
 package com.lyricsflow.player.data.libraries
 
-val YosMediaItem.artistsList: List<String>?
+val LyricsflowMediaItem.artistsList: List<String>?
     get() = this.artists?.toMultipleArtists()
 
-val YosMediaItem.artistsName: String?
+val LyricsflowMediaItem.artistsName: String?
     get() = this.artistsList?.toArtistsString()
